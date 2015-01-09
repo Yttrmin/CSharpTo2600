@@ -11,18 +11,21 @@ namespace ScreenColors
     static class TestGame
     {
         // Just to test multi-byte vars and endianness.
-        private static long ULongVar;
+        private static ulong ULongVar;
         // Static fields become globals of the same name.
         // May have to be mangled when multiple classes are added.
         private static byte Color;
+        private static int IntTest;
 
-        // Called exactly once at startup. Called Main() to please compiler since we need an entry point.
+        // Called once at startup.
         // These attributes are mandatory. The compiler will not infer speciality from the name alone.
         // Attributes have the added advantage of making speciality very clear.
         [SpecialMethod(MethodType.Initialize)]
-        static void Main()
+        static void Initialize()
         {
             Color = 0xAB;
+            //Color = (byte)(Color + 5);
+            //IntTest = Color + 5;
             ULongVar = 0x0123456789ABCDEF;
         }
 
@@ -30,8 +33,8 @@ namespace ScreenColors
         [SpecialMethod(MethodType.Tick)]
         static void Tick()
         {
-            BackgroundColor = Color;
-            Color++;
+            //BackgroundColor = Color;
+            //Color++;
         }
 
         // Contains all kernels. Called after VSync.
@@ -39,10 +42,10 @@ namespace ScreenColors
         [SpecialMethod(MethodType.Kernel)]
         static void Kernel()
         {
-            for (var i = 0; i < 192; i++)
-            {
-                WSync();
-            }
+            //for (var i = 0; i < 192; i++)
+            //{
+            //    WSync();
+            //}
         }
     }
 }

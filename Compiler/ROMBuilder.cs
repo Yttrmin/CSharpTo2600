@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 namespace CSharpTo2600.Compiler
 {
-    class ROMBuilder
+    internal class ROMBuilder
     {
         private static readonly Range RAMRange = new Range(0x80, 0xFF);
         private readonly List<GlobalInfo> Globals;
@@ -60,8 +60,21 @@ namespace CSharpTo2600.Compiler
             {
                 VariableStart = Globals.Last().Address.End + 1;
             }
-            var Global = new GlobalInfo(Type, Name, new Range(VariableStart, VariableStart + Marshal.SizeOf(Type) - 1));
-            Globals.Add(Global);
+            var AddressRange = new Range(VariableStart, VariableStart + Marshal.SizeOf(Type) - 1);
+            AddGlobalVariable(Type, Name, AddressRange);
+        }
+
+        private void AddGlobalVariable(Type Type, string Name, Range Address)
+        {
+            var NewGlobal = new GlobalInfo(Type, Name, Address);
+            foreach(var Global in Globals)
+            {
+                if(NewGlobal.ConflictsWith(Global))
+                {
+                    throw new FatalCompilationException("Attempted to add a new global [\{NewGlobal}] that conflicts with an existing global [\{Global}]");
+                }
+            }
+            Globals.Add(NewGlobal);
         }
 
         public GlobalInfo GetGlobal(string Name)
@@ -129,6 +142,24 @@ ClearMem
             this.Type = Type;
             this.Name = Name;
             this.Address = Address;
+        }
+
+        public bool ConflictsWith(GlobalInfo Other)
+        {
+            if(this.Name == Other.Name)
+            {
+                return true;
+            }
+            if(this.Address.Overlaps(Other.Address))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public override string ToString()
+        {
+            return "\{Type} \{Name} (\{Address})";
         }
     }
 }
