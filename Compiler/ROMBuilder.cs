@@ -13,11 +13,47 @@ namespace CSharpTo2600.Compiler
         private static readonly Range RAMRange = new Range(0x80, 0xFF);
         private readonly List<GlobalInfo> Globals;
         private readonly List<Subroutine> Subroutines;
+        private int NextGlobalStart;
 
         public ROMBuilder()
         {
             Subroutines = new List<Subroutine>();
             Globals = new List<GlobalInfo>();
+            ReserveGlobals();
+            NextGlobalStart = RAMRange.Start;
+        }
+
+        private void ReserveGlobals()
+        {
+            // Reserve symbols used in VCS.h to ensure no conflicts.
+            // DASM symbols are case-sensitive. So someone can name their variable
+            // "VSyNC" if they really want to.
+            // Offsets are important for if we ever support cartridges with bank switching.
+            // The addresses aren't particularly important, but we have the field in
+            // GlobalInfo so we might as well use it correctly.
+
+            // TIA Write
+            AddReservedGlobals(0, "VSYNC", "VBLANK", "WSYNC", "RSYNC", "NUSIZ0", "NUSIZ1",
+                "COLUP0", "COLUP1", "COLUPF", "COLUBK", "CTRLPF", "REFP0", "REFP1", "PF0", 
+                "PF1", "PF2", "RESP0", "RESP1", "RESM0", "RESM1", "RESBL", "AUDC0", "AUDC1", 
+                "AUDF0", "AUDF1", "AUDV0", "AUDV1", "GRP0", "GRP1", "ENAM0", "ENAM1", "ENABL", 
+                "HMP0", "HMP1", "HMM0", "HMM1", "HMBL", "VDELP0", "VDELP1", "VDELBL", "RESMP0",
+                "RESMP1", "HMOVE", "HMCLR", "CXCLR");
+            // TIA Read. Yes, they overlap TIA Write.
+            AddReservedGlobals(0, "CXM0P", "CXM1P", "CXP0FB", "CXP1FB", "CXM0FB", "CXM1FB",
+                "CXBLPF", "CXPPMM", "INPT0", "INPT1", "INPT2", "INPT3", "INPT4", "INPT5");
+            // RIOT
+            AddReservedGlobals(0x280, "SWCHA", "SWACNT", "SWCHB", "SWBCNT", "INTIM", "TIMINT");
+            AddReservedGlobals(0x294, "TIM1T", "TIM8T", "TIM64T", "T1024T");
+        }
+
+        private void AddReservedGlobals(int Offset, params string[] Names)
+        {
+            for(var i = 0; i < Names.Length; i++)
+            {
+                var Address = new Range(Offset + i, Offset + i);
+                AddGlobalVariable(typeof(byte), Names[i], Address, false, false);
+            }
         }
 
         public void AddSubroutine(Subroutine Subroutine)
@@ -46,34 +82,26 @@ namespace CSharpTo2600.Compiler
             {
                 throw new ArgumentException("No reference types are supported yet.");
             }
-            if(Globals.Exists(g => g.Name == Name))
-            {
-                throw new ArgumentException("Variable of name \"\{Name}\" already decalred. Should be caught by compiler?");
-            }
 
-            var VariableStart = 0;
-            if(Globals.Count == 0)
+            var AddressRange = new Range(NextGlobalStart, NextGlobalStart + Marshal.SizeOf(Type) - 1);
+            if(!RAMRange.Contains(AddressRange))
             {
-                VariableStart = RAMRange.Start;
+                throw new FatalCompilationException("Ran out of RAM trying to add new global [\{Type} \{Name}]");
             }
-            else
-            {
-                VariableStart = Globals.Last().Address.End + 1;
-            }
-            var AddressRange = new Range(VariableStart, VariableStart + Marshal.SizeOf(Type) - 1);
-            AddGlobalVariable(Type, Name, AddressRange);
+            AddGlobalVariable(Type, Name, AddressRange, true, true);
         }
 
-        private void AddGlobalVariable(Type Type, string Name, Range Address)
+        private void AddGlobalVariable(Type Type, string Name, Range Address, bool Emit, bool ConflictCheck)
         {
-            var NewGlobal = new GlobalInfo(Type, Name, Address);
-            foreach(var Global in Globals)
+            var NewGlobal = new GlobalInfo(Type, Name, Address, Emit);
+            if(ConflictCheck)
             {
-                if(NewGlobal.ConflictsWith(Global))
+                if(Globals.Any(g => g.ConflictsWith(NewGlobal)))
                 {
-                    throw new FatalCompilationException("Attempted to add a new global [\{NewGlobal}] that conflicts with an existing global [\{Global}]");
+                    throw new FatalCompilationException("Attempted to add a new global [\{NewGlobal}] that conflicts with an existing global.");
                 }
             }
+            NextGlobalStart = Address.End + 1;
             Globals.Add(NewGlobal);
         }
 
@@ -86,6 +114,7 @@ namespace CSharpTo2600.Compiler
         {
             Writer.WriteLine("; Beginning of compiler-generated source file.");
             Writer.WriteLine("\tprocessor 6502");
+            //@TODO - TIA_BASE_ADDRESS
             Writer.WriteLine("\tinclude vcs.h");
             Writer.WriteLine("\torg $F000");
             Writer.WriteLine();
@@ -94,7 +123,7 @@ namespace CSharpTo2600.Compiler
         private void WriteGlobals(StreamWriter Writer)
         {
             Writer.WriteLine(";Globals");
-            foreach(var Global in Globals)
+            foreach(var Global in Globals.Where(g => g.Emit))
             {
                 Writer.WriteLine("\{Global.Name} = $\{Global.Address.Start.ToString("X")} ; \{Global.Type} (\{Global.Size} bytes)");
             }
@@ -124,7 +153,7 @@ ClearMem
             Writer.WriteLine(Subroutine.Name);
             foreach(var Instruction in Subroutine.Instructions)
             {
-                Writer.WriteLine("\t\{Instruction.Text} ; \{Instruction.Cycles} cycles");
+                Writer.WriteLine("\t\{Instruction.Text}");
             }
             Writer.WriteLine();
         }
@@ -135,13 +164,15 @@ ClearMem
         public readonly Type Type;
         public readonly string Name;
         public readonly Range Address;
+        public readonly bool Emit;
         public int Size { get { return Marshal.SizeOf(Type); } }
 
-        public GlobalInfo(Type Type, string Name, Range Address)
+        public GlobalInfo(Type Type, string Name, Range Address, bool Emit)
         {
             this.Type = Type;
             this.Name = Name;
             this.Address = Address;
+            this.Emit = Emit;
         }
 
         public bool ConflictsWith(GlobalInfo Other)

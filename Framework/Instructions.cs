@@ -4,6 +4,11 @@ namespace CSharpTo2600.Framework
 {
     public static class Instructions
     {
+        public static InstructionInfo Comment(string Comment)
+        {
+            return new InstructionInfo("; \{Comment}", 0);
+        }
+
         // Clear decimal bit.
         public static InstructionInfo CLD()
         {

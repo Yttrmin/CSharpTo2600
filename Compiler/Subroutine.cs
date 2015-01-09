@@ -5,10 +5,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CSharpTo2600.Compiler
 {
@@ -18,6 +14,7 @@ namespace CSharpTo2600.Compiler
         {
             private readonly List<InstructionInfo> Instructions;
             private readonly Compiler Compiler;
+            private SemanticModel Model { get { return Compiler.Model; } }
             private readonly string Name;
             private readonly MethodType Type;
 
@@ -38,6 +35,11 @@ namespace CSharpTo2600.Compiler
                 return new Subroutine(Name, Instructions.ToImmutableArray(), Type);
             }
 
+            public void Append(InstructionInfo Instruction)
+            {
+                Instructions.Add(Instruction);
+            }
+
             public void Append(AssignmentExpressionSyntax e)
             {
                 if(!e.IsKind(SyntaxKind.SimpleAssignmentExpression))
@@ -47,8 +49,8 @@ namespace CSharpTo2600.Compiler
 
                 // First, get info on the left side of the expression. What variable we storing to?
                 //@TODO - Property setters are also a possibility here.
-                var VarInfo = Compiler.Model.GetSymbolInfo(e.Left).Symbol;
-                var VarType = e.Left.ToType(Compiler.Model);
+                var VarInfo = Model.GetSymbolInfo(e.Left).Symbol;
+                var VarType = e.Left.ToType(Model);
 
                 if (VarInfo.Kind == SymbolKind.Local)
                 {

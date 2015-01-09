@@ -26,6 +26,12 @@
                 || Other.End >= this.Start && Other.End <= this.End;
         }
 
+        public bool Contains(Range Other)
+        {
+            return Other.Start >= this.Start
+                && Other.End <= this.End;
+        }
+
         public static bool operator ==(Range A, Range B)
         {
             return A.Equals(B);

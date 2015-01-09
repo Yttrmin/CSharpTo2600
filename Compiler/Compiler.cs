@@ -107,6 +107,10 @@ namespace CSharpTo2600.Compiler
             foreach(var ExpressionStatement in Expressions)
             {
                 var Expression = ExpressionStatement.ChildNodes().Single();
+                // Emit source line as a comment for debugging.
+                var CommentPieces = Expression.ToString().Split(new[] { Environment.NewLine, " " }, StringSplitOptions.RemoveEmptyEntries);
+                var Comment = string.Join(" ", CommentPieces);
+                Builder.Append(Instructions.Comment(Comment));
                 // Lets us give each expression its own convenient method at the cost of invoking the DLR.
                 // I have absolutely zero concerns about performance.
                 Builder.Append(Expression as dynamic);
