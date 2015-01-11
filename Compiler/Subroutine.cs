@@ -10,6 +10,7 @@ namespace CSharpTo2600.Compiler
 {
     partial class Compiler
     {
+        [Obsolete("Use MethodCompiler", true)]
         private class SubroutineBuilder
         {
             private readonly List<InstructionInfo> Instructions;
