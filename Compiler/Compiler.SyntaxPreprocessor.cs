@@ -22,22 +22,7 @@ namespace CSharpTo2600.Compiler
 
             public override SyntaxNode VisitExpressionStatement(ExpressionStatementSyntax node)
             {
-                var Children = base.Visit(node.Expression);
-				// If the child expression has the Modified annotation, we know its really
-				// a BlockSyntax of a simplified assignment.
-                if (Children.HasAnnotations("Modified"))
-                {
-                    var Annotation = Children.GetAnnotations("Modified").Single();
-                    var Block = (BlockSyntax)Children;
-                    var Expression = SyntaxFactory.ParseExpression(Annotation.Data);
-                    Block = Block.AddStatements(SyntaxFactory.ExpressionStatement(
-                        Expression));
-                    return Block;
-                }
-                else
-                {
-                    return Children;
-                }
+                return base.Visit(node.Expression);
             }
 
             public override SyntaxNode VisitAssignmentExpression(AssignmentExpressionSyntax node)
@@ -52,39 +37,34 @@ namespace CSharpTo2600.Compiler
                 var ChangedResult = Result as BlockSyntax;
                 if (ChangedResult != null)
                 {
-					// This is largely terrible because of using annotations.
-					//@TODO - Don't use annotations.
-					// Basically, we're just finishing up the assignment expression. Our left side will stay the same,
-					// but the right side needs to be put together.
-                    var Annotations = ChangedResult.GetAnnotations("FragmentL");
-                    var Annotation = Annotations.Count() == 0 ? ChangedResult.GetAnnotations("FragmentR").Single() : Annotations.Single();
+                    // Basically, we're just finishing up the assignment expression. Our left side will stay the same,
+                    // but the right side needs to be put together.
+                    // Extract the statement from the Block and remove it from the Block.
+                    var Fragment = (ExpressionStatementSyntax)ChangedResult.Statements.Last();
+                    var FragmentExpression = Fragment.Expression;
+                    ChangedResult = ChangedResult.RemoveNode(Fragment, SyntaxRemoveOptions.KeepNoTrivia);
+                    // Find out what side of the binary expression this expression belongs to. Matters for
+                    // operations that aren't commutative.
+                    var Side = Fragment.GetAnnotations("Fragment").Single().Data;
+                    // Get the identifier of the local that will replace the other side of the binary expression.
                     var LastLocal = ChangedResult.Statements.OfType<LocalDeclarationStatementSyntax>().Last();
                     var LastVarIdentifier = SyntaxFactory.IdentifierName(LastLocal.Declaration.Variables.Single().Identifier);
-                    var BinaryKind = ((BinaryExpressionSyntax)node.Right).CSharpKind();
-                    if (Annotation.Kind == "FragmentL")
-                    {
-                        var Assignment = SyntaxFactory.AssignmentExpression(node.CSharpKind(),
-                            node.Left,
-                            SyntaxFactory.BinaryExpression(BinaryKind,
-                                SyntaxFactory.ParseExpression(Annotation.Data),
-                                LastVarIdentifier));
-                        var NewAnnotation = new SyntaxAnnotation("Modified", Assignment.ToString());
-                        ChangedResult = ChangedResult.WithAdditionalAnnotations(NewAnnotation);
-						// Everything is put back together, return the Block and all our locals and whatnot
-						// are added to the tree.
-                        return ChangedResult;
-                    }
-                    else if (Annotation.Kind == "FragmentR")
-                    {
-                        var Assignment = SyntaxFactory.AssignmentExpression(node.CSharpKind(),
-                            node.Left,
-                            SyntaxFactory.BinaryExpression(BinaryKind,
-                                LastVarIdentifier,
-                                SyntaxFactory.ParseExpression(Annotation.Data)));
-                        var NewAnnotation = new SyntaxAnnotation("Modified", Assignment.ToString());
-                        ChangedResult = ChangedResult.WithAdditionalAnnotations(NewAnnotation);
-                        return ChangedResult;
-                    }
+                    var BinaryKind = node.Right.CSharpKind();
+                    // Determine the left and right side of the new binary expression based on which side the fragment
+                    // belongs to.
+                    var LeftSide = Side == "Right" ? LastVarIdentifier : FragmentExpression;
+                    var RightSide = Side == "Right" ? FragmentExpression : LastVarIdentifier;
+                    // Construct the new AssignmentExpression...
+                    var Assignment = SyntaxFactory.AssignmentExpression(node.CSharpKind(),
+                        node.Left,
+                        SyntaxFactory.BinaryExpression(
+                            BinaryKind,
+                            LeftSide,
+                            RightSide));
+                    // And wrap it in an ExpressionStatement and add it to the Block. All done.
+                    ChangedResult = ChangedResult.AddStatements(SyntaxFactory.ExpressionStatement(Assignment));
+                    ChangedResult = ChangedResult.WithAdditionalAnnotations(new SyntaxAnnotation("Modified"));
+                    return ChangedResult;
                 }
                 throw new InvalidOperationException();
             }
@@ -106,23 +86,15 @@ namespace CSharpTo2600.Compiler
                     var Nested = GetNestedExpression(node);
 					// We are the root BinaryExpression, this block holds the result of all nested ones.
                     Block = BinaryExpressionToLocal(Nested, Block);
-
-                    // Unfortunately we can't add our BinaryExpression to the Block, because it's not a statement.
-					//@TODO - Could we just use ExpressionStatement factory method instead of annotation garbage?
-                    if (Nested == node.Left)
-                    {
-						// This is terrible.
-                        Block = Block.WithAdditionalAnnotations(new SyntaxAnnotation("FragmentR", node.Right.ToString()));
-                    }
-                    else if (Nested == node.Right)
-                    {
-                        Block = Block.WithAdditionalAnnotations(new SyntaxAnnotation("FragmentL", node.Left.ToString()));
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException();
-                    }
-
+                    // Still need this annotation to later on determine which side of the binary expression
+                    // this goes on?
+                    var FragmentString = Nested == node.Left ? "Right" : "Left";
+                    var Fragment = FragmentString == "Right" ? node.Right : node.Left;
+                    // Just put the fragment in an ExpressionStatement so we can put in the block, removing
+                    // and modifying it later.
+                    var FragmentStatement = SyntaxFactory.ExpressionStatement(Fragment).WithAdditionalAnnotations(
+                        new SyntaxAnnotation("Fragment", FragmentString));
+                    Block = Block.AddStatements(FragmentStatement);
                     Block = Block.WithTrailingTrivia(SyntaxFactory.Comment("// End of local var extraction."));
                     return Block;
                 }
