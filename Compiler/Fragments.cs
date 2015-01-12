@@ -7,7 +7,7 @@ using CSharpTo2600.Framework.Instructions;
 
 namespace CSharpTo2600.Compiler
 {
-    internal static class Fragments
+    internal static partial class Fragments
     {
         static Fragments()
         {
@@ -30,6 +30,19 @@ namespace CSharpTo2600.Compiler
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
             return StackDeallocate(Size);
+        }
+
+        public static IEnumerable<InstructionInfo> PushLiteral(object Value)
+        {
+            VerifyType(Value.GetType());
+            var Size = Marshal.SizeOf(Value.GetType());
+            var Bytes = StructToByteArray(Value, Size);
+            // I know this is basically LoadIntoVariable. Bear with me.
+            for(var i = 0; i < Bytes.Length; i++)
+            {
+                yield return LDA(Bytes[i]);
+                yield return PHA();
+            }
         }
 
         private static IEnumerable<InstructionInfo> StackAllocate(int Bytes)
@@ -58,11 +71,6 @@ namespace CSharpTo2600.Compiler
                 // Manually add stack pointer. Less cycles than >2 PHA
                 throw new NotImplementedException();
             }
-        }
-
-        public static IEnumerable<InstructionInfo> Addition()
-        {
-            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -123,7 +131,11 @@ namespace CSharpTo2600.Compiler
             {
                 throw new ArgumentException("Type can not be a char.");
             }
-            
+            //@REMOVEME
+            if(Type != typeof(byte))
+            {
+                throw new ArgumentException("Only bytes supported.");
+            }
         }
 
         private static byte[] StructToByteArray(object Struct, int Size)

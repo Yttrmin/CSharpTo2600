@@ -9,6 +9,34 @@ namespace CSharpTo2600.Framework
             return new InstructionInfo("; \{Comment}", 0);
         }
 
+        /// <summary>
+        /// Add with Carry [Absolute indexed] (4 cycles)
+        /// </summary>
+        public static InstructionInfo ADC(int Offset, Index IndexRegister)
+        {
+            return new InstructionInfo("ADC $\{Offset.ToString("X4")},\{IndexRegister}", 4);
+        }
+
+        /// <summary>
+        /// Add with Carry [Zero-page indexed] (4 cycles)
+        /// </summary>
+        public static InstructionInfo ADC(byte Offset, Index IndexRegister)
+        {
+            if (IndexRegister != Index.X)
+            {
+                throw new ArgumentException("Invalid index register.", nameof(IndexRegister));
+            }
+            return new InstructionInfo("ADC $\{Offset.ToString("X2")},\{IndexRegister}", 4);
+        }
+
+        /// <summary>
+        /// Clear Carry Flag (2 cycles)
+        /// </summary>
+        public static InstructionInfo CLC()
+        {
+            return new InstructionInfo("CLC", 2);
+        }
+
         // Clear decimal bit.
         public static InstructionInfo CLD()
         {
@@ -37,10 +65,26 @@ namespace CSharpTo2600.Framework
             return new InstructionInfo("PLA", 4);
         }
 
+        /// <summary>
+        /// Subtract with Carry [Absolute indexed] (4 cycles)
+        /// </summary>
+        public static InstructionInfo SBC(int Offset, Index IndexRegister)
+        {
+            return new InstructionInfo("SBC $\{Offset.ToString("X4")},\{IndexRegister}", 4);
+        }
+
         // Set interrupt disable status.
         public static InstructionInfo SEI()
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Set Carry Flag (2 cycles)
+        /// </summary>
+        public static InstructionInfo SEC()
+        {
+            return new InstructionInfo("SEC", 2);
         }
 
         // Store accumulator in memory.
@@ -55,7 +99,11 @@ namespace CSharpTo2600.Framework
         /// </summary>
         public static InstructionInfo STA(byte Offset, Index IndexRegister)
         {
-            return new InstructionInfo("STA $\{Offset.ToString("X")},\{IndexRegister}", 4);
+            return new InstructionInfo("STA $\{Offset.ToString("X2")},\{IndexRegister}", 4);
+        }
+        public static InstructionInfo STA(int Offset, Index IndexRegister)
+        {
+            return new InstructionInfo("STA $\{Offset.ToString("X4")},\{IndexRegister}", 4);
         }
         public static InstructionInfo STA(string Name)
         {
@@ -107,7 +155,6 @@ namespace CSharpTo2600.Framework
 
     public enum Index
     {
-        None,
         X,
         Y
     }

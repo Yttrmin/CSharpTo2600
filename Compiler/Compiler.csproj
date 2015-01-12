@@ -109,6 +109,7 @@
   <ItemGroup>
     <Compile Include="Compiler.MethodCompiler.cs" />
     <Compile Include="Compiler.SyntaxPreprocessor.cs" />
+    <Compile Include="Fragments.Math.cs" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

@@ -37,7 +37,7 @@ namespace CSharpTo2600.Compiler
             FrameworkAssembly = typeof(Atari2600Game).Assembly;
             ROMBuilder = new ROMBuilder();
 
-            this.Compilation = Preprocess(Compilation);
+            this.Compilation = Compilation;
             
             using (var Stream = new MemoryStream())
             {
