@@ -21,6 +21,22 @@ namespace CSharpTo2600.Framework
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Push Accumulator (3 cycles)
+        /// </summary>
+        public static InstructionInfo PHA()
+        {
+            return new InstructionInfo("PHA", 3);
+        }
+
+        /// <summary>
+        /// Pull Accumulator (4 cycles)
+        /// </summary>
+        public static InstructionInfo PLA()
+        {
+            return new InstructionInfo("PLA", 4);
+        }
+
         // Set interrupt disable status.
         public static InstructionInfo SEI()
         {
@@ -33,15 +49,49 @@ namespace CSharpTo2600.Framework
         {
             return new InstructionInfo("STA $\{Address.ToString("X")}", 3);
         }
+
+        /// <summary>
+        /// Store Accumulator in Memory [Zero-page indexed] (4 cycles)
+        /// </summary>
+        public static InstructionInfo STA(byte Offset, Index IndexRegister)
+        {
+            return new InstructionInfo("STA $\{Offset.ToString("X")},\{IndexRegister}", 4);
+        }
         public static InstructionInfo STA(string Name)
         {
             return new InstructionInfo("STA \{Name}", 3);
         }
 
-        // Transfer X to stack pointer.
+        /// <summary>
+        /// Transfer Accumulator to X Register (2 cycles)
+        /// </summary>
+        public static InstructionInfo TAX()
+        {
+            return new InstructionInfo("TAX", 2);
+        }
+
+        /// <summary>
+        /// Transfer Stack Pointer to X Register (2 cycles)
+        /// </summary>
+        public static InstructionInfo TSX()
+        {
+            return new InstructionInfo("TSX", 2);
+        }
+
+        /// <summary>
+        /// Transfer X Register to Accumulator (2 cycles)
+        /// </summary>
+        public static InstructionInfo TXA()
+        {
+            return new InstructionInfo("TXA", 2);
+        }
+
+        /// <summary>
+        /// Transfer X Register to Stack Pointer (2 cycles)
+        /// </summary>
         public static InstructionInfo TXS()
         {
-            throw new NotImplementedException();
+            return new InstructionInfo("TXS", 2);
         }
 
         // Load accumulator with memory.
@@ -53,6 +103,13 @@ namespace CSharpTo2600.Framework
             var Text = string.Format("LDA #\{ValString}");
             return new InstructionInfo(Text, 2);
         }
+    }
+
+    public enum Index
+    {
+        None,
+        X,
+        Y
     }
 
     public struct InstructionInfo

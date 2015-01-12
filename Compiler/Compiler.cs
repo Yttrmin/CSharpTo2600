@@ -132,6 +132,20 @@ namespace CSharpTo2600.Compiler
             }
             return GameClass;
         }
+
+        private Type GetType(TypeSyntax TypeSyntax)
+        {
+            var Info = Model.GetTypeInfo(TypeSyntax);
+            var FullyQualifiedNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+            var FullyQualifiedName = Info.Type.ToDisplayString(FullyQualifiedNameFormat);
+            //@TODO - Won't find types outside of mscorlib.
+            var TrueType = Type.GetType(FullyQualifiedName);
+            if (TrueType == null)
+            {
+                throw new ArgumentException("TypeSyntaxes must correspond to an mscorlib type for now.", nameof(TypeSyntax));
+            }
+            return TrueType;
+        }
     }
 
     internal class FatalCompilationException : Exception
