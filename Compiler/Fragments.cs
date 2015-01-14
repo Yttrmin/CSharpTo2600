@@ -45,6 +45,28 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        public static IEnumerable<InstructionInfo> PushVariable(string Name, Type Type)
+        {
+            VerifyType(Type);
+            var Size = Marshal.SizeOf(Type);
+            for(var i = 0; i < Size; i++)
+            {
+                yield return LDA(Name, i);
+                yield return PHA();
+            }
+        }
+
+        public static IEnumerable<InstructionInfo> StoreVariable(string Name, Type Type)
+        {
+            VerifyType(Type);
+            var Size = Marshal.SizeOf(Type);
+            for(var i = 0; i < Size; i++)
+            {
+                yield return PLA();
+                yield return STA(Name, i);
+            }
+        }
+
         private static IEnumerable<InstructionInfo> StackAllocate(int Bytes)
         {
             //@TODO

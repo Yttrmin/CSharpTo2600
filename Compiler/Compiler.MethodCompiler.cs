@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using CSharpTo2600.Framework;
 using System.Linq;
+using System.Diagnostics;
 
 namespace CSharpTo2600.Compiler
 {
@@ -17,7 +18,6 @@ namespace CSharpTo2600.Compiler
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
             private readonly List<InstructionInfo> MethodInstructions;
-            private readonly Dictionary<VariableDeclarationSyntax, int> Temps;
             private readonly Stack<Type> TypeStack;
 
             public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, Compiler Compiler)
@@ -26,22 +26,12 @@ namespace CSharpTo2600.Compiler
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
                 MethodInstructions = new List<InstructionInfo>();
-                Temps = new Dictionary<VariableDeclarationSyntax, int>();
                 TypeStack = new Stack<Type>();
             }
 
             public Subroutine Compile()
             {
                 Visit(MethodDeclaration);
-                if(Temps.Count > 0)
-                {
-                    foreach(var Key in Temps.Keys)
-                    {
-                        MethodInstructions.AddRange(Fragments.DeallocateLocal(Compiler.GetType(Key.Type)));
-                    }
-                    Temps.Clear();
-                }
-                //@TODO
                 return new Subroutine(Name, MethodInstructions.ToImmutableArray(), MethodType.Initialize);
             }
 
@@ -51,9 +41,25 @@ namespace CSharpTo2600.Compiler
                 base.Visit(node);
             }
 
+            public override void VisitAssignmentExpression(AssignmentExpressionSyntax node)
+            {
+                base.VisitAssignmentExpression(node);
+                var Type = TypeStack.Pop();
+                // At the point of assignment there should only be one thing on the TypeStack, the
+                // type of the result of the right-side expression.
+                Debug.Assert(TypeStack.Count == 0);
+                var Global = Compiler.ROMBuilder.GetGlobal(((IdentifierNameSyntax)node.Left).Identifier.Text);
+                if(Type != Global.Type)
+                {
+                    throw new FatalCompilationException("Types don't match for assignment: \{Type} to \{Global.Type}");
+                }
+                MethodInstructions.AddRange(Fragments.StoreVariable(Global.Name, Global.Type));
+            }
+
             public override void VisitBinaryExpression(BinaryExpressionSyntax node)
             {
                 var Kind = node.CSharpKind();
+                // Handles commutativity?
                 if (Kind == SyntaxKind.SubtractExpression || Kind == SyntaxKind.DivideExpression)
                 {
                     base.Visit(node.Right);
@@ -95,9 +101,26 @@ namespace CSharpTo2600.Compiler
                 base.VisitLiteralExpression(node);
             }
 
+            public override void VisitIdentifierName(IdentifierNameSyntax node)
+            {
+                var Assignment = node.Parent as AssignmentExpressionSyntax;
+                // If this identifier is from the left side of an assignment,
+                // don't push it onto the stack.
+                if(Assignment?.Left == node)
+                {
+                    base.VisitIdentifierName(node);
+                    return;
+                }
+                //@TODO - Support locals. Part of ROMBuilder?
+                var Global = Compiler.ROMBuilder.GetGlobal(node.Identifier.Text);
+                TypeStack.Push(Global.Type);
+                MethodInstructions.AddRange(Fragments.PushVariable(Global.Name, Global.Type));
+                base.VisitIdentifierName(node);
+            }
+
             private object ToSmallestNumeric(object Value)
             {
-                // May have to try ulong as well.
+                //@TODO - May have to try ulong as well.
                 // Roundabout since you can only unbox to its actual type.
                 var NumericValue = long.Parse(Value.ToString());
                 if(byte.MinValue <= NumericValue && NumericValue <= byte.MaxValue)

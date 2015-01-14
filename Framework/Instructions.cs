@@ -43,6 +43,26 @@ namespace CSharpTo2600.Framework
             throw new NotImplementedException();
         }
 
+        // Load accumulator with memory.
+        // Immediate addressing.
+        public static InstructionInfo LDA(byte Value, bool HexString = true)
+        {
+            // Hex numbers have a dollar sign before them in DASM.
+            var ValString = HexString ? "$" + Value.ToString("X") : Value.ToString();
+            var Text = string.Format("LDA #\{ValString}");
+            return new InstructionInfo(Text, 2);
+        }
+
+        /// <summary>
+        /// Load Accumulator with Memory [Zero-page] (3 cycles)
+        /// </summary>
+        public static InstructionInfo LDA(string Name, int Offset)
+        {
+            //@TODO - Technically the symbol could refer to any point in the ROM,
+            // maybe not zero-page. Figure out a solution.
+            return new InstructionInfo("LDA \{Name}+\{Offset}", 3);
+        }
+
         // Load index X with memory.
         public static InstructionInfo LDX()
         {
@@ -105,9 +125,17 @@ namespace CSharpTo2600.Framework
         {
             return new InstructionInfo("STA $\{Offset.ToString("X4")},\{IndexRegister}", 4);
         }
+        [Obsolete]
         public static InstructionInfo STA(string Name)
         {
             return new InstructionInfo("STA \{Name}", 3);
+        }
+        /// <summary>
+        /// Store Accumulator in Memory [Zero-page] (3 cycles)
+        /// </summary>
+        public static InstructionInfo STA(string Name, int Offset)
+        {
+            return new InstructionInfo("STA \{Name}+\{Offset}", 3);
         }
 
         /// <summary>
@@ -140,16 +168,6 @@ namespace CSharpTo2600.Framework
         public static InstructionInfo TXS()
         {
             return new InstructionInfo("TXS", 2);
-        }
-
-        // Load accumulator with memory.
-        // Immediate addressing.
-        public static InstructionInfo LDA(byte Value, bool HexString = true)
-        {
-            // Hex numbers have a dollar sign before them in DASM.
-            var ValString = HexString ? "$"+Value.ToString("X") : Value.ToString();
-            var Text = string.Format("LDA #\{ValString}");
-            return new InstructionInfo(Text, 2);
         }
     }
 
