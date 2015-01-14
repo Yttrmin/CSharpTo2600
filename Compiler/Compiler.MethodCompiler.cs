@@ -49,9 +49,13 @@ namespace CSharpTo2600.Compiler
                 // type of the result of the right-side expression.
                 Debug.Assert(TypeStack.Count == 0);
                 var Global = Compiler.ROMBuilder.GetGlobal(((IdentifierNameSyntax)node.Left).Identifier.Text);
-                if(Type != Global.Type)
+                if(!IsCastable(Type, Global.Type))
                 {
                     throw new FatalCompilationException("Types don't match for assignment: \{Type} to \{Global.Type}");
+                }
+                else if(Type != Global.Type)
+                {
+                    MethodInstructions.AddRange(Fragments.Fit(Type, Global.Type));
                 }
                 MethodInstructions.AddRange(Fragments.StoreVariable(Global.Name, Global.Type));
             }
@@ -118,6 +122,20 @@ namespace CSharpTo2600.Compiler
                 base.VisitIdentifierName(node);
             }
 
+            private bool IsCastable(Type From, Type To)
+            {
+                //@TODO - Not complete.
+                if(From == To || From.IsAssignableFrom(To))
+                {
+                    return true;
+                }
+                if(From.IsPrimitive && To.IsPrimitive)
+                {
+                    return true;
+                }
+                return false;
+            }
+
             private object ToSmallestNumeric(object Value)
             {
                 //@TODO - May have to try ulong as well.
@@ -126,6 +144,10 @@ namespace CSharpTo2600.Compiler
                 if(byte.MinValue <= NumericValue && NumericValue <= byte.MaxValue)
                 {
                     return (byte)NumericValue;
+                }
+                if (int.MinValue <= NumericValue && NumericValue <= int.MaxValue)
+                {
+                    return (int)NumericValue;
                 }
                 throw new ArgumentException("Value does not fit in a supported type.");
             }

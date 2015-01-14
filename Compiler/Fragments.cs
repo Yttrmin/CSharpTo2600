@@ -17,6 +17,77 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        public static IEnumerable<InstructionInfo> Fit(Type From, Type To)
+        {
+            VerifyType(From);
+            VerifyType(To);
+            if(From == To)
+            {
+                throw new ArgumentException("Attempted to fit to same type: \{From}");
+            }
+            //@TODO - Should there be all those type checks we did in MethodCompiler in here?
+            var FromSize = Marshal.SizeOf(From);
+            var ToSize = Marshal.SizeOf(To);
+            if(ToSize > FromSize)
+            {
+                return Pad(From, To);
+            }
+            else if(ToSize < FromSize)
+            {
+                return Truncate(From, To);
+            }
+            else
+            {
+                throw new ArgumentException("Attempted to fit types of same size: \{From} to \{To}");
+            }
+        }
+
+        public static IEnumerable<InstructionInfo> Truncate(Type From, Type To)
+        {
+            VerifyType(From);
+            VerifyType(To);
+            if(From == To)
+            {
+                throw new ArgumentException("Attempted to truncate to the same type: \{From}");
+            }
+            var FromSize = Marshal.SizeOf(From);
+            var ToSize = Marshal.SizeOf(To);
+            if (ToSize > FromSize)
+            {
+                throw new ArgumentException("Attempted to truncate to a larger type: from \{From} to \{To}");
+            }
+            if(ToSize == FromSize)
+            {
+                throw new ArgumentException("Attempt to truncate to a same-size type. Something wrong is probably happening. From \{From} to \{To}");
+            }
+            var ToDrop = FromSize - ToSize;
+            //@TODO - This probably isn't right endian-wise.
+            return StackDeallocate(ToDrop);
+        }
+
+        public static IEnumerable<InstructionInfo> Pad(Type From, Type To)
+        {
+            VerifyType(From);
+            VerifyType(To);
+            if (From == To)
+            {
+                throw new ArgumentException("Attempted to truncate to the same type: \{From}");
+            }
+            var FromSize = Marshal.SizeOf(From);
+            var ToSize = Marshal.SizeOf(To);
+            if (ToSize < FromSize)
+            {
+                throw new ArgumentException("Attempted to pad to a smaller type: from \{From} to \{To}");
+            }
+            if (ToSize == FromSize)
+            {
+                throw new ArgumentException("Attempt to pad to a same-size type. Something wrong is probably happening. From \{From} to \{To}");
+            }
+            var ToPad = ToSize - FromSize;
+            //@TODO - Check endian
+            return StackAllocate(ToPad, 0);
+        }
+
         public static IEnumerable<InstructionInfo> AllocateLocal(Type Type, out int Size)
         {
             VerifyType(Type);
@@ -37,7 +108,10 @@ namespace CSharpTo2600.Compiler
             VerifyType(Value.GetType());
             var Size = Marshal.SizeOf(Value.GetType());
             var Bytes = StructToByteArray(Value, Size);
-            // I know this is basically LoadIntoVariable. Bear with me.
+            // Compiler-generated stack operations are stored big-endian for ease. Padding
+            // is done by pushing more most-significant bytes. Truncating is done by
+            // popping the most-significant bytes. This is easy when the most-significant
+            // byte is at the top of the stack.
             for(var i = 0; i < Bytes.Length; i++)
             {
                 yield return LDA(Bytes[i]);
@@ -49,30 +123,39 @@ namespace CSharpTo2600.Compiler
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
-            for(var i = 0; i < Size; i++)
+            for (var i = 0; i < Size; i++)
             {
                 yield return LDA(Name, i);
                 yield return PHA();
             }
         }
 
+        // Precondition: Data stored on stack in big-endian.
         public static IEnumerable<InstructionInfo> StoreVariable(string Name, Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
-            for(var i = 0; i < Size; i++)
+            // Data is big-endian, but we want to store it little-endian, so iterate like this.
+            for (var i = Size - 1; i >= 0; i--)
             {
                 yield return PLA();
                 yield return STA(Name, i);
             }
         }
 
-        private static IEnumerable<InstructionInfo> StackAllocate(int Bytes)
+        private static IEnumerable<InstructionInfo> StackAllocate(int Bytes, byte? InitializeTo=null)
         {
             //@TODO
-            if (true/*Bytes <= 3*/)
+            if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
             {
-                return Enumerable.Repeat(PHA(), Bytes);
+                if(InitializeTo.HasValue)
+                {
+                    yield return LDA(InitializeTo.Value);
+                }
+                for(var i = 0; i < Bytes; i++)
+                {
+                    yield return PHA();
+                }
             }
             else
             {
@@ -123,7 +206,7 @@ namespace CSharpTo2600.Compiler
             {
                 // The 6502 is little-endian, so follow convention.
                 // Thankfully, x64 is also little-endian, so the marshaling will already
-                // be in the rihg torder.
+                // be in the right order.
                 var NextByte = StructBytes[i];
                 // Don't bother with an LDA if A already has the value.
                 if(NextByte != AValue || i == 0)
@@ -153,13 +236,10 @@ namespace CSharpTo2600.Compiler
             {
                 throw new ArgumentException("Type can not be a char.");
             }
-            //@REMOVEME
-            if(Type != typeof(byte))
-            {
-                throw new ArgumentException("Only bytes supported.");
-            }
         }
 
+        /// <returns>The struct's bytes in little-endian. That is, a[0] is the
+        /// least-significant byte, a[length-1] is the most-significant byte.</returns>
         private static byte[] StructToByteArray(object Struct, int Size)
         {
             var Ptr = Marshal.AllocHGlobal(Size);

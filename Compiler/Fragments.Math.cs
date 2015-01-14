@@ -12,10 +12,6 @@ namespace CSharpTo2600.Compiler
 		public static IEnumerable<InstructionInfo> Add(Type Type)
         {
             VerifyType(Type);
-			if(Type != typeof(byte))
-            {
-                throw new ArgumentException("Only byte addition supported yet.");
-            }
             var Size = Marshal.SizeOf(Type);
             yield return PLA();
             yield return TSX();
@@ -29,16 +25,21 @@ namespace CSharpTo2600.Compiler
 		public static IEnumerable<InstructionInfo> Subtract(Type Type)
         {
             VerifyType(Type);
-            if (Type != typeof(byte))
-            {
-                throw new ArgumentException("Only byte addition supported yet.");
-            }
             var Size = Marshal.SizeOf(Type);
             yield return PLA();
             yield return TSX();
             yield return SEC();
             yield return SBC(0x100, Index.X);
             yield return STA(0x100, Index.X);
+        }
+
+        public static IEnumerable<InstructionInfo> BitwiseOr(Type Type)
+        {
+            VerifyType(Type);
+            var Size = Marshal.SizeOf(Type);
+            yield return PLA();
+            yield return TSX();
+            throw new NotImplementedException();
         }
     }
 }
