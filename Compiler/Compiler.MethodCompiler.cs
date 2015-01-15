@@ -60,6 +60,19 @@ namespace CSharpTo2600.Compiler
                 MethodInstructions.AddRange(Fragments.StoreVariable(Global.Name, Global.Type));
             }
 
+            public override void VisitCastExpression(CastExpressionSyntax node)
+            {
+                base.VisitCastExpression(node);
+                var From = TypeStack.Pop();
+                var ToType = Compiler.GetType(node.Type);
+                if(!IsCastable(From, ToType))
+                {
+                    throw new FatalCompilationException("Cannot perform typecast from: \{From} to \{ToType}");
+                }
+                MethodInstructions.AddRange(Fragments.Fit(From, ToType));
+                TypeStack.Push(ToType);
+            }
+
             public override void VisitBinaryExpression(BinaryExpressionSyntax node)
             {
                 var Kind = node.CSharpKind();
@@ -141,6 +154,7 @@ namespace CSharpTo2600.Compiler
                 //@TODO - May have to try ulong as well.
                 // Roundabout since you can only unbox to its actual type.
                 var NumericValue = long.Parse(Value.ToString());
+                // Make sure to add these from smallest to largest!
                 if(byte.MinValue <= NumericValue && NumericValue <= byte.MaxValue)
                 {
                     return (byte)NumericValue;
