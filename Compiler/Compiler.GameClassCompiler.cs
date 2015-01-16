@@ -12,14 +12,20 @@ namespace CSharpTo2600.Compiler
             private readonly Compiler Compiler;
             private SemanticModel Model { get { return Compiler.Model; } }
             private ROMBuilder ROMBuilder { get { return Compiler.ROMBuilder; } }
+            private readonly Optimizer Optimizer;
 
             public GameClassCompiler(Compiler Compiler)
             {
                 this.Compiler = Compiler;
+                Optimizer = new Optimizer();
             }
 
             public override void VisitFieldDeclaration(FieldDeclarationSyntax FieldNode)
             {
+                if(FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
+                {
+                    throw new FatalCompilationException("Fields can't have initializers yet.", FieldNode);
+                }
                 var RealType = Compiler.GetType(FieldNode.Declaration.Type);
                 foreach (var Declarator in FieldNode.Declaration.Variables)
                 {
@@ -56,6 +62,7 @@ namespace CSharpTo2600.Compiler
             {
                 var MethodCompiler = new MethodCompiler(node, Compiler);
                 var Subroutine = MethodCompiler.Compile();
+                Subroutine = Optimizer.PefromAllOptimizations(Subroutine);
                 ROMBuilder.AddSubroutine(Subroutine);
                 base.VisitMethodDeclaration(node);
             }

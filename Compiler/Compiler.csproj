@@ -97,6 +97,7 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Compiler.Optimizer.cs" />
     <Compile Include="Fragments.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
