@@ -7,12 +7,14 @@
         //static byte Test;
         static byte b1, b2, b3;
         static int i1;
+        static byte bp1 { get; set; }
         static void Initialize()
         {
             i1 = 0x12ABCDEF;
             b1 = 5;
             i1 = b1;
             b1 = (byte)i1;
+            bp1 = b1;
         }
     }
 }
