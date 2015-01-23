@@ -7,6 +7,7 @@ using System.Linq;
 
 namespace CSharpTo2600.Compiler
 {
+    [Obsolete]
     internal static class RoslynExtensions
     {
         public static void DebugPrintKinds(this SyntaxNode @this)

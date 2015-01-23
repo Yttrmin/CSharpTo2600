@@ -1,10 +1,10 @@
-﻿using CSharpTo2600.Framework;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
+using CSharpTo2600.Framework;
+using CSharpTo2600.Framework.Instructions;
 
 namespace CSharpTo2600.Compiler
 {
@@ -21,6 +21,19 @@ namespace CSharpTo2600.Compiler
             VariableManager = new GlobalVariableManager(RAMRange);
             ReserveGlobals();
             NextGlobalStart = RAMRange.Start;
+            var Initializer = new InstructionInfo[]
+            {
+                SEI(),
+                CLD(),
+                LDX(0xFF),
+                TXS(),
+                LDA(0),
+                Label("ClearMem"),
+                STA((byte)0, Index.X),
+                DEX(),
+                BNE("ClearMem")
+            }.ToImmutableArray();
+            Subroutines.Add(new Subroutine("InitializeCPU", Initializer, MethodType.None));
         }
 
         private void ReserveGlobals()
@@ -67,7 +80,8 @@ namespace CSharpTo2600.Compiler
             {
                 WriteHead(Writer);
                 WriteGlobals(Writer);
-                WriteInitializeSystem(Writer);
+                var MemoryInitializer = Subroutines.Single(s => s.Name == "InitializeCPU");
+                WriteSubroutine(Writer, MemoryInitializer);
                 var InitializeMethod = Subroutines.Where(s => s.Type == MethodType.Initialize).SingleOrDefault();
                 if(InitializeMethod != null)
                 {
@@ -104,24 +118,6 @@ namespace CSharpTo2600.Compiler
             {
                 Writer.WriteLine("\{Global.Name} = $\{Global.Address.Start.ToString("X")} ; \{Global.Type} (\{Global.Size} bytes)");
             }
-            Writer.WriteLine();
-        }
-
-        private void WriteInitializeSystem(StreamWriter Writer)
-        {
-            //@TODO - Use Instructions.
-            Writer.WriteLine(
-@"Start
-	SEI ; Disable interrupts.
-	CLD ; Clear BCD math bit.
-	LDX #$FF ; Reset stack pointer to FF.
-	TXS
-	LDA #0
-ClearMem
-	; Clear all memory from $FF to $00 with 0s.
-	STA 0,X
-	DEX
-	BNE ClearMem");
             Writer.WriteLine();
         }
 

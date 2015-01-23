@@ -9,6 +9,11 @@ namespace CSharpTo2600.Framework
             return new InstructionInfo("; \{Comment}", 0);
         }
 
+        public static InstructionInfo Label(string Label)
+        {
+            return new InstructionInfo(Label, 0);
+        }
+
         /// <summary>
         /// Add with Carry [Absolute indexed] (4 cycles)
         /// </summary>
@@ -30,6 +35,15 @@ namespace CSharpTo2600.Framework
         }
 
         /// <summary>
+        /// Branch if Not Equal (2-4 cycles)
+        /// </summary>
+        public static InstructionInfo BNE(string Label)
+        {
+            // 4 if branch to new page.
+            return new InstructionInfo("BNE \{Label}", 4);
+        }
+
+        /// <summary>
         /// Clear Carry Flag (2 cycles)
         /// </summary>
         public static InstructionInfo CLC()
@@ -37,10 +51,20 @@ namespace CSharpTo2600.Framework
             return new InstructionInfo("CLC", 2);
         }
 
-        // Clear decimal bit.
+        /// <summary>
+        /// Clear Decimal Mode (2 cycles)
+        /// </summary>
         public static InstructionInfo CLD()
         {
-            throw new NotImplementedException();
+            return new InstructionInfo("CLD", 2);
+        }
+
+        /// <summary>
+        /// Decrement X Register (2 cycles)
+        /// </summary>
+        public static InstructionInfo DEX()
+        {
+            return new InstructionInfo("DEX", 2);
         }
 
         // Load accumulator with memory.
@@ -63,10 +87,14 @@ namespace CSharpTo2600.Framework
             return new InstructionInfo("LDA \{Name}+\{Offset}", 3);
         }
 
-        // Load index X with memory.
-        public static InstructionInfo LDX()
+        /// <summary>
+        /// Load X Register [Immediate] (2 cycles)
+        /// </summary>
+        /// <param name="Value"></param>
+        /// <returns></returns>
+        public static InstructionInfo LDX(byte Value)
         {
-            throw new NotImplementedException();
+            return new InstructionInfo("LDX #$\{Value.ToString("X2")}", 2);
         }
 
         /// <summary>
@@ -93,10 +121,12 @@ namespace CSharpTo2600.Framework
             return new InstructionInfo("SBC $\{Offset.ToString("X4")},\{IndexRegister}", 4);
         }
 
-        // Set interrupt disable status.
+        /// <summary>
+        /// Set Interrupt Disable (2 cycles)
+        /// </summary>
         public static InstructionInfo SEI()
         {
-            throw new NotImplementedException();
+            return new InstructionInfo("SEI", 2);
         }
 
         /// <summary>
@@ -177,6 +207,9 @@ namespace CSharpTo2600.Framework
         Y
     }
 
+    //@TODO - Probably will have to redo this like with GlobalInfo->VariableInfo.
+    // Too many things that aren't instructions are getting shoved into
+    // InstructionInfos: instructions, comments, labels, psuedo-ops, etc.
     public struct InstructionInfo
     {
         /// <summary>

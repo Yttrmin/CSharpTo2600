@@ -1,8 +1,6 @@
 ﻿using System.Linq;
 using System.Collections.Immutable;
 using CSharpTo2600.Framework;
-using System;
-using System.Collections.Generic;
 
 namespace CSharpTo2600.Compiler
 {
