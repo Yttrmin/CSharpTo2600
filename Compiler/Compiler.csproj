@@ -106,6 +106,8 @@
     <Compile Include="RoslynExtensions.cs" />
     <Compile Include="Subroutine.cs" />
     <Compile Include="Compiler.GameClassCompiler.cs" />
+    <Compile Include="VariableInfo.cs" />
+    <Compile Include="VariableManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compiler.MethodCompiler.cs" />

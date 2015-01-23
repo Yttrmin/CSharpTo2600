@@ -11,14 +11,14 @@ namespace CSharpTo2600.Compiler
     internal class ROMBuilder
     {
         private static readonly Range RAMRange = new Range(0x80, 0xFF);
-        private readonly List<GlobalInfo> Globals;
+        private readonly GlobalVariableManager VariableManager;
         private readonly List<Subroutine> Subroutines;
         private int NextGlobalStart;
 
         public ROMBuilder()
         {
             Subroutines = new List<Subroutine>();
-            Globals = new List<GlobalInfo>();
+            VariableManager = new GlobalVariableManager(RAMRange);
             ReserveGlobals();
             NextGlobalStart = RAMRange.Start;
         }
@@ -52,7 +52,7 @@ namespace CSharpTo2600.Compiler
             for(var i = 0; i < Names.Length; i++)
             {
                 var Address = new Range(Offset + i, Offset + i);
-                AddGlobalVariable(typeof(byte), Names[i], Address, false, false);
+                VariableManager.AddVariable(Names[i], typeof(byte), Address, false);
             }
         }
 
@@ -78,36 +78,13 @@ namespace CSharpTo2600.Compiler
 
         public void AddGlobalVariable(Type Type, string Name)
         {
-            if(!Type.IsValueType)
-            {
-                throw new ArgumentException("No reference types are supported yet.");
-            }
-
-            var AddressRange = new Range(NextGlobalStart, NextGlobalStart + Marshal.SizeOf(Type) - 1);
-            if(!RAMRange.Contains(AddressRange))
-            {
-                throw new FatalCompilationException("Ran out of RAM trying to add new global [\{Type} \{Name}]");
-            }
-            AddGlobalVariable(Type, Name, AddressRange, true, true);
+            VariableManager.AddVariable(Name, Type);
         }
 
-        private void AddGlobalVariable(Type Type, string Name, Range Address, bool Emit, bool ConflictCheck)
+        [Obsolete("get_VariableManager")]
+        public VariableInfo GetGlobal(string Name)
         {
-            var NewGlobal = new GlobalInfo(Type, Name, Address, Emit);
-            if(ConflictCheck)
-            {
-                if(Globals.Any(g => g.ConflictsWith(NewGlobal)))
-                {
-                    throw new FatalCompilationException("Attempted to add a new global [\{NewGlobal}] that conflicts with an existing global.");
-                }
-            }
-            NextGlobalStart = Address.End + 1;
-            Globals.Add(NewGlobal);
-        }
-
-        public GlobalInfo GetGlobal(string Name)
-        {
-            return Globals.Single(g => g.Name == Name);
+            return VariableManager.GetVariable(Name);
         }
 
         private void WriteHead(StreamWriter Writer)
@@ -123,7 +100,7 @@ namespace CSharpTo2600.Compiler
         private void WriteGlobals(StreamWriter Writer)
         {
             Writer.WriteLine(";Globals");
-            foreach(var Global in Globals.Where(g => g.Emit))
+            foreach(var Global in VariableManager.AllVariables().Cast<GlobalVariable>().Where(v => v.EmitToFile))
             {
                 Writer.WriteLine("\{Global.Name} = $\{Global.Address.Start.ToString("X")} ; \{Global.Type} (\{Global.Size} bytes)");
             }
@@ -156,41 +133,6 @@ ClearMem
                 Writer.WriteLine("\t\{Instruction.Text}");
             }
             Writer.WriteLine();
-        }
-    }
-
-    internal struct GlobalInfo
-    {
-        public readonly Type Type;
-        public readonly string Name;
-        public readonly Range Address;
-        public readonly bool Emit;
-        public int Size { get { return Marshal.SizeOf(Type); } }
-
-        public GlobalInfo(Type Type, string Name, Range Address, bool Emit)
-        {
-            this.Type = Type;
-            this.Name = Name;
-            this.Address = Address;
-            this.Emit = Emit;
-        }
-
-        public bool ConflictsWith(GlobalInfo Other)
-        {
-            if(this.Name == Other.Name)
-            {
-                return true;
-            }
-            if(this.Address.Overlaps(Other.Address))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        public override string ToString()
-        {
-            return "\{Type} \{Name} (\{Address})";
         }
     }
 }

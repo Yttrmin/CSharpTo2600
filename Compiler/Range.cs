@@ -32,6 +32,12 @@
                 && Other.End <= this.End;
         }
 
+        public bool Contains(int Other)
+        {
+            return Other >= this.Start
+                && Other <= this.End;
+        }
+
         public static bool operator ==(Range A, Range B)
         {
             return A.Equals(B);

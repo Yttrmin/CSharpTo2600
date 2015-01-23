@@ -34,6 +34,7 @@ namespace CSharpTo2600.Compiler
                     var Instruction = Instructions[i];
                     if (Instruction.Text == "PHA" && Instructions[i + 1].Text == "PLA")
                     {
+                        // Skip this and the next instruction so they're not added.
                         i++;
                         continue;
                     }

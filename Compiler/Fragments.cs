@@ -7,6 +7,8 @@ using CSharpTo2600.Framework.Instructions;
 
 namespace CSharpTo2600.Compiler
 {
+    //@TODO - Unit test all these. Probably by running the output of the assembler into an emulator
+    // and examining the registers and memory after execution.
     internal static partial class Fragments
     {
         static Fragments()
@@ -218,7 +220,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private static void VerifyType(Type Type)
+        public static void VerifyType(Type Type)
         {
             if (!Type.IsValueType)
             {
