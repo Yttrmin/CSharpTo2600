@@ -11,7 +11,7 @@ namespace CSharpTo2600.Compiler
     internal class ROMBuilder
     {
         private static readonly Range RAMRange = new Range(0x80, 0xFF);
-        private readonly GlobalVariableManager VariableManager;
+        public GlobalVariableManager VariableManager { get; private set; }
         private readonly List<Subroutine> Subroutines;
         private int NextGlobalStart;
 
@@ -65,7 +65,7 @@ namespace CSharpTo2600.Compiler
             for(var i = 0; i < Names.Length; i++)
             {
                 var Address = new Range(Offset + i, Offset + i);
-                VariableManager.AddVariable(Names[i], typeof(byte), Address, false);
+                VariableManager = VariableManager.AddVariable(Names[i], typeof(byte), Address, false);
             }
         }
 
@@ -92,13 +92,7 @@ namespace CSharpTo2600.Compiler
 
         public void AddGlobalVariable(Type Type, string Name)
         {
-            VariableManager.AddVariable(Name, Type);
-        }
-
-        [Obsolete("get_VariableManager")]
-        public VariableInfo GetGlobal(string Name)
-        {
-            return VariableManager.GetVariable(Name);
+            VariableManager = VariableManager.AddVariable(Name, Type);
         }
 
         private void WriteHead(StreamWriter Writer)
@@ -114,7 +108,8 @@ namespace CSharpTo2600.Compiler
         private void WriteGlobals(StreamWriter Writer)
         {
             Writer.WriteLine(";Globals");
-            foreach(var Global in VariableManager.AllVariables().Cast<GlobalVariable>().Where(v => v.EmitToFile))
+            foreach(var Global in VariableManager.AllVariables().Cast<GlobalVariable>()
+                .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
             {
                 Writer.WriteLine("\{Global.Name} = $\{Global.Address.Start.ToString("X")} ; \{Global.Type} (\{Global.Size} bytes)");
             }

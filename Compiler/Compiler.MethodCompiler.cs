@@ -48,7 +48,8 @@ namespace CSharpTo2600.Compiler
                 // At the point of assignment there should only be one thing on the TypeStack, the
                 // type of the result of the right-side expression.
                 Debug.Assert(TypeStack.Count == 0);
-                var Global = Compiler.ROMBuilder.GetGlobal(((IdentifierNameSyntax)node.Left).Identifier.Text);
+                var LeftSideIdentifier = ((IdentifierNameSyntax)node.Left).Identifier.Text;
+                var Global = Compiler.ROMBuilder.VariableManager.GetVariable(LeftSideIdentifier);
                 if(!IsCastable(Type, Global.Type))
                 {
                     throw new FatalCompilationException("Types don't match for assignment: \{Type} to \{Global.Type}");
@@ -129,7 +130,7 @@ namespace CSharpTo2600.Compiler
                     return;
                 }
                 //@TODO - Support locals. Part of ROMBuilder?
-                var Global = Compiler.ROMBuilder.GetGlobal(node.Identifier.Text);
+                var Global = Compiler.ROMBuilder.VariableManager.GetVariable(node.Identifier.Text);
                 TypeStack.Push(Global.Type);
                 MethodInstructions.AddRange(Fragments.PushVariable(Global.Name, Global.Type));
                 base.VisitIdentifierName(node);

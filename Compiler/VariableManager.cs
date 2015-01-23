@@ -1,20 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
 namespace CSharpTo2600.Compiler
 {
     internal abstract class VariableManager
     {
-        private readonly Dictionary<string, VariableInfo> Variables;
+        private readonly ImmutableDictionary<string, VariableInfo> Variables;
         private readonly VariableManager Parent;
 
-        protected VariableManager()
+        protected VariableManager(VariableManager Parent)
         {
-            Variables = new Dictionary<string, VariableInfo>();
+            Variables = ImmutableDictionary<string, VariableInfo>.Empty;
+            this.Parent = Parent;
         }
 
-        public abstract void AddVariable(string Name, Type Type);
+        protected VariableManager(VariableManager OldThis, VariableInfo NewVariable)
+        {
+            this.Parent = OldThis.Parent;
+            this.Variables = OldThis.Variables.Add(NewVariable.Name, NewVariable);
+        }
 
         public VariableInfo GetVariable(string Name)
         {
@@ -39,26 +45,36 @@ namespace CSharpTo2600.Compiler
         {
             return Variables.Values;
         }
-
-        //@TODO - I'd love this to be immutable.
-        protected void Add(VariableInfo Variable)
-        {
-            Variables[Variable.Name] = Variable;
-        }
     }
 
     internal sealed class GlobalVariableManager : VariableManager
     {
         private readonly Range RAMRange;
-        private int NextVariableStart;
+        private readonly int NextVariableStart;
 
         public GlobalVariableManager(Range RAMRange)
+            : base(null)
         {
             this.RAMRange = RAMRange;
             NextVariableStart = RAMRange.Start;
         }
 
-        public override void AddVariable(string Name, Type Type)
+        private GlobalVariableManager(GlobalVariableManager Old, GlobalVariable NewVariable)
+            : base(Old, NewVariable)
+        {
+            this.RAMRange = Old.RAMRange;
+            // Increase NextVariableStart if this is a normal variable.
+            if(NewVariable.EmitToFile)
+            {
+                this.NextVariableStart = Old.NextVariableStart + NewVariable.Size;
+            }
+            else
+            {
+                this.NextVariableStart = Old.NextVariableStart;
+            }
+        }
+
+        public GlobalVariableManager AddVariable(string Name, Type Type)
         {
             Fragments.VerifyType(Type);
             var Address = new Range(NextVariableStart, NextVariableStart + Marshal.SizeOf(Type) - 1);
@@ -66,21 +82,21 @@ namespace CSharpTo2600.Compiler
             {
                 throw new FatalCompilationException("Insufficient RAM to add var \{Name} of type \{Type}");
             }
-            AddVariable(Name, Type, Address, true);
-            NextVariableStart = Address.End + 1;
+            return AddVariable(Name, Type, Address, true);
         }
 
-        public void AddVariable(string Name, Type Type, Range Address, bool EmitToFile)
+        public GlobalVariableManager AddVariable(string Name, Type Type, Range Address, bool EmitToFile)
         {
             Fragments.VerifyType(Type);
             var Variable = new GlobalVariable(Name, Type, Address, EmitToFile);
-            Add(Variable);
+            return new GlobalVariableManager(this, Variable);
         }
     }
 
     internal sealed class LocalVariableManager : VariableManager
     {
-        public override void AddVariable(string Name, Type Type)
+        public LocalVariableManager(VariableManager Parent)
+            : base(Parent)
         {
             throw new NotImplementedException();
         }
