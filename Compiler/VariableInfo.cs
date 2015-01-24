@@ -9,6 +9,8 @@ namespace CSharpTo2600.Compiler
         public readonly Type Type;
         public readonly Range Address;
         public int Size { get { return Marshal.SizeOf(Type); } }
+        public abstract bool AddressIsAbsolute { get; }
+        public abstract bool AddressIsFrameRelative { get; }
 
         public VariableInfo(string Name, Type Type, Range Address)
         {
@@ -38,17 +40,21 @@ namespace CSharpTo2600.Compiler
 
     internal class LocalVariable : VariableInfo
     {
-        private LocalVariable() 
-            : base(null, null, default(Range))
-        {
-            throw new NotImplementedException();
-        }
+        public override bool AddressIsAbsolute { get { return false; } }
+        public override bool AddressIsFrameRelative { get { return true; } }
 
+        public LocalVariable(string Name, Type Type, Range Address) 
+            : base(Name, Type, Address)
+        {
+            
+        }
     }
 
     internal class GlobalVariable : VariableInfo
     {
         public readonly bool EmitToFile;
+        public override bool AddressIsAbsolute { get { return true; } }
+        public override bool AddressIsFrameRelative { get { return false; } }
 
         public GlobalVariable(string Name, Type Type, Range Address, bool EmitToFile)
             : base(Name, Type, Address)

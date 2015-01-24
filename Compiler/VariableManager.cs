@@ -41,7 +41,10 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public IEnumerable<VariableInfo> AllVariables()
+        /// <summary>
+        /// Returns only variables in the local scope. Does not return variables in any parent scopes.
+        /// </summary>
+        public IEnumerable<VariableInfo> GetLocalScopeVariables()
         {
             return Variables.Values;
         }
@@ -98,7 +101,20 @@ namespace CSharpTo2600.Compiler
         public LocalVariableManager(VariableManager Parent)
             : base(Parent)
         {
-            throw new NotImplementedException();
+
+        }
+
+        private LocalVariableManager(LocalVariableManager Old, LocalVariable NewVariable)
+            : base(Old, NewVariable)
+        {
+
+        }
+
+        public LocalVariableManager AddVariable(string Name, Type Type, Range Address)
+        {
+            Fragments.VerifyType(Type);
+            var Local = new LocalVariable(Name, Type, Address);
+            return new LocalVariableManager(this, Local);
         }
     }
 }

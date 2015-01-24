@@ -121,6 +121,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        [Obsolete("Use VariableInfo")]
         public static IEnumerable<InstructionInfo> PushVariable(string Name, Type Type)
         {
             VerifyType(Type);
@@ -133,6 +134,7 @@ namespace CSharpTo2600.Compiler
         }
 
         // Precondition: Data stored on stack in big-endian.
+        [Obsolete("Use VariableInfo")]
         public static IEnumerable<InstructionInfo> StoreVariable(string Name, Type Type)
         {
             VerifyType(Type);
@@ -143,6 +145,11 @@ namespace CSharpTo2600.Compiler
                 yield return PLA();
                 yield return STA(Name, i);
             }
+        }
+
+        public static IEnumerable<InstructionInfo> StoreVariable(VariableInfo Variable, Type StackType)
+        {
+            throw new NotImplementedException();
         }
 
         private static IEnumerable<InstructionInfo> StackAllocate(int Bytes, byte? InitializeTo=null)
@@ -177,46 +184,6 @@ namespace CSharpTo2600.Compiler
             {
                 // Manually add stack pointer. Less cycles than >2 PHA
                 throw new NotImplementedException();
-            }
-        }
-
-        /// <summary>
-        /// Loads a C# object into a 6502 variable.
-        /// </summary>
-        /// <param name="Destination">Symbol of destination variable.</param>
-        /// <param name="Source">Object to store into Destination.</param>
-        /// <param name="Type">Type of the destination variable.</param>
-        /// <returns></returns>
-        public static IEnumerable<InstructionInfo> LoadIntoVariable(string Destination, object Source, Type Type)
-        {
-            VerifyType(Type);
-            if (Type == typeof(byte))
-            {
-                // Special case for single byte variables since this is hopefully most cases.
-                yield return LDA((byte)Convert.ChangeType(Source, typeof(byte)));
-                yield return STA("\{Destination}");
-                yield break;
-            }
-            var Size = Marshal.SizeOf(Type);
-            // Types may not be the same such as the case of Roslyn giving us an int literal
-            // being assigned to a long variable. Convert it to the proper type or else
-            // marshaling will break.
-            var ConvertedStruct = Convert.ChangeType(Source, Type);
-            var StructBytes = StructToByteArray(ConvertedStruct, Size);
-            byte AValue = 0;
-            for(var i = 0; i < Size; i++)
-            {
-                // The 6502 is little-endian, so follow convention.
-                // Thankfully, x64 is also little-endian, so the marshaling will already
-                // be in the right order.
-                var NextByte = StructBytes[i];
-                // Don't bother with an LDA if A already has the value.
-                if(NextByte != AValue || i == 0)
-                {
-                    yield return LDA(StructBytes[i]);
-                }
-                AValue = NextByte;
-                yield return STA("\{Destination}+\{i}");
             }
         }
 

@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using CSharpTo2600.Framework;
 using System.Linq;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace CSharpTo2600.Compiler
 {
@@ -19,6 +20,7 @@ namespace CSharpTo2600.Compiler
             private readonly string Name;
             private readonly List<InstructionInfo> MethodInstructions;
             private readonly Stack<Type> TypeStack;
+            private LocalVariableManager VariableManager;
 
             public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, Compiler Compiler)
             {
@@ -27,18 +29,39 @@ namespace CSharpTo2600.Compiler
                 this.MethodDeclaration = MethodDeclaration;
                 MethodInstructions = new List<InstructionInfo>();
                 TypeStack = new Stack<Type>();
+                VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);
             }
 
             public Subroutine Compile()
             {
+                VariableManager = new CompilerPrePassLocals(Compiler, MethodDeclaration).Process();
+                AllocateLocals();
                 Visit(MethodDeclaration);
                 return new Subroutine(Name, MethodInstructions.ToImmutableArray(), MethodType.Initialize);
+            }
+
+            private void AllocateLocals()
+            {
+                foreach(var Variable in VariableManager.GetLocalScopeVariables().OrderBy(v => v.Address.Start))
+                {
+                    //@TODO - Symbol
+                    var size = 0;
+                    MethodInstructions.AddRange(Fragments.AllocateLocal(Variable.Type, out size));
+                }
             }
 
             public override void Visit(SyntaxNode node)
             {
                 DebugPrintNode(node);
                 base.Visit(node);
+            }
+
+            public override void VisitEqualsValueClause(EqualsValueClauseSyntax node)
+            {
+                base.VisitEqualsValueClause(node);
+                var Declarator = (VariableDeclaratorSyntax)node.Parent;
+                var Identifier = Declarator.Identifier.ToString();
+                throw new NotImplementedException();
             }
 
             public override void VisitAssignmentExpression(AssignmentExpressionSyntax node)
@@ -49,7 +72,8 @@ namespace CSharpTo2600.Compiler
                 // type of the result of the right-side expression.
                 Debug.Assert(TypeStack.Count == 0);
                 var LeftSideIdentifier = ((IdentifierNameSyntax)node.Left).Identifier.Text;
-                var Global = Compiler.ROMBuilder.VariableManager.GetVariable(LeftSideIdentifier);
+                var Global = VariableManager.GetVariable(LeftSideIdentifier);
+                //@TODO - Move to Fragments
                 if(!IsCastable(Type, Global.Type))
                 {
                     throw new FatalCompilationException("Types don't match for assignment: \{Type} to \{Global.Type}");
@@ -129,10 +153,9 @@ namespace CSharpTo2600.Compiler
                     base.VisitIdentifierName(node);
                     return;
                 }
-                //@TODO - Support locals. Part of ROMBuilder?
-                var Global = Compiler.ROMBuilder.VariableManager.GetVariable(node.Identifier.Text);
-                TypeStack.Push(Global.Type);
-                MethodInstructions.AddRange(Fragments.PushVariable(Global.Name, Global.Type));
+                var Variable = VariableManager.GetVariable(node.Identifier.Text);
+                TypeStack.Push(Variable.Type);
+                MethodInstructions.AddRange(Fragments.PushVariable(Variable.Name, Variable.Type));
                 base.VisitIdentifierName(node);
             }
 
@@ -186,6 +209,59 @@ namespace CSharpTo2600.Compiler
                     IterNode = IterNode.Parent;
                 }
                 return i;
+            }
+
+            private sealed class CompilerPrePassLocals : CSharpSyntaxWalker
+            {
+                private LocalVariableManager VariableManager;
+                private readonly MethodDeclarationSyntax Method;
+                private readonly Compiler Compiler;
+
+                public CompilerPrePassLocals(Compiler Compiler, MethodDeclarationSyntax Method)
+                {
+                    this.Compiler = Compiler;
+                    VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);
+                    this.Method = Method;
+                }
+
+                public LocalVariableManager Process()
+                {
+                    Visit(Method);
+                    return VariableManager;
+                }
+
+                public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
+                {
+                    // Child scopes (blocks) shouldn't be an issue since that only affects accessibility,
+                    // and Roslyn will already ensure there's no errors. It shouldn't have an effect
+                    // on measuring lifetime either.
+                    var Identifiers = node.Declaration.Variables.Select(v => v.Identifier.ToString());//Single().Identifier.ToString();
+                    var TypeSyntax = node.Declaration.Type;
+                    var LocalType = Compiler.GetType(TypeSyntax);
+
+                    // It could be possible to just use unused globals space and save the hassle of
+                    // fiddling with the stack frame, but then we'd have to somehow statically track
+                    // when and what addresses are used. Could give each local a global address if
+                    // there's enough? Let's just stick with stack for now for simplicity.
+                    foreach(var Identifier in Identifiers)
+                    {
+                        var AddressStart = NextOffset();
+                        var AddressEnd = NextOffset() + Marshal.SizeOf(LocalType) - 1;
+                        var Address = new Range(AddressStart, AddressEnd);
+                        VariableManager = VariableManager.AddVariable(Identifier, LocalType, Address);
+                    }
+                    base.VisitLocalDeclarationStatement(node);
+                }
+
+                //@TODO - Anticipate return address when we get to method calls.
+                private int NextOffset()
+                {
+                    if(!VariableManager.GetLocalScopeVariables().Any())
+                    {
+                        return 0;
+                    }
+                    return VariableManager.GetLocalScopeVariables().Max(v => v.Address.End) + 1;
+                }
             }
         }
     }

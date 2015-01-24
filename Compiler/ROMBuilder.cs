@@ -108,7 +108,7 @@ namespace CSharpTo2600.Compiler
         private void WriteGlobals(StreamWriter Writer)
         {
             Writer.WriteLine(";Globals");
-            foreach(var Global in VariableManager.AllVariables().Cast<GlobalVariable>()
+            foreach(var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
                 .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
             {
                 Writer.WriteLine("\{Global.Name} = $\{Global.Address.Start.ToString("X")} ; \{Global.Type} (\{Global.Size} bytes)");

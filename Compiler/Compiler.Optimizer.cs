@@ -32,7 +32,8 @@ namespace CSharpTo2600.Compiler
                 for(var i = 0; i < Instructions.Length; i++)
                 {
                     var Instruction = Instructions[i];
-                    if (Instruction.Text == "PHA" && Instructions[i + 1].Text == "PLA")
+                    //@TODO - i check shouldn't be neccessary once locals work.
+                    if (i != Instructions.Length-1 && Instruction.Text == "PHA" && Instructions[i + 1].Text == "PLA")
                     {
                         // Skip this and the next instruction so they're not added.
                         i++;
