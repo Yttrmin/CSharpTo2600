@@ -10,12 +10,12 @@
         static byte bp1 { get; set; }
         static void Initialize()
         {
-            //i1 = 0x12ABCDEF;
-            //b1 = 5;
-            //i1 = b1;
-            //b1 = (byte)i1;
-            //bp1 = b1;
-            byte local = 0, other = local, uninit;
+            i1 = 0x12ABCDEF;
+            b1 = 5;
+            i1 = b1;
+            b1 = (byte)i1;
+            bp1 = b1;
+            //byte local = 0, other = local, uninit;
         }
     }
 }

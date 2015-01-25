@@ -72,17 +72,8 @@ namespace CSharpTo2600.Compiler
                 // type of the result of the right-side expression.
                 Debug.Assert(TypeStack.Count == 0);
                 var LeftSideIdentifier = ((IdentifierNameSyntax)node.Left).Identifier.Text;
-                var Global = VariableManager.GetVariable(LeftSideIdentifier);
-                //@TODO - Move to Fragments
-                if(!IsCastable(Type, Global.Type))
-                {
-                    throw new FatalCompilationException("Types don't match for assignment: \{Type} to \{Global.Type}");
-                }
-                else if(Type != Global.Type)
-                {
-                    MethodInstructions.AddRange(Fragments.Fit(Type, Global.Type));
-                }
-                MethodInstructions.AddRange(Fragments.StoreVariable(Global.Name, Global.Type));
+                var Variable = VariableManager.GetVariable(LeftSideIdentifier);
+                MethodInstructions.AddRange(Fragments.StoreVariable(Variable, Type));
             }
 
             public override void VisitCastExpression(CastExpressionSyntax node)
@@ -159,6 +150,7 @@ namespace CSharpTo2600.Compiler
                 base.VisitIdentifierName(node);
             }
 
+            [Obsolete("Fragments")]
             private bool IsCastable(Type From, Type To)
             {
                 //@TODO - Not complete.

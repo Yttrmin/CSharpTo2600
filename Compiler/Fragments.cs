@@ -134,7 +134,7 @@ namespace CSharpTo2600.Compiler
         }
 
         // Precondition: Data stored on stack in big-endian.
-        [Obsolete("Use VariableInfo")]
+        [Obsolete("Use VariableInfo", true)]
         public static IEnumerable<InstructionInfo> StoreVariable(string Name, Type Type)
         {
             VerifyType(Type);
@@ -147,9 +147,37 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        /// <summary>
+        /// Takes a value off the stack and stores it in a variable.
+        /// </summary>
+        /// <param name="StackType">The type of the value on the stack.</param>
+        /// Precondition: Big-endian value is on the 6502 stack.
+        /// Postcondition: Value is removed from 6502 stack. Variable holds value.
         public static IEnumerable<InstructionInfo> StoreVariable(VariableInfo Variable, Type StackType)
         {
-            throw new NotImplementedException();
+            VerifyType(StackType);
+            var Result = Enumerable.Empty<InstructionInfo>();
+            if (!IsCastable(StackType, Variable.Type))
+            {
+                throw new FatalCompilationException("Types don't match for assignment: \{StackType} to \{Variable.Type}");
+            }
+            else if (StackType != Variable.Type)
+            {
+                Result = Result.Concat(Fit(StackType, Variable.Type));
+            }
+
+            if (Variable.AddressIsAbsolute)
+            {
+                for (var i = Variable.Size - 1; i >= 0; i--)
+                {
+                    yield return PLA();
+                    yield return STA(Variable.Name, i);
+                }
+            }
+            else if(Variable.AddressIsFrameRelative)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private static IEnumerable<InstructionInfo> StackAllocate(int Bytes, byte? InitializeTo=null)
@@ -205,6 +233,20 @@ namespace CSharpTo2600.Compiler
             {
                 throw new ArgumentException("Type can not be a char.");
             }
+        }
+
+        private static bool IsCastable(Type From, Type To)
+        {
+            //@TODO - Not complete.
+            if (From == To || From.IsAssignableFrom(To))
+            {
+                return true;
+            }
+            if (From.IsPrimitive && To.IsPrimitive)
+            {
+                return true;
+            }
+            return false;
         }
 
         /// <returns>The struct's bytes in little-endian. That is, a[0] is the
