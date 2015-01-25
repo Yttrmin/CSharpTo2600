@@ -34,7 +34,7 @@ namespace CSharpTo2600.Compiler
 
         public override string ToString()
         {
-            return "\{Type} \{Name} (\{Address})";
+            return $"{Type} {Name} ({Address})";
         }
     }
 

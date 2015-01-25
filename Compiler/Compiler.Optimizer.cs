@@ -17,8 +17,8 @@ namespace CSharpTo2600.Compiler
                 var Instructions = Subroutine.Instructions;
                 Instructions = RedundantStackPushPull(Instructions);
                 var Optimized = Subroutine.ReplaceInstructions(Instructions);
-                Console.WriteLine("Optimization results: \{Subroutine.InstructionCount} instructions to \{Optimized.InstructionCount}. "
-                    + "\{Subroutine.CycleCount} cycles to \{Optimized.CycleCount}.");
+                Console.WriteLine($"Optimization results: {Subroutine.InstructionCount} instructions to {Optimized.InstructionCount}. "
+                    + $"{Subroutine.CycleCount} cycles to {Optimized.CycleCount}.");
                 return Optimized;
             }
 

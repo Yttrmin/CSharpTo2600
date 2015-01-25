@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using CSharpTo2600.Framework;
-using CSharpTo2600.Framework.Instructions;
+using static CSharpTo2600.Framework.Instructions;
 using Index = CSharpTo2600.Framework.Index;
 
 namespace CSharpTo2600.Compiler

@@ -36,7 +36,7 @@ namespace CSharpTo2600.Compiler
                 }
                 else
                 {
-                    throw new FatalCompilationException("Could not find accessible variable with name: \{Name}");
+                    throw new FatalCompilationException($"Could not find accessible variable with name: {Name}");
                 }
             }
         }
@@ -83,7 +83,7 @@ namespace CSharpTo2600.Compiler
             var Address = new Range(NextVariableStart, NextVariableStart + Marshal.SizeOf(Type) - 1);
             if (!RAMRange.Contains(Address.End))
             {
-                throw new FatalCompilationException("Insufficient RAM to add var \{Name} of type \{Type}");
+                throw new FatalCompilationException($"Insufficient RAM to add var {Name} of type {Type}");
             }
             return AddVariable(Name, Type, Address, true);
         }

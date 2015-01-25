@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using CSharpTo2600.Framework;
-using CSharpTo2600.Framework.Instructions;
+using static CSharpTo2600.Framework.Instructions;
 
 namespace CSharpTo2600.Compiler
 {
@@ -25,7 +25,7 @@ namespace CSharpTo2600.Compiler
             VerifyType(To);
             if(From == To)
             {
-                throw new ArgumentException("Attempted to fit to same type: \{From}");
+                throw new ArgumentException($"Attempted to fit to same type: {From}");
             }
             //@TODO - Should there be all those type checks we did in MethodCompiler in here?
             var FromSize = Marshal.SizeOf(From);
@@ -40,7 +40,7 @@ namespace CSharpTo2600.Compiler
             }
             else
             {
-                throw new ArgumentException("Attempted to fit types of same size: \{From} to \{To}");
+                throw new ArgumentException($"Attempted to fit types of same size: {From} to {To}");
             }
         }
 
@@ -50,17 +50,17 @@ namespace CSharpTo2600.Compiler
             VerifyType(To);
             if(From == To)
             {
-                throw new ArgumentException("Attempted to truncate to the same type: \{From}");
+                throw new ArgumentException($"Attempted to truncate to the same type: {From}");
             }
             var FromSize = Marshal.SizeOf(From);
             var ToSize = Marshal.SizeOf(To);
             if (ToSize > FromSize)
             {
-                throw new ArgumentException("Attempted to truncate to a larger type: from \{From} to \{To}");
+                throw new ArgumentException($"Attempted to truncate to a larger type: from {From} to {To}");
             }
             if(ToSize == FromSize)
             {
-                throw new ArgumentException("Attempt to truncate to a same-size type. Something wrong is probably happening. From \{From} to \{To}");
+                throw new ArgumentException($"Attempt to truncate to a same-size type. Something wrong is probably happening. From {From} to {To}");
             }
             var ToDrop = FromSize - ToSize;
             //@TODO - This probably isn't right endian-wise.
@@ -73,17 +73,17 @@ namespace CSharpTo2600.Compiler
             VerifyType(To);
             if (From == To)
             {
-                throw new ArgumentException("Attempted to truncate to the same type: \{From}");
+                throw new ArgumentException($"Attempted to truncate to the same type: {From}");
             }
             var FromSize = Marshal.SizeOf(From);
             var ToSize = Marshal.SizeOf(To);
             if (ToSize < FromSize)
             {
-                throw new ArgumentException("Attempted to pad to a smaller type: from \{From} to \{To}");
+                throw new ArgumentException($"Attempted to pad to a smaller type: from {From} to {To}");
             }
             if (ToSize == FromSize)
             {
-                throw new ArgumentException("Attempt to pad to a same-size type. Something wrong is probably happening. From \{From} to \{To}");
+                throw new ArgumentException($"Attempt to pad to a same-size type. Something wrong is probably happening. From {From} to {To}");
             }
             var ToPad = ToSize - FromSize;
             //@TODO - Check endian
@@ -159,7 +159,7 @@ namespace CSharpTo2600.Compiler
             var Result = Enumerable.Empty<InstructionInfo>();
             if (!IsCastable(StackType, Variable.Type))
             {
-                throw new FatalCompilationException("Types don't match for assignment: \{StackType} to \{Variable.Type}");
+                throw new FatalCompilationException($"Types don't match for assignment: {StackType} to {Variable.Type}");
             }
             else if (StackType != Variable.Type)
             {

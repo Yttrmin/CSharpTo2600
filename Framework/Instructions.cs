@@ -6,7 +6,7 @@ namespace CSharpTo2600.Framework
     {
         public static InstructionInfo Comment(string Comment)
         {
-            return new InstructionInfo("; \{Comment}", 0);
+            return new InstructionInfo($"; {Comment}", 0);
         }
 
         public static InstructionInfo Label(string Label)
@@ -19,7 +19,7 @@ namespace CSharpTo2600.Framework
         /// </summary>
         public static InstructionInfo ADC(int Offset, Index IndexRegister)
         {
-            return new InstructionInfo("ADC $\{Offset.ToString("X4")},\{IndexRegister}", 4);
+            return new InstructionInfo($"ADC ${Offset.ToString("X4")},{IndexRegister}", 4);
         }
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace CSharpTo2600.Framework
             {
                 throw new ArgumentException("Invalid index register.", nameof(IndexRegister));
             }
-            return new InstructionInfo("ADC $\{Offset.ToString("X2")},\{IndexRegister}", 4);
+            return new InstructionInfo($"ADC ${Offset.ToString("X2")},{IndexRegister}", 4);
         }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace CSharpTo2600.Framework
         public static InstructionInfo BNE(string Label)
         {
             // 4 if branch to new page.
-            return new InstructionInfo("BNE \{Label}", 4);
+            return new InstructionInfo($"BNE {Label}", 4);
         }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace CSharpTo2600.Framework
         {
             // Hex numbers have a dollar sign before them in DASM.
             var ValString = HexString ? "$" + Value.ToString("X") : Value.ToString();
-            var Text = string.Format("LDA #\{ValString}");
+            var Text = string.Format($"LDA #{ValString}");
             return new InstructionInfo(Text, 2);
         }
 
@@ -84,7 +84,7 @@ namespace CSharpTo2600.Framework
         {
             //@TODO - Technically the symbol could refer to any point in the ROM,
             // maybe not zero-page. Figure out a solution.
-            return new InstructionInfo("LDA \{Name}+\{Offset}", 3);
+            return new InstructionInfo($"LDA {Name}+{Offset}", 3);
         }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace CSharpTo2600.Framework
         /// <returns></returns>
         public static InstructionInfo LDX(byte Value)
         {
-            return new InstructionInfo("LDX #$\{Value.ToString("X2")}", 2);
+            return new InstructionInfo($"LDX #${Value.ToString("X2")}", 2);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace CSharpTo2600.Framework
         /// </summary>
         public static InstructionInfo SBC(int Offset, Index IndexRegister)
         {
-            return new InstructionInfo("SBC $\{Offset.ToString("X4")},\{IndexRegister}", 4);
+            return new InstructionInfo($"SBC ${Offset.ToString("X4")},{IndexRegister}", 4);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace CSharpTo2600.Framework
         // Zero page addressing.
         public static InstructionInfo STA(byte Address)
         {
-            return new InstructionInfo("STA $\{Address.ToString("X")}", 3);
+            return new InstructionInfo($"STA ${Address.ToString("X")}", 3);
         }
 
         /// <summary>
@@ -149,23 +149,23 @@ namespace CSharpTo2600.Framework
         /// </summary>
         public static InstructionInfo STA(byte Offset, Index IndexRegister)
         {
-            return new InstructionInfo("STA $\{Offset.ToString("X2")},\{IndexRegister}", 4);
+            return new InstructionInfo($"STA ${Offset.ToString("X2")},{IndexRegister}", 4);
         }
         public static InstructionInfo STA(int Offset, Index IndexRegister)
         {
-            return new InstructionInfo("STA $\{Offset.ToString("X4")},\{IndexRegister}", 4);
+            return new InstructionInfo($"STA ${Offset.ToString("X4")},{IndexRegister}", 4);
         }
         [Obsolete]
         public static InstructionInfo STA(string Name)
         {
-            return new InstructionInfo("STA \{Name}", 3);
+            return new InstructionInfo($"STA {Name}", 3);
         }
         /// <summary>
         /// Store Accumulator in Memory [Zero-page] (3 cycles)
         /// </summary>
         public static InstructionInfo STA(string Name, int Offset)
         {
-            return new InstructionInfo("STA \{Name}+\{Offset}", 3);
+            return new InstructionInfo($"STA {Name}+{Offset}", 3);
         }
 
         /// <summary>

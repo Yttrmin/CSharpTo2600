@@ -83,7 +83,7 @@ namespace CSharpTo2600.Compiler
                 var ToType = Compiler.GetType(node.Type);
                 if(!IsCastable(From, ToType))
                 {
-                    throw new FatalCompilationException("Cannot perform typecast from: \{From} to \{ToType}");
+                    throw new FatalCompilationException($"Cannot perform typecast from: {From} to {ToType}");
                 }
                 MethodInstructions.AddRange(Fragments.Fit(From, ToType));
                 TypeStack.Push(ToType);
@@ -188,7 +188,7 @@ namespace CSharpTo2600.Compiler
                 {
                     Console.Write(" ");
                 }
-                Console.WriteLine("\{node.GetType().Name}");
+                Console.WriteLine($"{node.GetType().Name}");
             }
 
             private int DebugChildLevel(SyntaxNode n)

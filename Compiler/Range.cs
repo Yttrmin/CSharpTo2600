@@ -68,7 +68,7 @@
 
         public override string ToString()
         {
-            return "0x\{Start.ToString("X")} to 0x\{End.ToString("X")}";
+            return $"0x{Start.ToString("X")} to 0x{End.ToString("X")}";
         }
     }
 }

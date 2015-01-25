@@ -156,7 +156,7 @@ namespace CSharpTo2600.Compiler
         }
 
         public FatalCompilationException(string Message, SyntaxNode Node)
-            : this("(Line #\{Node.SyntaxTree.GetLineSpan(Node.Span).StartLinePosition.Line}): \{Message}")
+            : this($"(Line #{Node.SyntaxTree.GetLineSpan(Node.Span).StartLinePosition.Line}): {Message}")
         {
 
         }

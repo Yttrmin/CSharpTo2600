@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using CSharpTo2600.Framework;
-using CSharpTo2600.Framework.Instructions;
+using static CSharpTo2600.Framework.Instructions;
 
 namespace CSharpTo2600.Compiler
 {
@@ -111,7 +111,7 @@ namespace CSharpTo2600.Compiler
             foreach(var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
                 .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
             {
-                Writer.WriteLine("\{Global.Name} = $\{Global.Address.Start.ToString("X")} ; \{Global.Type} (\{Global.Size} bytes)");
+                Writer.WriteLine($"{Global.Name} = ${Global.Address.Start.ToString("X")} ; {Global.Type} ({Global.Size} bytes)");
             }
             Writer.WriteLine();
         }
@@ -121,7 +121,7 @@ namespace CSharpTo2600.Compiler
             Writer.WriteLine(Subroutine.Name);
             foreach(var Instruction in Subroutine.Instructions)
             {
-                Writer.WriteLine("\t\{Instruction.Text}");
+                Writer.WriteLine($"\t{Instruction.Text}");
             }
             Writer.WriteLine();
         }

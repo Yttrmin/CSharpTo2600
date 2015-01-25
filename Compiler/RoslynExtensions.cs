@@ -16,7 +16,7 @@ namespace CSharpTo2600.Compiler
             {
                 if (@this.IsKind((SyntaxKind)e))
                 {
-                    Console.WriteLine("Expression \"\{@this}\" is \{e}");
+                    Console.WriteLine($"Expression \"{@this}\" is {e}");
                 }
             }
         }
