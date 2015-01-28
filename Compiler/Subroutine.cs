@@ -7,6 +7,7 @@ namespace CSharpTo2600.Compiler
     internal class Subroutine
     {
         public readonly string Name;
+        [System.Obsolete("Replace InstructionInfo")]
         public readonly ImmutableArray<InstructionInfo> Instructions;
         public readonly MethodType Type;
         //@TODO - Handle comments.

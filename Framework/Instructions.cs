@@ -2,6 +2,7 @@
 
 namespace CSharpTo2600.Framework
 {
+    [Obsolete("Use AssemblyFactory")]
     public static class Instructions
     {
         public static InstructionInfo Comment(string Comment)
@@ -210,6 +211,7 @@ namespace CSharpTo2600.Framework
     //@TODO - Probably will have to redo this like with GlobalInfo->VariableInfo.
     // Too many things that aren't instructions are getting shoved into
     // InstructionInfos: instructions, comments, labels, psuedo-ops, etc.
+    [Obsolete("Use AssemblyLine (Instruction subclass)")]
     public struct InstructionInfo
     {
         /// <summary>

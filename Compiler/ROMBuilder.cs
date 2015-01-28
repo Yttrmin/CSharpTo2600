@@ -4,7 +4,8 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using CSharpTo2600.Framework;
-using static CSharpTo2600.Framework.Instructions;
+using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
@@ -76,16 +77,21 @@ namespace CSharpTo2600.Compiler
 
         public void WriteToFile(string Path)
         {
+            var Lines = new List<AssemblyLine>();
+            Lines.AddRange(WriteHeader());
+            Lines.AddRange(WriteGlobals());
+            var MemoryInitializer = Subroutines.Single(s => s.Name == "InitializeCPU");
+            WriteSubroutine(MemoryInitializer);
+            var InitializeMethod = Subroutines.Where(s => s.Type == MethodType.Initialize).SingleOrDefault();
+            if (InitializeMethod != null)
+            {
+                WriteSubroutine(InitializeMethod);
+            }
             using (var Writer = new StreamWriter(Path))
             {
-                WriteHead(Writer);
-                WriteGlobals(Writer);
-                var MemoryInitializer = Subroutines.Single(s => s.Name == "InitializeCPU");
-                WriteSubroutine(Writer, MemoryInitializer);
-                var InitializeMethod = Subroutines.Where(s => s.Type == MethodType.Initialize).SingleOrDefault();
-                if(InitializeMethod != null)
+                foreach(var Line in Lines)
                 {
-                    WriteSubroutine(Writer, InitializeMethod);
+                    Writer.WriteLine(Line.ToString());
                 }
             }
         }
@@ -95,35 +101,32 @@ namespace CSharpTo2600.Compiler
             VariableManager = VariableManager.AddVariable(Name, Type);
         }
 
-        private void WriteHead(StreamWriter Writer)
+        private IEnumerable<AssemblyLine> WriteHeader()
         {
-            Writer.WriteLine("; Beginning of compiler-generated source file.");
-            Writer.WriteLine("\tprocessor 6502");
-            //@TODO - TIA_BASE_ADDRESS
-            Writer.WriteLine("\tinclude vcs.h");
-            Writer.WriteLine("\torg $F000");
-            Writer.WriteLine();
+            //@TODO
+            yield return Comment("Beginning of compiler-generated source file.");
+            yield return Processor();
+            yield return Include("vcs.h");
+            yield return Org(0xF000);
+            yield return BlankLine();
         }
 
-        private void WriteGlobals(StreamWriter Writer)
+        private IEnumerable<AssemblyLine> WriteGlobals()
         {
-            Writer.WriteLine(";Globals");
-            foreach(var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
+            yield return Comment("Globals:");
+            foreach (var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
                 .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
             {
-                Writer.WriteLine($"{Global.Name} = ${Global.Address.Start.ToString("X")} ; {Global.Type} ({Global.Size} bytes)");
+                //@TODO - Add comment on type and size in bytes.
+                yield return DefineSymbol(Global.Name, Global.Address.Start);
             }
-            Writer.WriteLine();
         }
 
-        private void WriteSubroutine(StreamWriter Writer, Subroutine Subroutine)
+        private IEnumerable<AssemblyLine> WriteSubroutine(Subroutine Subroutine)
         {
-            Writer.WriteLine(Subroutine.Name);
-            foreach(var Instruction in Subroutine.Instructions)
-            {
-                Writer.WriteLine($"\t{Instruction.Text}");
-            }
-            Writer.WriteLine();
+            yield return Label(Subroutine.Name);
+            yield return BlankLine();
+            throw new NotImplementedException();
         }
     }
 }
