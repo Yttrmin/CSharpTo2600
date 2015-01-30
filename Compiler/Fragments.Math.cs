@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using CSharpTo2600.Framework;
-using static CSharpTo2600.Framework.Instructions;
-using Index = CSharpTo2600.Framework.Index;
+using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
     partial class Fragments
     {
-		public static IEnumerable<InstructionInfo> Add(Type Type)
+		public static IEnumerable<AssemblyLine> Add(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
@@ -22,7 +21,7 @@ namespace CSharpTo2600.Compiler
             yield return STA(0x100, Index.X);
         }
 
-		public static IEnumerable<InstructionInfo> Subtract(Type Type)
+		public static IEnumerable<AssemblyLine> Subtract(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
@@ -33,7 +32,7 @@ namespace CSharpTo2600.Compiler
             yield return STA(0x100, Index.X);
         }
 
-        public static IEnumerable<InstructionInfo> BitwiseOr(Type Type)
+        public static IEnumerable<AssemblyLine> BitwiseOr(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);

@@ -8,6 +8,7 @@ using CSharpTo2600.Framework;
 using System.Linq;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
@@ -18,7 +19,7 @@ namespace CSharpTo2600.Compiler
             private readonly Compiler Compiler;
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
-            private readonly List<InstructionInfo> MethodInstructions;
+            private readonly List<AssemblyLine> MethodBody;
             private readonly Stack<Type> TypeStack;
             private LocalVariableManager VariableManager;
 
@@ -27,7 +28,7 @@ namespace CSharpTo2600.Compiler
                 this.Compiler = Compiler;
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
-                MethodInstructions = new List<InstructionInfo>();
+                MethodBody = new List<AssemblyLine>();
                 TypeStack = new Stack<Type>();
                 VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);
             }
@@ -37,7 +38,7 @@ namespace CSharpTo2600.Compiler
                 VariableManager = new CompilerPrePassLocals(Compiler, MethodDeclaration).Process();
                 AllocateLocals();
                 Visit(MethodDeclaration);
-                return new Subroutine(Name, MethodInstructions.ToImmutableArray(), MethodType.Initialize);
+                return new Subroutine(Name, MethodBody.ToImmutableArray(), MethodType.Initialize);
             }
 
             private void AllocateLocals()
@@ -46,7 +47,7 @@ namespace CSharpTo2600.Compiler
                 {
                     //@TODO - Symbol
                     var size = 0;
-                    MethodInstructions.AddRange(Fragments.AllocateLocal(Variable.Type, out size));
+                    MethodBody.AddRange(Fragments.AllocateLocal(Variable.Type, out size));
                 }
             }
 
@@ -73,7 +74,7 @@ namespace CSharpTo2600.Compiler
                 Debug.Assert(TypeStack.Count == 0);
                 var LeftSideIdentifier = ((IdentifierNameSyntax)node.Left).Identifier.Text;
                 var Variable = VariableManager.GetVariable(LeftSideIdentifier);
-                MethodInstructions.AddRange(Fragments.StoreVariable(Variable, Type));
+                MethodBody.AddRange(Fragments.StoreVariable(Variable, Type));
             }
 
             public override void VisitCastExpression(CastExpressionSyntax node)
@@ -85,7 +86,7 @@ namespace CSharpTo2600.Compiler
                 {
                     throw new FatalCompilationException($"Cannot perform typecast from: {From} to {ToType}");
                 }
-                MethodInstructions.AddRange(Fragments.Fit(From, ToType));
+                MethodBody.AddRange(Fragments.Fit(From, ToType));
                 TypeStack.Push(ToType);
             }
 
@@ -113,11 +114,11 @@ namespace CSharpTo2600.Compiler
                 switch(node.CSharpKind())
                 {
                     case SyntaxKind.AddExpression:
-                        MethodInstructions.AddRange(Fragments.Add(TypeA));
+                        MethodBody.AddRange(Fragments.Add(TypeA));
                         TypeStack.Push(TypeA);
                         break;
                     case SyntaxKind.SubtractExpression:
-                        MethodInstructions.AddRange(Fragments.Subtract(TypeA));
+                        MethodBody.AddRange(Fragments.Subtract(TypeA));
                         TypeStack.Push(TypeA);
                         break;
                     default:
@@ -130,7 +131,7 @@ namespace CSharpTo2600.Compiler
             {
                 var Value = ToSmallestNumeric(node.Token.Value);
                 TypeStack.Push(Value.GetType());
-                MethodInstructions.AddRange(Fragments.PushLiteral(Value));
+                MethodBody.AddRange(Fragments.PushLiteral(Value));
                 base.VisitLiteralExpression(node);
             }
 
@@ -146,7 +147,7 @@ namespace CSharpTo2600.Compiler
                 }
                 var Variable = VariableManager.GetVariable(node.Identifier.Text);
                 TypeStack.Push(Variable.Type);
-                MethodInstructions.AddRange(Fragments.PushVariable(Variable.Name, Variable.Type));
+                MethodBody.AddRange(Fragments.PushVariable(Variable.Name, Variable.Type));
                 base.VisitIdentifierName(node);
             }
 

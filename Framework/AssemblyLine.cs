@@ -18,7 +18,7 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         protected AssemblyLine(string Text)
-            : this(Text, String.Empty)
+            : this(Text, null)
         {
         }
 
@@ -41,12 +41,18 @@ namespace CSharpTo2600.Framework.Assembly
         public string Argument { get; }
         public int Cycles { get; }
 
-        private Instruction(string OpCode, string Argument, int Cycles)
-            : base($"{OpCode} {Argument}")
+        internal Instruction(string OpCode, string Argument, int Cycles)
+            : base($"\t{OpCode} {Argument}")
         {
             this.OpCode = OpCode;
             this.Argument = Argument;
             this.Cycles = Cycles;
+        }
+
+        internal Instruction(string OpCode, int Cycles)
+            : this(OpCode, null, Cycles)
+        {
+
         }
     }
 
@@ -55,6 +61,15 @@ namespace CSharpTo2600.Framework.Assembly
         internal Comment(string Comment, int Indentation)
             : base($"{new string('\t', Indentation)}; {Comment}")
         {
+        }
+    }
+
+    public sealed class Blank : AssemblyLine
+    {
+        internal Blank()
+            : base(String.Empty)
+        {
+
         }
     }
 

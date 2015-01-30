@@ -22,7 +22,7 @@ namespace CSharpTo2600.Compiler
             VariableManager = new GlobalVariableManager(RAMRange);
             ReserveGlobals();
             NextGlobalStart = RAMRange.Start;
-            var Initializer = new InstructionInfo[]
+            var Initializer = new AssemblyLine[]
             {
                 SEI(),
                 CLD(),
@@ -85,8 +85,9 @@ namespace CSharpTo2600.Compiler
             var InitializeMethod = Subroutines.Where(s => s.Type == MethodType.Initialize).SingleOrDefault();
             if (InitializeMethod != null)
             {
-                WriteSubroutine(InitializeMethod);
+                Lines.AddRange(WriteSubroutine(InitializeMethod));
             }
+
             using (var Writer = new StreamWriter(Path))
             {
                 foreach(var Line in Lines)
@@ -103,8 +104,7 @@ namespace CSharpTo2600.Compiler
 
         private IEnumerable<AssemblyLine> WriteHeader()
         {
-            //@TODO
-            yield return Comment("Beginning of compiler-generated source file.");
+            yield return Comment("Beginning of compiler-generated source file.", 0);
             yield return Processor();
             yield return Include("vcs.h");
             yield return Org(0xF000);
@@ -113,7 +113,7 @@ namespace CSharpTo2600.Compiler
 
         private IEnumerable<AssemblyLine> WriteGlobals()
         {
-            yield return Comment("Globals:");
+            yield return Comment("Globals:", 0);
             foreach (var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
                 .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
             {
@@ -125,8 +125,11 @@ namespace CSharpTo2600.Compiler
         private IEnumerable<AssemblyLine> WriteSubroutine(Subroutine Subroutine)
         {
             yield return Label(Subroutine.Name);
+            foreach(var Line in Subroutine.Body)
+            {
+                yield return Line;
+            }
             yield return BlankLine();
-            throw new NotImplementedException();
         }
     }
 }

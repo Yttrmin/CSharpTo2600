@@ -1,10 +1,7 @@
-﻿using CSharpTo2600.Framework;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
@@ -14,9 +11,9 @@ namespace CSharpTo2600.Compiler
         {
             public Subroutine PefromAllOptimizations(Subroutine Subroutine)
             {
-                var Instructions = Subroutine.Instructions;
+                var Instructions = Subroutine.Body;
                 Instructions = RedundantStackPushPull(Instructions);
-                var Optimized = Subroutine.ReplaceInstructions(Instructions);
+                var Optimized = Subroutine.ReplaceBody(Instructions);
                 Console.WriteLine($"Optimization results: {Subroutine.InstructionCount} instructions to {Optimized.InstructionCount}. "
                     + $"{Subroutine.CycleCount} cycles to {Optimized.CycleCount}.");
                 return Optimized;
@@ -25,26 +22,41 @@ namespace CSharpTo2600.Compiler
             /// <summary>
             /// Finds PHAs immediately followed by PLAs and deletes both instructions.
             /// </summary>
-            public ImmutableArray<InstructionInfo> RedundantStackPushPull(ImmutableArray<InstructionInfo> Instructions)
+            public ImmutableArray<AssemblyLine> RedundantStackPushPull(ImmutableArray<AssemblyLine> Body)
             {
                 //@TODO - Could do this with PHP/PLP when we support it.
-                var Optimized = new List<InstructionInfo>();
-                for(var i = 0; i < Instructions.Length; i++)
+                var Optimized = new List<AssemblyLine>();
+                Instruction PreviousInstruction = null;
+                foreach(var Instruction in FilterLineOptimizing<Instruction>(Body, Optimized))
                 {
-                    var Instruction = Instructions[i];
-                    //@TODO - i check shouldn't be neccessary once locals work.
-                    if (i != Instructions.Length-1 && Instruction.Text == "PHA" && Instructions[i + 1].Text == "PLA")
+                    if(PreviousInstruction != null && PreviousInstruction.OpCode == "PHA" && Instruction.OpCode == "PLA")
                     {
-                        // Skip this and the next instruction so they're not added.
-                        i++;
-                        continue;
+                        Optimized.Remove(PreviousInstruction);
+                        PreviousInstruction = null;
                     }
                     else
                     {
                         Optimized.Add(Instruction);
+                        PreviousInstruction = Instruction;
                     }
                 }
                 return Optimized.ToImmutableArray();
+            }
+
+            private IEnumerable<T> FilterLineOptimizing<T>(IEnumerable<AssemblyLine> Lines, IList<AssemblyLine> NewLines)
+                where T : AssemblyLine
+            {
+                foreach(var Line in Lines)
+                {
+                    if(Line is T)
+                    {
+                        yield return (T)Line;
+                    }
+                    else
+                    {
+                        NewLines.Add(Line);
+                    }
+                }
             }
         }
     }

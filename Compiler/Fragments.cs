@@ -2,8 +2,8 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using CSharpTo2600.Framework;
-using static CSharpTo2600.Framework.Instructions;
+using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
@@ -19,7 +19,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public static IEnumerable<InstructionInfo> Fit(Type From, Type To)
+        public static IEnumerable<AssemblyLine> Fit(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -44,7 +44,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public static IEnumerable<InstructionInfo> Truncate(Type From, Type To)
+        public static IEnumerable<AssemblyLine> Truncate(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -67,7 +67,7 @@ namespace CSharpTo2600.Compiler
             return StackDeallocate(ToDrop);
         }
 
-        public static IEnumerable<InstructionInfo> Pad(Type From, Type To)
+        public static IEnumerable<AssemblyLine> Pad(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -90,7 +90,7 @@ namespace CSharpTo2600.Compiler
             return StackAllocate(ToPad, 0);
         }
 
-        public static IEnumerable<InstructionInfo> AllocateLocal(Type Type, out int Size)
+        public static IEnumerable<AssemblyLine> AllocateLocal(Type Type, out int Size)
         {
             VerifyType(Type);
             Size = Marshal.SizeOf(Type);
@@ -98,14 +98,14 @@ namespace CSharpTo2600.Compiler
         }
 
         // Really make sure you're calling this on the most recently allocated local.
-        public static IEnumerable<InstructionInfo> DeallocateLocal(Type Type)
+        public static IEnumerable<AssemblyLine> DeallocateLocal(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
             return StackDeallocate(Size);
         }
 
-        public static IEnumerable<InstructionInfo> PushLiteral(object Value)
+        public static IEnumerable<AssemblyLine> PushLiteral(object Value)
         {
             VerifyType(Value.GetType());
             var Size = Marshal.SizeOf(Value.GetType());
@@ -122,7 +122,7 @@ namespace CSharpTo2600.Compiler
         }
 
         [Obsolete("Use VariableInfo")]
-        public static IEnumerable<InstructionInfo> PushVariable(string Name, Type Type)
+        public static IEnumerable<AssemblyLine> PushVariable(string Name, Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
@@ -135,7 +135,7 @@ namespace CSharpTo2600.Compiler
 
         // Precondition: Data stored on stack in big-endian.
         [Obsolete("Use VariableInfo", true)]
-        public static IEnumerable<InstructionInfo> StoreVariable(string Name, Type Type)
+        public static IEnumerable<AssemblyLine> StoreVariable(string Name, Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
@@ -153,10 +153,10 @@ namespace CSharpTo2600.Compiler
         /// <param name="StackType">The type of the value on the stack.</param>
         /// Precondition: Big-endian value is on the 6502 stack.
         /// Postcondition: Value is removed from 6502 stack. Variable holds value.
-        public static IEnumerable<InstructionInfo> StoreVariable(VariableInfo Variable, Type StackType)
+        public static IEnumerable<AssemblyLine> StoreVariable(VariableInfo Variable, Type StackType)
         {
             VerifyType(StackType);
-            var Result = Enumerable.Empty<InstructionInfo>();
+            var Result = Enumerable.Empty<AssemblyLine>();
             if (!IsCastable(StackType, Variable.Type))
             {
                 throw new FatalCompilationException($"Types don't match for assignment: {StackType} to {Variable.Type}");
@@ -180,7 +180,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private static IEnumerable<InstructionInfo> StackAllocate(int Bytes, byte? InitializeTo=null)
+        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo=null)
         {
             //@TODO
             if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
@@ -201,7 +201,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private static IEnumerable<InstructionInfo> StackDeallocate(int Bytes)
+        private static IEnumerable<AssemblyLine> StackDeallocate(int Bytes)
         {
             //@TODO
             if(true/*Bytes <= 2*/)
