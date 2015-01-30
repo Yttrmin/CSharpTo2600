@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CSharpTo2600.Framework.Assembly
 {
@@ -20,6 +16,25 @@ namespace CSharpTo2600.Framework.Assembly
         protected AssemblyLine(string Text)
             : this(Text, null)
         {
+        }
+
+        protected abstract AssemblyLine WithCommentInternal(string Comment);
+
+        protected string MergeComment(string NewComment)
+        {
+            if(Comment == null)
+            {
+                return NewComment;
+            }
+            else
+            {
+                return $"{Comment} ;; {NewComment}";
+            }
+        }
+
+        public AssemblyLine WithComment(string Comment)
+        {
+            return WithCommentInternal(Comment);
         }
 
         public override string ToString()
@@ -41,8 +56,8 @@ namespace CSharpTo2600.Framework.Assembly
         public string Argument { get; }
         public int Cycles { get; }
 
-        internal Instruction(string OpCode, string Argument, int Cycles)
-            : base($"\t{OpCode} {Argument}")
+        internal Instruction(string OpCode, string Argument, int Cycles, string Comment = null)
+            : base($"\t{OpCode} {Argument}", Comment)
         {
             this.OpCode = OpCode;
             this.Argument = Argument;
@@ -54,22 +69,34 @@ namespace CSharpTo2600.Framework.Assembly
         {
 
         }
-    }
 
-    public sealed class Comment : AssemblyLine
-    {
-        internal Comment(string Comment, int Indentation)
-            : base($"{new string('\t', Indentation)}; {Comment}")
+        protected override AssemblyLine WithCommentInternal(string Comment)
         {
+            return new Instruction(OpCode, Argument, Cycles, MergeComment(Comment));
+        }
+
+        public new Instruction WithComment(string Comment)
+        {
+            return (Instruction)WithCommentInternal(Comment);
         }
     }
 
-    public sealed class Blank : AssemblyLine
+    public sealed class Trivia : AssemblyLine
     {
-        internal Blank()
-            : base(String.Empty)
+        internal Trivia(string Text, string Comment = null)
+            : base(Text, Comment)
         {
 
+        }
+
+        protected override AssemblyLine WithCommentInternal(string Comment)
+        {
+            return new Trivia(Text, MergeComment(Comment));
+        }
+
+        public new Trivia WithComment(string Comment)
+        {
+            return (Trivia)WithCommentInternal(Comment);
         }
     }
 
@@ -78,18 +105,26 @@ namespace CSharpTo2600.Framework.Assembly
         public string Name { get; }
         public byte? Value { get; }
 
-        internal Symbol(string Name)
-            : base(GetText(Name, null))
+        internal Symbol(string Name, string Comment = null)
+            : this(Name, null, Comment)
         {
-            this.Name = Name;
-            this.Value = null;
         }
 
-        internal Symbol(string Name, byte Value)
-            : base(GetText(Name, Value))
+        internal Symbol(string Name, byte? Value, string Comment = null)
+            : base(GetText(Name, Value), Comment)
         {
             this.Name = Name;
             this.Value = Value;
+        }
+
+        protected override AssemblyLine WithCommentInternal(string Comment)
+        {
+            return new Symbol(Name, Value, MergeComment(Comment));
+        }
+
+        public new Symbol WithComment(string Comment)
+        {
+            return (Symbol)WithCommentInternal(Comment);
         }
 
         private static string GetText(string Name, byte? Value)
@@ -107,10 +142,21 @@ namespace CSharpTo2600.Framework.Assembly
 
     public sealed class PsuedoOp : AssemblyLine
     {
-        internal PsuedoOp(string Text)
-            : base(Text)
+        //@TODO
+        internal PsuedoOp(string Text, string Comment = null)
+            : base(Text, Comment)
         {
             
+        }
+
+        protected override AssemblyLine WithCommentInternal(string Comment)
+        {
+            return new PsuedoOp(Text, MergeComment(Comment));
+        }
+
+        public new PsuedoOp WithComment(string Comment)
+        {
+            return (PsuedoOp)WithCommentInternal(Comment);
         }
     }
 }

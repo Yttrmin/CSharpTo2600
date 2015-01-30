@@ -117,8 +117,7 @@ namespace CSharpTo2600.Compiler
             foreach (var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
                 .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
             {
-                //@TODO - Add comment on type and size in bytes.
-                yield return DefineSymbol(Global.Name, Global.Address.Start);
+                yield return DefineSymbol(Global.Name, Global.Address.Start).WithComment($"{Global.Type} ({Global.Size} bytes)");
             }
         }
 

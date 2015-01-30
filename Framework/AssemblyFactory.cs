@@ -4,14 +4,14 @@ namespace CSharpTo2600.Framework.Assembly
 {
     public static class AssemblyFactory
     {
-        #region Miscellaneous
-        public static Comment Comment(string Comment, int IndentationLevel = 1)
+        #region Trivia
+        public static Trivia Comment(string Comment, int IndentationLevel = 1)
         {
-            return new Comment(Comment, IndentationLevel);
+            return new Trivia($"{new string('\t', IndentationLevel)}; {Comment}");
         }
-        public static AssemblyLine BlankLine()
+        public static Trivia BlankLine()
         {
-            return new Blank();
+            return new Trivia(String.Empty);
         }
         #endregion
 
