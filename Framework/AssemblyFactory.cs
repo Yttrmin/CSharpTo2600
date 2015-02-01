@@ -89,6 +89,19 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         /// <summary>
+        /// Branch if Not Equal (2-4 cycles)
+        /// </summary>
+        public static Instruction BNE(Symbol Label)
+        {
+            // 4 if branch to new page.
+            if(Label.Value.HasValue)
+            {
+                throw new ArgumentException("Can only branch to label.");
+            }
+            return new Instruction("BNE", Label.Name, 4);
+        }
+
+        /// <summary>
         /// Clear Carry Flag (2 cycles)
         /// </summary>
         public static Instruction CLC()
@@ -117,17 +130,26 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction LDA(byte Value)
         {
-            return new Instruction("LDA", "$"+Value.ToString("X2"), 2);
+            return new Instruction("LDA", $"#${Value.ToString("X2")}", 2);
         }
 
         /// <summary>
         /// Load Accumulator with Memory [Zero-page] (3 cycles)
         /// </summary>
-        public static Instruction LDA(string Name, int Offset)
+        public static Instruction LDA(string Name, int Offset = 0)
         {
             //@TODO - Technically the symbol could refer to any point in the ROM,
             // maybe not zero-page. Figure out a solution.
-            return new Instruction("LDA", $"{Name}+{Offset}", 3);
+            string Argument;
+            if (Offset == 0)
+            {
+                Argument = Name;
+            }
+            else
+            {
+                Argument = $"{Name}+{Offset}";
+            }
+            return new Instruction("LDA", Argument, 3);
         }
 
         /// <summary>
@@ -136,6 +158,14 @@ namespace CSharpTo2600.Framework.Assembly
         public static Instruction LDX(byte Value)
         {
             return new Instruction("LDX", $"#${Value.ToString("X2")}", 2);
+        }
+
+        /// <summary>
+        /// Load Y Register [Immediate] (2 cycles)
+        /// </summary>
+        public static Instruction LDY(byte Value)
+        {
+            return new Instruction("LDY", $"#${Value.ToString("X2")}", 2);
         }
 
         /// <summary>
@@ -189,9 +219,18 @@ namespace CSharpTo2600.Framework.Assembly
         /// <summary>
         /// Store Accumulator [Zero-page] (3 cycles)
         /// </summary>
-        public static Instruction STA(string Name, int Offset)
+        public static Instruction STA(string Name, int Offset = 0)
         {
-            return new Instruction("STA", $"{Name}+{Offset}", 3);
+            string Argument;
+            if (Offset == 0)
+            {
+                Argument = Name;
+            }
+            else
+            {
+                Argument = $"{Name}+{Offset}";
+            }
+            return new Instruction("STA", Argument, 3);
         }
 
         /// <summary>

@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using CSharpTo2600.Framework;
-using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
 using CSharpTo2600.Framework.Assembly;
+using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
+using static CSharpTo2600.Framework.Assembly.Symbols;
 
 namespace CSharpTo2600.Compiler
 {
@@ -22,19 +22,6 @@ namespace CSharpTo2600.Compiler
             VariableManager = new GlobalVariableManager(RAMRange);
             ReserveGlobals();
             NextGlobalStart = RAMRange.Start;
-            var Initializer = new AssemblyLine[]
-            {
-                SEI(),
-                CLD(),
-                LDX(0xFF),
-                TXS(),
-                LDA(0),
-                Label("ClearMem"),
-                STA((byte)0, Index.X),
-                DEX(),
-                BNE("ClearMem")
-            }.ToImmutableArray();
-            Subroutines.Add(new Subroutine("InitializeCPU", Initializer, MethodType.None));
         }
 
         private void ReserveGlobals()
@@ -70,6 +57,67 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        private IEnumerable<AssemblyLine> GenerateInitializer()
+        {
+            yield return Comment("Initializer", 0);
+            yield return SEI();
+            yield return CLD();
+            yield return LDX(0xFF);
+            yield return TXS();
+            yield return LDA(0);
+            var ClearLabel = Label(".ClearMem");
+            yield return ClearLabel;
+            yield return STA((byte)0, Index.X);
+            yield return DEX();
+            yield return BNE(ClearLabel);
+            yield return Comment("Beginning of user code.");
+            var UserInitializer = GetSpecialSubroutine(MethodType.Initialize);
+            if(UserInitializer != null)
+            {
+                foreach(var Line in UserInitializer.Body)
+                {
+                    yield return Line;
+                }
+            }
+            yield return Comment("End of user code.");
+        }
+
+        private IEnumerable<AssemblyLine> GenerateMainLoop()
+        {
+            yield return Comment("Main loop", 0);
+            yield return LDA(2);
+            yield return STA(VSYNC);
+            yield return STA(WSYNC);
+            yield return STA(WSYNC);
+            yield return STA(WSYNC);
+            yield return LDA(43);
+            yield return STA(TIM64T);
+            yield return LDA(0);
+            yield return STA(VSYNC);
+            yield return Comment("Beginning of user code.");
+            var UserSubroutine = GetSpecialSubroutine(MethodType.Tick);
+            if(UserSubroutine != null)
+            {
+                foreach(var Line in UserSubroutine.Body)
+                {
+                    yield return Line;
+                }
+            }
+            yield return Comment("End of user code.");
+            var WaitLabel = Label(".WaitForVBlankEnd");
+            yield return WaitLabel;
+            yield return LDA(INTIM);
+            yield return BNE(WaitLabel);
+            yield return STA(WSYNC);
+            yield return STA(VBLANK);
+            yield return LDY(192);
+        }
+
+        private Subroutine GetSpecialSubroutine(MethodType Type)
+        {
+            return Subroutines.SingleOrDefault(s => s.Type == Type);
+        }
+
         public void AddSubroutine(Subroutine Subroutine)
         {
             Subroutines.Add(Subroutine);
@@ -80,14 +128,8 @@ namespace CSharpTo2600.Compiler
             var Lines = new List<AssemblyLine>();
             Lines.AddRange(WriteHeader());
             Lines.AddRange(WriteGlobals());
-            var MemoryInitializer = Subroutines.Single(s => s.Name == "InitializeCPU");
-            WriteSubroutine(MemoryInitializer);
-            var InitializeMethod = Subroutines.Where(s => s.Type == MethodType.Initialize).SingleOrDefault();
-            if (InitializeMethod != null)
-            {
-                Lines.AddRange(WriteSubroutine(InitializeMethod));
-            }
-
+            Lines.AddRange(GenerateInitializer());
+            Lines.AddRange(GenerateMainLoop());
             using (var Writer = new StreamWriter(Path))
             {
                 foreach(var Line in Lines)
@@ -119,6 +161,7 @@ namespace CSharpTo2600.Compiler
             {
                 yield return DefineSymbol(Global.Name, Global.Address.Start).WithComment($"{Global.Type} ({Global.Size} bytes)");
             }
+            yield return BlankLine();
         }
 
         private IEnumerable<AssemblyLine> WriteSubroutine(Subroutine Subroutine)
