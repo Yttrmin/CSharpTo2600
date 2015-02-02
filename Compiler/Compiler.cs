@@ -25,7 +25,7 @@ namespace CSharpTo2600.Compiler
         {
             //@TODO - Use command line arguments instead.
             //@TODO - Handle more than 1 source file, workspaces.
-            var FileName = @"..\..\..\ScreenColors\Simple.cs";
+            var FileName = @"..\..\..\FunctionalitySamples\Empty.cs";
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
             new Compiler(CreateCompilation(Tree)).Compile();
             Console.WriteLine("Compilation finished.");

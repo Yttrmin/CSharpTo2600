@@ -1,0 +1,73 @@
+﻿namespace CSharpTo2600.Framework.Assembly
+{
+    public static class Symbols
+    {
+        public const string VSYNC = "VSYNC";
+        public const string VBLANK = "VBLANK";
+        public const string WSYNC = "WSYNC";
+        public const string RSYNC = "RSYNC";
+        public const string NUSIZ0 = "NUSIZ0";
+        public const string NUSIZ1 = "NUSIZ1";
+        public const string COLUP0 = "COLUP0";
+        public const string COLUP1 = "COLUP1";
+        public const string COLUPF = "COLUPF";
+        public const string COLUBK = "COLUBK";
+        public const string CTRLPF = "CTRLPF";
+        public const string REFP0 = "REFP0";
+        public const string REFP1 = "REFP1";
+        public const string PF0 = "PF0";
+        public const string PF1 = "PF1";
+        public const string PF2 = "PF2";
+        public const string RESP0 = "RESP0";
+        public const string RESP1 = "RESP1";
+        public const string RESM0 = "RESM0";
+        public const string RESM1 = "RESM1";
+        public const string RESBL = "RESBL";
+        public const string AUDC0 = "AUDC0";
+        public const string AUDC1 = "AUDC1";
+        public const string AUDF0 = "AUDF0";
+        public const string AUDF1 = "AUDF1";
+        public const string GRP0 = "GRP0";
+        public const string GRP1 = "GRP1";
+        public const string ENAM0 = "ENAM0";
+        public const string ENAM1 = "ENAM1";
+        public const string ENABL = "ENABL";
+        public const string HMP0 = "HMP0";
+        public const string HMP1 = "HMP1";
+        public const string HMM0 = "HMM0";
+        public const string HMM1 = "HMM1";
+        public const string HMBL = "HMBL";
+        public const string VDELP0 = "VDELP0";
+        public const string VDELP1 = "VDELP1";
+        public const string VDELBL = "VDELBL";
+        public const string RESMP0 = "RESMP0";
+        public const string RESMP1 = "RESMP1";
+        public const string HMOVE = "HMOVE";
+        public const string HMCLR = "HMCLR";
+        public const string CXCLR = "CXCLR";
+        public const string CXM0P = "CXM0P";
+        public const string CXM1P = "CXM1P";
+        public const string CXP0FB = "CXP0FB";
+        public const string CXP1FB = "CXP1FB";
+        public const string CXM0FB = "CXM0FB";
+        public const string CXM1FB = "CXM1FB";
+        public const string CXBLPF = "CXBLPF";
+        public const string CXPPMM = "CXPPMM";
+        public const string INPT0 = "INPT0";
+        public const string INPT1 = "INPT1";
+        public const string INPT2 = "INPT2";
+        public const string INPT3 = "INPT3";
+        public const string INPT4 = "INPT4";
+        public const string INPT5 = "INPT5";
+        public const string SWCHA = "SWCHA";
+        public const string SWACNT = "SWACNT";
+        public const string SWCHB = "SWCHB";
+        public const string SWBCNT = "SWBCNT";
+        public const string INTIM = "INTIM";
+        public const string TIMINT = "TIMINT";
+        public const string TIM1T = "TIM1T";
+        public const string TIM8T = "TIM8T";
+        public const string TIM64T = "TIM64T";
+        public const string T1024T = "T1024T";
+    }
+}

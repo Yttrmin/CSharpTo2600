@@ -50,6 +50,11 @@ namespace CSharpTo2600.Framework.Assembly
         {
             return new PsuedoOp($"\tinclude \"{FileName}\"");
         }
+
+        public static PsuedoOp Word(Symbol Label)
+        {
+            return new PsuedoOp($"\t.word {Label.Name}");
+        }
         #endregion
 
         #region Instructions
@@ -123,6 +128,14 @@ namespace CSharpTo2600.Framework.Assembly
         public static Instruction DEX()
         {
             return new Instruction("DEX", 2);
+        }
+
+        /// <summary>
+        /// Jump [Absolute] (3 cycles)
+        /// </summary>
+        public static Instruction JMP(Symbol Label)
+        {
+            return new Instruction("JMP", Label.Name, 3);
         }
 
         /// <summary>
