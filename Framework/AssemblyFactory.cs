@@ -46,6 +46,11 @@ namespace CSharpTo2600.Framework.Assembly
             return new PsuedoOp($"\torg ${Address.ToString("X4")}");
         }
 
+        public static PsuedoOp Subroutine(Symbol Label)
+        {
+            return new PsuedoOp($"{Label.Name} subroutine");
+        }
+
         public static PsuedoOp Include(string FileName)
         {
             return new PsuedoOp($"\tinclude \"{FileName}\"");

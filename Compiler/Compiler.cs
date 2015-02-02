@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.IO;
 using CSharpTo2600.Framework;
 using System.Reflection;
+using System.Diagnostics;
 
 namespace CSharpTo2600.Compiler
 {
@@ -23,12 +24,11 @@ namespace CSharpTo2600.Compiler
 
         static void Main(string[] args)
         {
-            //@TODO - Use command line arguments instead.
             //@TODO - Handle more than 1 source file, workspaces.
-            var FileName = @"..\..\..\FunctionalitySamples\Empty.cs";
+            var FileName = args[0];
+            var DASMPath = args[1];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
-            new Compiler(CreateCompilation(Tree)).Compile();
-            Console.WriteLine("Compilation finished.");
+            new Compiler(CreateCompilation(Tree)).Compile(DASMPath);
             Console.ReadLine();
         }
 
@@ -78,14 +78,42 @@ namespace CSharpTo2600.Compiler
             return CreateCompilation(NewTree);
         }
 
-        public void Compile()
+        public void Compile(string DASMPath)
         {
             var GameClass = GetGameClass();
             var Walker = new GameClassCompiler(this);
             Walker.Visit(GameClass);
-            //@TODO - Use command line arguments instead.
-            ROMBuilder.WriteToFile("out.asm");
-            return;
+            var OutputPath = ROMBuilder.WriteToFile("out.asm");
+            var DASMSuccess = CompileOutput(DASMPath, OutputPath);
+            if(DASMSuccess)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Compilation successful.");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Compilation failed.");
+            }
+            Console.ForegroundColor = ConsoleColor.Black;
+        }
+
+        private bool CompileOutput(string DASMPath, string FullPath)
+        {
+            var DASM = new Process();
+            DASM.StartInfo.FileName = $"{DASMPath}\\dasm.exe";
+            DASM.StartInfo.UseShellExecute = false;
+            DASM.StartInfo.RedirectStandardOutput = true;
+            DASM.StartInfo.WorkingDirectory = DASMPath;
+            DASM.StartInfo.Arguments = $"\"{FullPath}\" -f3 -ooutput.bin -soutput.sym -loutput.lst";
+            DASM.StartInfo.CreateNoWindow = true;
+
+            DASM.Start();
+            DASM.WaitForExit();
+            var Output = DASM.StandardOutput.ReadToEnd();
+            var Success = DASM.ExitCode == 0;
+            Console.WriteLine(Output);
+            return Success;
         }
 
         private IEnumerable<MethodDeclarationSyntax> GetSpecialMethods(ClassDeclarationSyntax Class)

@@ -15,7 +15,7 @@ namespace CSharpTo2600.Compiler
         public GlobalVariableManager VariableManager { get; private set; }
         private readonly List<Subroutine> Subroutines;
         private int NextGlobalStart;
-        private readonly Symbol StartLabel;
+        private readonly Symbol StartLabel, MainLoop;
 
         public ROMBuilder()
         {
@@ -24,6 +24,7 @@ namespace CSharpTo2600.Compiler
             ReserveGlobals();
             NextGlobalStart = RAMRange.Start;
             StartLabel = Label("__StartProgram");
+            MainLoop = Label("__MainLoop");
         }
 
         private void ReserveGlobals()
@@ -63,7 +64,7 @@ namespace CSharpTo2600.Compiler
 
         private IEnumerable<AssemblyLine> GenerateInitializer()
         {
-            yield return StartLabel;
+            yield return Subroutine(StartLabel);
             yield return SEI();
             yield return CLD();
             yield return LDX(0xFF);
@@ -89,7 +90,7 @@ namespace CSharpTo2600.Compiler
 
         private IEnumerable<AssemblyLine> GenerateMainLoop()
         {
-            yield return Comment("Main loop", 0);
+            yield return Subroutine(MainLoop);
             yield return LDA(2);
             yield return STA(VSYNC);
             yield return STA(WSYNC);
@@ -122,6 +123,7 @@ namespace CSharpTo2600.Compiler
         private IEnumerable<AssemblyLine> GenerateKernel()
         {
             yield return Comment("Kernel", 0);
+            // Lazy
             for(var i = 0; i < 192; i++)
             {
                 yield return STA(WSYNC);
@@ -136,7 +138,7 @@ namespace CSharpTo2600.Compiler
             {
                 yield return STA(WSYNC);
             }
-            yield return JMP(StartLabel);
+            yield return JMP(MainLoop);
             yield return BlankLine();
         }
 
@@ -158,23 +160,26 @@ namespace CSharpTo2600.Compiler
             Subroutines.Add(Subroutine);
         }
 
-        public void WriteToFile(string Path)
+        public string WriteToFile(string FileName)
         {
             var Lines = new List<AssemblyLine>();
             Lines.AddRange(WriteHeader());
             Lines.AddRange(WriteGlobals());
             Lines.AddRange(GenerateInitializer());
             Lines.AddRange(GenerateMainLoop());
+            Lines.AddRange(GenerateKernel());
             Lines.AddRange(GenerateOverscan());
             Lines.AddRange(GenerateInterruptVectors());
 
-            using (var Writer = new StreamWriter(Path))
+            using (var Writer = new StreamWriter(FileName))
             {
                 foreach(var Line in Lines)
                 {
                     Writer.WriteLine(Line.ToString());
                 }
             }
+
+            return Path.GetFullPath(FileName);
         }
 
         public void AddGlobalVariable(Type Type, string Name)
