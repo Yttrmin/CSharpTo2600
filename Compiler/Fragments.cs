@@ -133,20 +133,6 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        // Precondition: Data stored on stack in big-endian.
-        [Obsolete("Use VariableInfo", true)]
-        public static IEnumerable<AssemblyLine> StoreVariable(string Name, Type Type)
-        {
-            VerifyType(Type);
-            var Size = Marshal.SizeOf(Type);
-            // Data is big-endian, but we want to store it little-endian, so iterate like this.
-            for (var i = Size - 1; i >= 0; i--)
-            {
-                yield return PLA();
-                yield return STA(Name, i);
-            }
-        }
-
         /// <summary>
         /// Takes a value off the stack and stores it in a variable.
         /// </summary>

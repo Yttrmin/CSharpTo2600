@@ -17,6 +17,27 @@ namespace CSharpTo2600.Framework
         }
     }
 
+    /// <summary>
+    /// Tells the compiler to ignore the implementation of a property and
+    /// to instead treat it as the specified global.
+    /// Has no effect when applied to user code outside this framework.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    public class CompilerIntrinsicGlobalAttribute : Attribute
+    {
+        public readonly string GlobalName;
+
+        public CompilerIntrinsicGlobalAttribute(string Name)
+        {
+            GlobalName = Name;
+        }
+    }
+
+    public class StrobeAttribute : Attribute
+    {
+
+    }
+
     public enum MethodType
     {
         None,

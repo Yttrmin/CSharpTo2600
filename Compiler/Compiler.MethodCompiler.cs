@@ -9,6 +9,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using CSharpTo2600.Framework.Assembly;
+using System.Reflection;
 
 namespace CSharpTo2600.Compiler
 {
@@ -57,6 +58,15 @@ namespace CSharpTo2600.Compiler
                 base.Visit(node);
             }
 
+            public override void VisitAttributeList(AttributeListSyntax node)
+            {
+                // Don't care about attributes. Not calling base since it'll eventually
+                // hit an identifier, and this will attempt to treat it as a variable and
+                // push it which we obviously don't want.
+                // If you want attributes use reflection.
+                return;
+            }
+
             public override void VisitEqualsValueClause(EqualsValueClauseSyntax node)
             {
                 base.VisitEqualsValueClause(node);
@@ -72,8 +82,8 @@ namespace CSharpTo2600.Compiler
                 // At the point of assignment there should only be one thing on the TypeStack, the
                 // type of the result of the right-side expression.
                 Debug.Assert(TypeStack.Count == 0);
-                var LeftSideIdentifier = ((IdentifierNameSyntax)node.Left).Identifier.Text;
-                var Variable = VariableManager.GetVariable(LeftSideIdentifier);
+                var Symbol = Compiler.Model.GetSymbolInfo(node.Left).Symbol;
+                var Variable = GetVariable(Symbol);
                 MethodBody.AddRange(Fragments.StoreVariable(Variable, Type));
             }
 
@@ -145,7 +155,8 @@ namespace CSharpTo2600.Compiler
                     base.VisitIdentifierName(node);
                     return;
                 }
-                var Variable = VariableManager.GetVariable(node.Identifier.Text);
+                var Symbol = Compiler.Model.GetSymbolInfo(node).Symbol;
+                var Variable = GetVariable(Symbol);
                 TypeStack.Push(Variable.Type);
                 MethodBody.AddRange(Fragments.PushVariable(Variable.Name, Variable.Type));
                 base.VisitIdentifierName(node);
@@ -164,6 +175,19 @@ namespace CSharpTo2600.Compiler
                     return true;
                 }
                 return false;
+            }
+            
+            private VariableInfo GetVariable(ISymbol Symbol)
+            {
+                if(Symbol.ContainingAssembly.ToString() == Compiler.FrameworkAssembly.ToString())
+                {
+                    var ContainingType = Compiler.FrameworkAssembly.GetType(Symbol.ContainingType.ToString(), true);
+                    var Member = ContainingType.GetMember(Symbol.Name, MemberTypes.Property,
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).Single();
+                    var GlobalName = Member.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>().GlobalName;
+                    return VariableManager.GetVariable(GlobalName);
+                }
+                throw new NotImplementedException();
             }
 
             private object ToSmallestNumeric(object Value)

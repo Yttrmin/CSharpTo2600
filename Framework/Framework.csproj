@@ -43,8 +43,8 @@
     <Compile Include="Attributes.cs" />
     <Compile Include="AssemblyLine.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="IOPorts.cs" />
     <Compile Include="Symbols.cs" />
+    <Compile Include="TIARegisters.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
