@@ -70,6 +70,14 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         /// <summary>
+        /// Add with Carry [Immediate] (2 cycles)
+        /// </summary>
+        public static Instruction ADC(byte Constant)
+        {
+            return new Instruction("ADC", $"${Constant.ToString("X2")}", 2);
+        }
+
+        /// <summary>
         /// Add with Carry [Absolute indexed] (4 cycles)
         /// </summary>
         public static Instruction ADC(int Offset, Index IndexRegister)

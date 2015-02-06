@@ -68,21 +68,11 @@ namespace CSharpTo2600.Compiler
             return Compilation;
         }
 
-        private CSharpCompilation Preprocess(CSharpCompilation Compilation)
-        {
-            var Tree = Compilation.SyntaxTrees.Single();
-            var Model = Compilation.GetSemanticModel(Tree);
-            var Preprocessor = new SyntaxPreprocessor(Model);
-            var NewRoot = Preprocessor.Visit(Tree.GetRoot()).NormalizeWhitespace();
-            var NewTree = CSharpSyntaxTree.Create((CSharpSyntaxNode)NewRoot);
-            return CreateCompilation(NewTree);
-        }
-
         public void Compile(string DASMPath)
         {
             var GameClass = GetGameClass();
-            var Walker = new GameClassCompiler(this);
-            Walker.Visit(GameClass);
+            var Walker = new GameClassCompiler(this, GameClass);
+            Walker.Compile();
             var OutputPath = ROMBuilder.WriteToFile("out.asm");
             var DASMSuccess = CompileOutput(DASMPath, OutputPath);
             if(DASMSuccess)
@@ -101,7 +91,12 @@ namespace CSharpTo2600.Compiler
         private bool CompileOutput(string DASMPath, string FullPath)
         {
             var DASM = new Process();
-            DASM.StartInfo.FileName = $"{DASMPath}\\dasm.exe";
+            var FullDASMPath = Path.Combine(DASMPath, "dasm.exe");
+            DASM.StartInfo.FileName = FullDASMPath;
+            if(!File.Exists(FullDASMPath))
+            {
+                throw new FileNotFoundException($"DASM executable not found at: {FullDASMPath}");
+            }
             DASM.StartInfo.UseShellExecute = false;
             DASM.StartInfo.RedirectStandardOutput = true;
             DASM.StartInfo.WorkingDirectory = DASMPath;
@@ -116,49 +111,9 @@ namespace CSharpTo2600.Compiler
             return Success;
         }
 
-        private IEnumerable<MethodDeclarationSyntax> GetSpecialMethods(ClassDeclarationSyntax Class)
+        private Type GetGameClass()
         {
-            var Methods = Class.Members.OfType<MethodDeclarationSyntax>();
-            foreach(var Method in Methods)
-            {
-                var Attribute = GetSpecialMethodAttribute(Method);
-                if(Attribute == null)
-                {
-                    continue;
-                }
-                else
-                {
-                    yield return Method;
-                }
-            }
-        }
-
-        /// <returns>The SpecialMethodAttribute if one exists, otherwise null.</returns>
-        private SpecialMethodAttribute GetSpecialMethodAttribute(MethodDeclarationSyntax Method)
-        {
-            var ClassDeclaration = (ClassDeclarationSyntax)Method.Parent;
-            var TypeMaybe = Model.GetDeclaredSymbol(ClassDeclaration);
-            var FullTypeName = Model.GetDeclaredSymbol(ClassDeclaration).ToString();
-            var ContainingType = CompiledAssembly.GetType(FullTypeName);
-            //@TODO - This won't handle overloaded methods.
-            var MethodInfo = ContainingType.GetMethod(Method.Identifier.Text, 
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-            return MethodInfo.GetCustomAttribute<SpecialMethodAttribute>();
-        }
-
-        private ClassDeclarationSyntax GetGameClass()
-        {
-            var GameClass = Root.DescendantNodes().OfType<ClassDeclarationSyntax>().SingleOrDefault();
-            if (GameClass == null)
-            {
-                throw new FatalCompilationException("No game class found", Root);
-            }
-            //@TODO - Move to static analyzer.
-            if (!GameClass.Modifiers.Any(t => t.Text == "static"))
-            {
-                throw new FatalCompilationException("Game class must be a static class.", GameClass);
-            }
-            return GameClass;
+            return CompiledAssembly.DefinedTypes.Single(t => t.GetCustomAttribute<Atari2600Game>() != null);
         }
 
         private Type GetType(TypeSyntax TypeSyntax)

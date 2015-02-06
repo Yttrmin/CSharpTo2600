@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -13,11 +15,21 @@ namespace CSharpTo2600.Compiler
             private SemanticModel Model { get { return Compiler.Model; } }
             private ROMBuilder ROMBuilder { get { return Compiler.ROMBuilder; } }
             private readonly Optimizer Optimizer;
+            private readonly Type ClassType;
+            private readonly ClassDeclarationSyntax Root;
 
-            public GameClassCompiler(Compiler Compiler)
+            public GameClassCompiler(Compiler Compiler, Type ClassType)
             {
                 this.Compiler = Compiler;
+                this.ClassType = ClassType;
+                Root = this.Compiler.Root.DescendantNodes().Where(n => (n as ClassDeclarationSyntax)?.Identifier.Text == ClassType.Name)
+                    .Cast<ClassDeclarationSyntax>().Single();
                 Optimizer = new Optimizer();
+            }
+
+            public void Compile()
+            {
+                Visit(Root);
             }
 
             public override void VisitFieldDeclaration(FieldDeclarationSyntax FieldNode)
@@ -60,11 +72,24 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
             {
-                var MethodCompiler = new MethodCompiler(node, Compiler);
+                var MethodInfo = GetMethodInfo(node);
+                var MethodCompiler = new MethodCompiler(node, MethodInfo, Compiler);
                 var Subroutine = MethodCompiler.Compile();
                 Subroutine = Optimizer.PefromAllOptimizations(Subroutine);
                 ROMBuilder.AddSubroutine(Subroutine);
                 base.VisitMethodDeclaration(node);
+            }
+
+            private MethodInfo GetMethodInfo(MethodDeclarationSyntax node)
+            {
+                //@TODO - Probably won't work properly with overloaded methods.
+                var Method = ClassType.GetMethod(node.Identifier.Text, BindingFlags.Public | BindingFlags.NonPublic 
+                    | BindingFlags.Static);
+                if(Method == null)
+                {
+                    throw new FatalCompilationException($"Reflection failed to find method: {node.Identifier.Text}", node);
+                }
+                return Method;
             }
         }
     }

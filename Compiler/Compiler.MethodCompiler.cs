@@ -22,10 +22,17 @@ namespace CSharpTo2600.Compiler
             private readonly string Name;
             private readonly List<AssemblyLine> MethodBody;
             private readonly Stack<Type> TypeStack;
+            private readonly MethodInfo MethodInfo;
             private LocalVariableManager VariableManager;
 
-            public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, Compiler Compiler)
+            private MethodType MethodType
             {
+                get { return MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined; }
+            }
+
+            public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, Compiler Compiler)
+            {
+                this.MethodInfo = MethodInfo;
                 this.Compiler = Compiler;
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
@@ -39,7 +46,7 @@ namespace CSharpTo2600.Compiler
                 VariableManager = new CompilerPrePassLocals(Compiler, MethodDeclaration).Process();
                 AllocateLocals();
                 Visit(MethodDeclaration);
-                return new Subroutine(Name, MethodBody.ToImmutableArray(), MethodType.Initialize);
+                return new Subroutine(Name, MethodBody.ToImmutableArray(), MethodType);
             }
 
             private void AllocateLocals()
@@ -100,6 +107,27 @@ namespace CSharpTo2600.Compiler
                 TypeStack.Push(ToType);
             }
 
+            public override void VisitPostfixUnaryExpression(PostfixUnaryExpressionSyntax node)
+            {
+                base.VisitPostfixUnaryExpression(node);
+                var Type = TypeStack.Pop();
+                var Symbol = Compiler.Model.GetSymbolInfo(node.Operand).Symbol;
+                var Variable = GetVariable(Symbol);
+                switch(node.CSharpKind())
+                {
+                    case SyntaxKind.PostIncrementExpression:
+                        MethodBody.AddRange(Fragments.Add(Variable, 1));
+                        // Reuse type from TypeStack since it'll be the same.
+                        MethodBody.AddRange(Fragments.StoreVariable(Variable, Type));
+                        break;
+                    case SyntaxKind.PostDecrementExpression:
+                        throw new NotImplementedException();
+                        break;
+                    default:
+                        throw new FatalCompilationException("Unknown postfix unary kind.");
+                }
+            }
+
             public override void VisitBinaryExpression(BinaryExpressionSyntax node)
             {
                 var Kind = node.CSharpKind();
@@ -139,6 +167,11 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
             {
+                //@TODO - Just use the type of the literal determined by the compiler?
+                // The only problem is there are no byte literals (2.4.4.2), so we'll
+                // be stuck with an int at the minimum pushed onto the stack. Perhaps
+                // some optimizations will recognize and strip out the wasteful 32-bit
+                // push and truncation though?
                 var Value = ToSmallestNumeric(node.Token.Value);
                 TypeStack.Push(Value.GetType());
                 MethodBody.AddRange(Fragments.PushLiteral(Value));
@@ -158,7 +191,7 @@ namespace CSharpTo2600.Compiler
                 var Symbol = Compiler.Model.GetSymbolInfo(node).Symbol;
                 var Variable = GetVariable(Symbol);
                 TypeStack.Push(Variable.Type);
-                MethodBody.AddRange(Fragments.PushVariable(Variable.Name, Variable.Type));
+                MethodBody.AddRange(Fragments.PushVariable(Variable));
                 base.VisitIdentifierName(node);
             }
 
@@ -187,7 +220,10 @@ namespace CSharpTo2600.Compiler
                     var GlobalName = Member.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>().GlobalName;
                     return VariableManager.GetVariable(GlobalName);
                 }
-                throw new NotImplementedException();
+                else
+                {
+                    return VariableManager.GetVariable(Symbol.Name);
+                }
             }
 
             private object ToSmallestNumeric(object Value)

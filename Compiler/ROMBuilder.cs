@@ -103,7 +103,7 @@ namespace CSharpTo2600.Compiler
             yield return LDA(0);
             yield return STA(VSYNC);
             yield return Comment("Beginning of user code.");
-            var UserSubroutine = GetSpecialSubroutine(MethodType.Tick);
+            var UserSubroutine = GetSpecialSubroutine(MethodType.MainLoop);
             if (UserSubroutine != null)
             {
                 foreach (var Line in UserSubroutine.Body)

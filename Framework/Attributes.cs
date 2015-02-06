@@ -41,10 +41,25 @@ namespace CSharpTo2600.Framework
     public enum MethodType
     {
         None,
+        /// <summary>
+        /// Not called by the skeleton code.
+        /// </summary>
         UserDefined,
+        /// <summary>
+        /// Called once after the console has been initialized.
+        /// </summary>
         Initialize,
+        /// <summary>
+        /// Called during the vertical blank period.
+        /// </summary>
+        MainLoop,
+        // A single "kernel" skeleton is impossible, different games will
+        // have different needs. Probably need another attribute specifically
+        // for kernels.
         Kernel,
-        Tick,
-        DuringVSync,
+        /// <summary>
+        /// Called during the overscan period.
+        /// </summary>
+        Overscan
     }
 }

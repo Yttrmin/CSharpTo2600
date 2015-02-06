@@ -19,6 +19,12 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        /// <summary>
+        /// Pads or truncates a value on the stack of type From to match the
+        /// size of type To.
+        /// </summary>
+        /// <param name="From">Type of the value on the stack to fit.</param>
+        /// <param name="To">Type to pad/truncate the stack value to.</param>
         public static IEnumerable<AssemblyLine> Fit(Type From, Type To)
         {
             VerifyType(From);
@@ -43,7 +49,7 @@ namespace CSharpTo2600.Compiler
                 throw new ArgumentException($"Attempted to fit types of same size: {From} to {To}");
             }
         }
-
+        
         public static IEnumerable<AssemblyLine> Truncate(Type From, Type To)
         {
             VerifyType(From);
@@ -121,15 +127,23 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        [Obsolete("Use VariableInfo")]
-        public static IEnumerable<AssemblyLine> PushVariable(string Name, Type Type)
+        /// <summary>
+        /// Pushes the value of a variable onto the stack.
+        /// </summary>
+        /// Postcondition: Value of Variable is pushed onto 6502 stack in big-endian.
+        public static IEnumerable<AssemblyLine> PushVariable(VariableInfo Variable)
         {
-            VerifyType(Type);
-            var Size = Marshal.SizeOf(Type);
-            for (var i = 0; i < Size; i++)
+            if (Variable.AddressIsAbsolute)
             {
-                yield return LDA(Name, i);
-                yield return PHA();
+                for (var i = 0; i < Variable.Size; i++)
+                {
+                    yield return LDA(Variable.Name, i);
+                    yield return PHA();
+                }
+            }
+            else if (Variable.AddressIsFrameRelative)
+            {
+                throw new NotImplementedException();
             }
         }
 

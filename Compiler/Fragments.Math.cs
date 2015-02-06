@@ -6,12 +6,24 @@ using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
+    //@TODO - We could just make our own implementations of op_Addition, etc instead
+    // of always calling these Add etc methods.
+    // It would help support users overloading operators in the future, and stays
+    // more loyal to the language since right now every binary + goes here regardless
+    // of type.
+    // On the downside, the smallest defined op_Addition is for ints, so all our bytes
+    // would have to be padded to ints, then truncated back to bytes. Maybe something
+    // that can be optimized? Or add some special cases?
     partial class Fragments
     {
 		public static IEnumerable<AssemblyLine> Add(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
+            if(Size > 1)
+            {
+                throw new NotImplementedException(">8-bit math not supported yet.");
+            }
             yield return PLA();
             yield return TSX();
             yield return CLC();
@@ -21,10 +33,25 @@ namespace CSharpTo2600.Compiler
             yield return STA(0x100, Index.X);
         }
 
-		public static IEnumerable<AssemblyLine> Subtract(Type Type)
+        public static IEnumerable<AssemblyLine> Add(VariableInfo Variable, byte Constant)
+        {
+            if (Variable.Size > 1)
+            {
+                throw new NotImplementedException(">8-bit math not supported yet.");
+            }
+            yield return PLA();
+            yield return ADC(1);
+            yield return PHA();
+        }
+
+        public static IEnumerable<AssemblyLine> Subtract(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
+            if (Size > 1)
+            {
+                throw new NotImplementedException(">8-bit math not supported yet.");
+            }
             yield return PLA();
             yield return TSX();
             yield return SEC();
