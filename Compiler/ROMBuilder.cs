@@ -16,6 +16,7 @@ namespace CSharpTo2600.Compiler
         private readonly List<Subroutine> Subroutines;
         private int NextGlobalStart;
         private readonly Symbol StartLabel, MainLoop;
+        private delegate IEnumerable<AssemblyLine> KernelGenerator(Subroutine UserCode);
 
         public ROMBuilder()
         {
@@ -76,16 +77,16 @@ namespace CSharpTo2600.Compiler
             yield return STA((byte)0, Index.X);
             yield return DEX();
             yield return BNE(ClearLabel);
-            yield return Comment("Beginning of user code.");
             var UserInitializer = GetSpecialSubroutine(MethodType.Initialize);
             if (UserInitializer != null)
             {
+                yield return Comment("Beginning of user code.");
                 foreach (var Line in UserInitializer.Body)
                 {
                     yield return Line;
                 }
+                yield return Comment("End of user code.");
             }
-            yield return Comment("End of user code.");
         }
 
         private IEnumerable<AssemblyLine> GenerateMainLoop()
@@ -122,22 +123,77 @@ namespace CSharpTo2600.Compiler
 
         private IEnumerable<AssemblyLine> GenerateKernel()
         {
-            yield return Comment("Kernel", 0);
-            // Lazy
-            for(var i = 0; i < 192; i++)
+            var KernelLabel = Label("__Kernel");
+            yield return Subroutine(KernelLabel);
+            KernelGenerator Generator;
+            var KernelSubroutine = GetSpecialSubroutine(MethodType.Kernel);
+
+            if (KernelSubroutine != null)
             {
-                yield return STA(WSYNC);
+                var Technique = KernelSubroutine.OriginalMethod.GetCustomAttributes(false).OfType<KernelAttribute>().Single().Technique;
+                switch (Technique)
+                {
+                    case KernelTechnique.None:
+                        throw new FatalCompilationException("Can't use KernelTechnique.None");
+                    case KernelTechnique.CallEveryScanline:
+                        Generator = GenerateKernelEveryScanline;
+                        break;
+                    default:
+                        throw new NotImplementedException($"{Technique} not supported yet.");
+                }
             }
+            else
+            {
+                Generator = GenerateEmptyKernel;
+            }
+
+            foreach(var Line in Generator(KernelSubroutine))
+            {
+                yield return Line;
+            }
+        }
+
+        private IEnumerable<AssemblyLine> GenerateEmptyKernel(Subroutine UserCode)
+        {
+            yield return Comment("No kernel method found in user code. Just emitting 192 WSYNCs.", 0);
+            yield return Repeat(192);
+            yield return STA(WSYNC);
+            yield return Repend();
+        }
+
+        private IEnumerable<AssemblyLine> GenerateKernelEveryScanline(Subroutine UserCode)
+        {
+            yield return Comment("Generating single kernel, called 192 times.", 0);
+            //@TODO - Do this during VBlank, save precious cycles.
+            yield return LDX(192);
+            var LoopLabel = Label(".__ScanLoop");
+            yield return LoopLabel;
+            yield return DEX();
+            yield return Comment("Beginning of user code.");
+            foreach(var Line in UserCode.Body)
+            {
+                yield return Line;
+            }
+            yield return Comment("End of user code.");
+            yield return CPX(0);
+            yield return STA(WSYNC);
+            yield return BNE(LoopLabel);
+
+            //@TODO - Make sure we have enough cycles. Every cycle counts and someone could
+            // be using up all the cycles for the whole scanline. Or not leave enough
+            // cycles for a STA.
+            //@TODO - Make sure UserCode doesn't exceed the cycle count for a scanline.
+            //yield return STA(WSYNC);
         }
 
         private IEnumerable<AssemblyLine> GenerateOverscan()
         {
-            yield return Comment("Overscan.", 0);
+            var OverscanLabel = Label("__Overscan");
+            yield return Subroutine(OverscanLabel);
             // Being lazy for now.
-            for (var i = 0; i < 30; i++)
-            {
-                yield return STA(WSYNC);
-            }
+            yield return Repeat(30);
+            yield return STA(WSYNC);
+            yield return Repend();
             yield return JMP(MainLoop);
             yield return BlankLine();
         }
@@ -150,6 +206,9 @@ namespace CSharpTo2600.Compiler
             // BRK vector remains if we want to use it.
         }
 
+        /// <summary>
+        /// Returns the subroutine matching the given Type, or null if none exist.
+        /// </summary>
         private Subroutine GetSpecialSubroutine(MethodType Type)
         {
             return Subroutines.SingleOrDefault(s => s.Type == Type);

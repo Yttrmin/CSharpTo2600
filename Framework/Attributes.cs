@@ -7,6 +7,7 @@ namespace CSharpTo2600.Framework
 
     }
 
+    [AttributeUsage(AttributeTargets.Method)]
     public class SpecialMethodAttribute : Attribute
     {
         public readonly MethodType GameMethod;
@@ -14,6 +15,17 @@ namespace CSharpTo2600.Framework
         public SpecialMethodAttribute(MethodType GameMethod)
         {
             this.GameMethod = GameMethod;
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class KernelAttribute : Attribute
+    {
+        public readonly KernelTechnique Technique;
+
+        public KernelAttribute(KernelTechnique Technique)
+        {
+            this.Technique = Technique;
         }
     }
 
@@ -61,5 +73,26 @@ namespace CSharpTo2600.Framework
         /// Called during the overscan period.
         /// </summary>
         Overscan
+    }
+
+    public enum KernelTechnique
+    {
+        None,
+        /// <summary>
+        /// This method is invoked during the horizontal blank period of every scanline (192 times in NTSC).
+        /// The framework will handle synchronization.
+        /// </summary>
+        CallEveryScanline,
+        /// <summary>
+        /// This method is invoked during the horizontal blank period of every other scanline (96 times in NTSC).
+        /// The framework will handle synchronization.
+        /// </summary>
+        CallEveryOtherScanline,
+        /// <summary>
+        /// This method is called only once after the vertical blank period. The user is responsible for
+        /// synchronization and ensuring all 192 scanlines have occured before returning.
+        /// This should be used by advanced users only.
+        /// </summary>
+        Manual
     }
 }

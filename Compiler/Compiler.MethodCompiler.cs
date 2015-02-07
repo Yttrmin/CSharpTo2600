@@ -46,7 +46,7 @@ namespace CSharpTo2600.Compiler
                 VariableManager = new CompilerPrePassLocals(Compiler, MethodDeclaration).Process();
                 AllocateLocals();
                 Visit(MethodDeclaration);
-                return new Subroutine(Name, MethodBody.ToImmutableArray(), MethodType);
+                return new Subroutine(Name, MethodInfo, MethodBody.ToImmutableArray(), MethodType);
             }
 
             private void AllocateLocals()

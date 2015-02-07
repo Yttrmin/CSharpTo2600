@@ -46,6 +46,16 @@ namespace CSharpTo2600.Framework.Assembly
             return new PsuedoOp($"\torg ${Address.ToString("X4")}");
         }
 
+        public static PsuedoOp Repeat(int Count)
+        {
+            return new PsuedoOp($"\trepeat {Count}");
+        }
+
+        public static PsuedoOp Repend()
+        {
+            return new PsuedoOp("\trepend");
+        }
+
         public static PsuedoOp Subroutine(Symbol Label)
         {
             return new PsuedoOp($"{Label.Name} subroutine");
@@ -133,6 +143,14 @@ namespace CSharpTo2600.Framework.Assembly
         public static Instruction CLD()
         {
             return new Instruction("CLD", 2);
+        }
+
+        /// <summary>
+        /// Compare X Register [Immediate] (2 cycles)
+        /// </summary>
+        public static Instruction CPX(byte Value)
+        {
+            return new Instruction("CPX", $"#${Value.ToString("X2")}", 2);
         }
 
         /// <summary>

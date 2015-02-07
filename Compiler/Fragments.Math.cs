@@ -40,6 +40,7 @@ namespace CSharpTo2600.Compiler
                 throw new NotImplementedException(">8-bit math not supported yet.");
             }
             yield return PLA();
+            yield return CLC();
             yield return ADC(1);
             yield return PHA();
         }

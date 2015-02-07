@@ -7,7 +7,7 @@
     <ProjectGuid>{634B79C1-C51C-4029-9002-BF481C27756A}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>FunctionalitySamples</RootNamespace>
+    <RootNamespace>CSharpTo2600.FunctionalitySamples</RootNamespace>
     <AssemblyName>FunctionalitySamples</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -40,6 +40,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Empty.cs" />
+    <Compile Include="KernelChangeBkColor.cs" />
     <Compile Include="MainLoopChangeBkColor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="InitializerChangeBkColor.cs" />
