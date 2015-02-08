@@ -122,7 +122,6 @@ namespace CSharpTo2600.Compiler
                         break;
                     case SyntaxKind.PostDecrementExpression:
                         throw new NotImplementedException();
-                        break;
                     default:
                         throw new FatalCompilationException("Unknown postfix unary kind.");
                 }

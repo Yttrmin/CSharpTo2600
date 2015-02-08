@@ -35,6 +35,7 @@ namespace CSharpTo2600.Compiler
 
         public static IEnumerable<AssemblyLine> Add(VariableInfo Variable, byte Constant)
         {
+            //@TODO - Use INC when Constant=1
             if (Variable.Size > 1)
             {
                 throw new NotImplementedException(">8-bit math not supported yet.");

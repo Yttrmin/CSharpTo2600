@@ -178,22 +178,34 @@ namespace CSharpTo2600.Compiler
             yield return CPX(0);
             yield return STA(WSYNC);
             yield return BNE(LoopLabel);
-
             //@TODO - Make sure we have enough cycles. Every cycle counts and someone could
             // be using up all the cycles for the whole scanline. Or not leave enough
             // cycles for a STA.
             //@TODO - Make sure UserCode doesn't exceed the cycle count for a scanline.
-            //yield return STA(WSYNC);
         }
 
         private IEnumerable<AssemblyLine> GenerateOverscan()
         {
             var OverscanLabel = Label("__Overscan");
             yield return Subroutine(OverscanLabel);
-            // Being lazy for now.
-            yield return Repeat(30);
-            yield return STA(WSYNC);
-            yield return Repend();
+            yield return LDA(35);
+            yield return STA(TIM64T);
+            yield return LDA(2);
+            yield return STA(VBLANK);
+            var UserSubroutine = GetSpecialSubroutine(MethodType.Overscan);
+            if(UserSubroutine != null)
+            {
+                yield return Comment("Beginning of user code.");
+                foreach (var Line in UserSubroutine.Body)
+                {
+                    yield return Line;
+                }
+                yield return Comment("End of user code.");
+            }
+            var LoopLabel = Label(".__WaitForOverscanEnd");
+            yield return LoopLabel;
+            yield return LDA(INTIM);
+            yield return BNE(LoopLabel);
             yield return JMP(MainLoop);
             yield return BlankLine();
         }
