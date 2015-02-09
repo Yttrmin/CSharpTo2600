@@ -6,6 +6,7 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework.Assembly;
 using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
 using static CSharpTo2600.Framework.Assembly.Symbols;
+using System.Diagnostics;
 
 namespace CSharpTo2600.Compiler
 {
@@ -26,6 +27,82 @@ namespace CSharpTo2600.Compiler
             NextGlobalStart = RAMRange.Start;
             StartLabel = Label("__StartProgram");
             MainLoop = Label("__MainLoop");
+        }
+
+        public void AddSubroutine(Subroutine Subroutine)
+        {
+            Subroutines.Add(Subroutine);
+        }
+
+        public string WriteToFile(string FileName)
+        {
+            var Lines = new List<AssemblyLine>();
+            Lines.AddRange(WriteHeader());
+            Lines.AddRange(WriteGlobals());
+            Lines.AddRange(GenerateInitializer());
+            Lines.AddRange(GenerateMainLoop());
+            Lines.AddRange(GenerateKernel());
+            Lines.AddRange(GenerateOverscan());
+            Lines.AddRange(GenerateInterruptVectors());
+
+            using (var Writer = new StreamWriter(FileName))
+            {
+                foreach (var Line in Lines)
+                {
+                    Writer.WriteLine(Line.ToString());
+                }
+            }
+
+            return Path.GetFullPath(FileName);
+        }
+
+        public void AddGlobalVariable(Type Type, string Name)
+        {
+            VariableManager = VariableManager.AddVariable(Name, Type);
+        }
+
+        internal static byte[] BuildRawROM(IEnumerable<AssemblyLine> Lines)
+        {
+            const string ASMFileName = "tempOut.asm";
+            const string BINFileName = "tempOut.bin";
+            var StartLabel = Label("__Start");
+            using (var Writer = new StreamWriter(ASMFileName))
+            {
+                Writer.WriteLine(StartLabel);
+                foreach(var Line in Lines)
+                {
+                    Writer.WriteLine(Line.ToString());
+                }
+                Writer.WriteLine(Org(0xFFFC));
+                Writer.WriteLine(Word(StartLabel));
+            }
+
+            //@TODO - It's really terrible to copy/paste this. Just want to get to tests for now.
+            var DASM = new Process();
+            var FullDASMPath = Path.Combine(Compiler.DASMPath, "dasm.exe");
+            DASM.StartInfo.FileName = FullDASMPath;
+            if (!File.Exists(FullDASMPath))
+            {
+                throw new FileNotFoundException($"DASM executable not found at: {FullDASMPath}");
+            }
+            DASM.StartInfo.UseShellExecute = false;
+            DASM.StartInfo.RedirectStandardOutput = true;
+            DASM.StartInfo.WorkingDirectory = Compiler.DASMPath;
+            DASM.StartInfo.Arguments = $"\"{Path.GetFullPath(ASMFileName)}\" -f3 -o{BINFileName}";
+            DASM.StartInfo.CreateNoWindow = true;
+
+            DASM.Start();
+            DASM.WaitForExit();
+            var Success = DASM.ExitCode == 0;
+
+            if(Success)
+            {
+                return File.ReadAllBytes(Path.Combine(Compiler.DASMPath, BINFileName));
+            }
+            else
+            {
+                throw new FatalCompilationException("DASM compilation failed.");
+            }
         }
 
         private void ReserveGlobals()
@@ -224,38 +301,6 @@ namespace CSharpTo2600.Compiler
         private Subroutine GetSpecialSubroutine(MethodType Type)
         {
             return Subroutines.SingleOrDefault(s => s.Type == Type);
-        }
-
-        public void AddSubroutine(Subroutine Subroutine)
-        {
-            Subroutines.Add(Subroutine);
-        }
-
-        public string WriteToFile(string FileName)
-        {
-            var Lines = new List<AssemblyLine>();
-            Lines.AddRange(WriteHeader());
-            Lines.AddRange(WriteGlobals());
-            Lines.AddRange(GenerateInitializer());
-            Lines.AddRange(GenerateMainLoop());
-            Lines.AddRange(GenerateKernel());
-            Lines.AddRange(GenerateOverscan());
-            Lines.AddRange(GenerateInterruptVectors());
-
-            using (var Writer = new StreamWriter(FileName))
-            {
-                foreach(var Line in Lines)
-                {
-                    Writer.WriteLine(Line.ToString());
-                }
-            }
-
-            return Path.GetFullPath(FileName);
-        }
-
-        public void AddGlobalVariable(Type Type, string Name)
-        {
-            VariableManager = VariableManager.AddVariable(Name, Type);
         }
 
         private IEnumerable<AssemblyLine> WriteHeader()

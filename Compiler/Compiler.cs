@@ -21,12 +21,12 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
         private readonly ROMBuilder ROMBuilder;
+        public const string DASMPath = "./DASM/";
 
         static void Main(string[] args)
         {
             //@TODO - Handle more than 1 source file, workspaces.
             var FileName = args[0];
-            var DASMPath = args[1];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
             new Compiler(CreateCompilation(Tree)).Compile(DASMPath);
             Console.ReadLine();
