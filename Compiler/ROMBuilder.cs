@@ -65,21 +65,17 @@ namespace CSharpTo2600.Compiler
         {
             const string ASMFileName = "tempOut.asm";
             const string BINFileName = "tempOut.bin";
-            var StartLabel = Label("__Start");
             using (var Writer = new StreamWriter(ASMFileName))
             {
-                Writer.WriteLine(StartLabel);
                 foreach(var Line in Lines)
                 {
                     Writer.WriteLine(Line.ToString());
                 }
-                Writer.WriteLine(Org(0xFFFC));
-                Writer.WriteLine(Word(StartLabel));
             }
 
             //@TODO - It's really terrible to copy/paste this. Just want to get to tests for now.
             var DASM = new Process();
-            var FullDASMPath = Path.Combine(Compiler.DASMPath, "dasm.exe");
+            var FullDASMPath = Path.Combine(Path.GetFullPath(Compiler.DASMPath), "dasm.exe");
             DASM.StartInfo.FileName = FullDASMPath;
             if (!File.Exists(FullDASMPath))
             {
@@ -93,11 +89,16 @@ namespace CSharpTo2600.Compiler
 
             DASM.Start();
             DASM.WaitForExit();
+            Console.WriteLine(DASM.StandardOutput.ReadToEnd());
+            // DASM documentation says this returns 0 on success and 1 otherwise. This is not
+            // true since it returned 0 when the ASM was missing the 'processor' op, causing a
+            // lot of errors and spit out a 0 byte BIN. Hopefully nothing else returns 0 on failure.
             var Success = DASM.ExitCode == 0;
 
             if(Success)
             {
-                return File.ReadAllBytes(Path.Combine(Compiler.DASMPath, BINFileName));
+                var Data = File.ReadAllBytes(Path.Combine(Compiler.DASMPath, BINFileName));
+                return Data;
             }
             else
             {
@@ -143,17 +144,10 @@ namespace CSharpTo2600.Compiler
         private IEnumerable<AssemblyLine> GenerateInitializer()
         {
             yield return Subroutine(StartLabel);
-            yield return SEI();
-            yield return CLD();
-            yield return LDX(0xFF);
-            yield return TXS();
-            yield return LDA(0);
-            //@TODO - Need to actually support subroutine psuedo-op.
-            var ClearLabel = Label(".ClearMem");
-            yield return ClearLabel;
-            yield return STA((byte)0, Index.X);
-            yield return DEX();
-            yield return BNE(ClearLabel);
+            foreach(var Line in Fragments.ClearSystem())
+            {
+                yield return Line;
+            }
             var UserInitializer = GetSpecialSubroutine(MethodType.Initialize);
             if (UserInitializer != null)
             {

@@ -106,6 +106,9 @@ namespace CSharpTo2600.Compiler
             DASM.Start();
             DASM.WaitForExit();
             var Output = DASM.StandardOutput.ReadToEnd();
+            // DASM documentation says this returns 0 on success and 1 otherwise. This is not
+            // true since it returned 0 when the ASM was missing the 'processor' op, causing a
+            // lot of errors and spit out a 0 byte BIN. Hopefully nothing else returns 0 on failure.
             var Success = DASM.ExitCode == 0;
             Console.WriteLine(Output);
             return Success;

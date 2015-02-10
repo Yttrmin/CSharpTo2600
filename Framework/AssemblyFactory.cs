@@ -22,11 +22,11 @@ namespace CSharpTo2600.Framework.Assembly
         }
         public static Symbol DefineSymbol(string Name, int Value)
         {
-            if(Value < byte.MinValue || Value > byte.MaxValue)
+            if(Value < ushort.MinValue || Value > ushort.MaxValue)
             {
-                throw new ArgumentException("Value must fit in a byte.");
+                throw new ArgumentException("Value must fit in a short.");
             }
-            return new Symbol(Name, (byte)Value);
+            return new Symbol(Name, (ushort)Value);
         }
         #endregion
 

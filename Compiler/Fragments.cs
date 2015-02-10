@@ -180,6 +180,23 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        public static IEnumerable<AssemblyLine> ClearSystem()
+        {
+            yield return SEI();
+            yield return CLD();
+            yield return LDX(0xFF);
+            yield return TXS();
+            yield return LDA(0);
+            var ClearLabel = Label(".ClearMem");
+            yield return ClearLabel;
+            yield return STA((byte)0, Index.X);
+            yield return DEX();
+            yield return BNE(ClearLabel);
+            // Clear address 00 to 0. 00 is VSYNC, which is set almost immediately
+            // afterwards, and only uses a single bit, but might as well be thorough. 
+            yield return STA((byte)0, Index.X);
+        }
+
         private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo=null)
         {
             //@TODO

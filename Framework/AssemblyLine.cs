@@ -103,14 +103,14 @@ namespace CSharpTo2600.Framework.Assembly
     public sealed class Symbol : AssemblyLine
     {
         public string Name { get; }
-        public byte? Value { get; }
+        public ushort? Value { get; }
 
         internal Symbol(string Name, string Comment = null)
             : this(Name, null, Comment)
         {
         }
 
-        internal Symbol(string Name, byte? Value, string Comment = null)
+        internal Symbol(string Name, ushort? Value, string Comment = null)
             : base(GetText(Name, Value), Comment)
         {
             this.Name = Name;
@@ -127,11 +127,11 @@ namespace CSharpTo2600.Framework.Assembly
             return (Symbol)WithCommentInternal(Comment);
         }
 
-        private static string GetText(string Name, byte? Value)
+        private static string GetText(string Name, ushort? Value)
         {
             if (Value.HasValue)
             {
-                return $"{Name} = ${Value.Value.ToString("X2")}";
+                return $"{Name} = ${Value.Value.ToString("X4")}";
             }
             else
             {
