@@ -2,10 +2,10 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using Xunit;
 using CSharpTo2600.Compiler;
 using CSharpTo2600.Framework.Assembly;
 using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
+using NUnit.Framework;
 
 namespace CSharpTo2600.UnitTests
 {
@@ -17,7 +17,7 @@ namespace CSharpTo2600.UnitTests
         private readonly byte[] OldZeroPage;
         private readonly ArraySegment<byte> StackPage;
         private readonly byte[] OldStackPage;
-
+        
         public FragmentTests()
         {
             // Completely arbitrary magic number. We end all tests in a JMP to here so we
@@ -30,11 +30,17 @@ namespace CSharpTo2600.UnitTests
             OldZeroPage = new byte[0x100];
             StackPage = new ArraySegment<byte>(CPU.Memory.DumpMemory(), 0x100, 0x100);
             OldStackPage = new byte[0x100];
+        }
+
+        [SetUp]
+        public void SetupTest()
+        {
+            CPU.Reset();
             // Fill memory with garbage so we know we're
             // actually clearing it.
             // Garbages up 0x00-0xFF. RIOT RAM is only 0x80-0xFF but we want to clear the
             // TIA registers too.
-            for(var i = 0; i < 0x100; i++)
+            for (var i = 0; i < 0x100; i++)
             {
                 CPU.Memory.WriteValue(i, 123);
                 // Page 0 and page 1 are mirrored during 6502 execution (see UpdateMemoryMirror),
@@ -43,10 +49,9 @@ namespace CSharpTo2600.UnitTests
             }
             Array.Copy(ZeroPage.ToArray(), OldZeroPage, ZeroPage.Count);
             Array.Copy(StackPage.ToArray(), OldStackPage, StackPage.Count);
-            // LoadProgram resets the CPU so don't bother here.
         }
 
-        [Fact]
+        [Test]
         public void SystemIsCleared()
         {
             RunProgramFromFragment(Fragments.ClearSystem(), false);
@@ -54,21 +59,19 @@ namespace CSharpTo2600.UnitTests
             // Make sure memory was reset to 0.
             for(var i = 0; i < 0x100; i++)
             {
-                Assert.Equal(0, CPU.Memory.ReadValue(i));
+                Assert.AreEqual(0, CPU.Memory.ReadValue(i));
             }
             // Make sure interrupts are disabled.
             Assert.True(CPU.DisableInterruptFlag);
             // Make sure decimal mode is cleared.
             Assert.False(CPU.DecimalFlag);
             // Make sure stack pointer = 0xFF.
-            Assert.Equal(0xFF, CPU.StackPointer);
+            Assert.AreEqual(0xFF, CPU.StackPointer);
         }
 
-        [Theory]
-        [InlineData((byte)0xEF)]
-        [InlineData((int)0x7FABCDEF)]
-        [InlineData((ulong)0xDEADBEEFBAADF00D)]
-        public void PushLiteralUsesBigEndianAndCorrectSize(object Input)
+        [Test]
+        public void PushLiteralUsesBigEndianAndCorrectSize(
+            [Values((byte)0xEF,(int)0x7FABCDEF,(ulong)0xDEADBEEFBAADF00D)] object Input)
         {
             RunProgramFromFragment(Fragments.PushLiteral(Input));
             // Can't just use BitConverter since passing a byte would be
@@ -89,30 +92,37 @@ namespace CSharpTo2600.UnitTests
             var ExpectedLiteralStart = ExpectedStackPointer + 1;
             
             // Ensure SP is correct.
-            Assert.Equal(ExpectedStackPointer, CPU.StackPointer);
+            Assert.AreEqual(ExpectedStackPointer, CPU.StackPointer);
             // Contains the bytes of the literal from the 6502 in big-endian.
             var BigEndianBytes = new byte[Size];
             Array.ConstrainedCopy(CPU.Memory.DumpMemory(), ExpectedLiteralStart, BigEndianBytes, 0, Size);
             // Ensure bytes are pushed onto stack in big-endian.
             Assert.True(ByteArray.SequenceEqual(BigEndianBytes));
         }
-
-        [Fact]
-        private void Page0AndPage1AreMirrored()
+        
+        [Test]
+        // Makes sure UpdateMemoryMirror actually works. Crucial for other tests.
+        // This test is pretty slow. Probably from running 256 individual 6502 programs that all
+        // clear RIOT RAM and TIA registers.
+        public void Page0AndPage1AreMirrored()
         {
             const byte TestValue = 0xCD;
 
-            RunProgramFromFragment(
-                new[]
+            // Could make this a parameterized test, but we really don't need 256 individual tests.
+            for (var Address = 0; Address <= 0xFF; Address++)
             {
-                LDA(TestValue),
-                PHA()
-            });
+                RunProgramFromFragment(
+                    new[]
+                {
+                    LDA(TestValue),
+                    STA((byte)Address)
+                });
 
-            Assert.Equal(TestValue, ZeroPage.ElementAt(0xFF));
-            Assert.Equal(TestValue, StackPage.ElementAt(0xFF));
-            Assert.True(ZeroPage.ElementAt(0xFF) == StackPage.ElementAt(0xFF));
-            Assert.True(CPU.Memory.DumpMemory()[0xFF] == CPU.Memory.DumpMemory()[0x1FF]);
+                Assert.AreEqual(TestValue, ZeroPage.ElementAt(Address), $"Address [{Address.ToString("X2")}] not mirrored.");
+                Assert.AreEqual(TestValue, StackPage.ElementAt(Address), $"Address [{Address.ToString("X2")}] not mirrored.");
+                Assert.True(ZeroPage.ElementAt(Address) == StackPage.ElementAt(Address));
+                Assert.True(CPU.Memory.DumpMemory()[Address] == CPU.Memory.DumpMemory()[0x100 + Address]);
+            }
         }
 
         private void RunProgramFromFragment(IEnumerable<AssemblyLine> FragmentLines, bool InsertClearSystemCode = true)

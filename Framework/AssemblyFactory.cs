@@ -257,7 +257,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction STA(byte Address)
         {
-            return new Instruction("STA", Address.ToString("X2"), 3);
+            return new Instruction("STA", $"${Address.ToString("X2")}", 3);
         }
 
         /// <summary>
