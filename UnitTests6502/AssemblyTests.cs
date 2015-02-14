@@ -76,6 +76,11 @@ namespace CSharpTo2600.UnitTests
             }
         }
 
+        protected void RunProgramFromFragment(bool InsertClearSystemCode = true, params AssemblyLine[] FragmentLines)
+        {
+            RunProgramFromFragment(FragmentLines, InsertClearSystemCode);
+        }
+
         protected void RunProgramFromFragment(IEnumerable<AssemblyLine> FragmentLines, bool InsertClearSystemCode = true)
         {
             var Lines = new List<AssemblyLine>();
