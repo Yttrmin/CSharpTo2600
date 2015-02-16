@@ -10,6 +10,52 @@ namespace CSharpTo2600.UnitTests
         private const byte TestValue = 0x9A;
 
         [Test]
+        public void ADCImmediateUnsigned(
+            [Values(0, 0xFF)] byte a,
+            [Values(0, 0x80, 0xFF)] byte b)
+        {
+            RunProgramFromFragment(false, AssemblyFactory.LDA(a), AssemblyFactory.CLC(), AssemblyFactory.ADC(b));
+            var ExpectedResult = (byte)(a + b);
+            Assert.AreEqual(ExpectedResult, CPU.Accumulator);
+            Assert.AreEqual(ExpectedResult < a + b, CPU.CarryFlag);
+        }
+
+        [Test]
+        public void ADCZeroPageIndexedUnsigned(
+            [Values(0, 0xFF)] byte a,
+            [Values(0, 0x80, 0xFF)] byte b,
+            [Values(0, 0xFF)] byte Offset)
+        {
+            const byte Address = 0xA0;
+            var XValue = (byte)(Address - Offset);
+            RunProgramFromFragment(true, AssemblyFactory.LDA(b), AssemblyFactory.STA(Address),
+                AssemblyFactory.LDA(XValue), AssemblyFactory.TAX(),
+                AssemblyFactory.LDA(a), AssemblyFactory.CLC(), AssemblyFactory.ADC(Offset, AssemblyFactory.Index.X));
+            var ExpectedResult = (byte)(a + b);
+            Assert.AreEqual(ExpectedResult, CPU.Accumulator);
+            Assert.AreEqual(ExpectedResult < a + b, CPU.CarryFlag);
+        }
+
+        [Test]
+        public void BNE(
+            [Values(0, 0xFF)] byte Value)
+        {
+            // if (Value != 0)
+            //   EndProgram
+            // else
+            //   DEX
+            var BranchTarget = AssemblyFactory.Label("Target");
+            RunProgramFromFragment(true, AssemblyFactory.LDX(Value), AssemblyFactory.BNE(BranchTarget), AssemblyFactory.DEX(), BranchTarget);
+            byte ExpectedValue;
+            if (Value != 0)
+                ExpectedValue = Value;
+            else
+                ExpectedValue = (byte)(Value - 1);
+
+            Assert.AreEqual(ExpectedValue, CPU.XRegister);
+        }
+
+        [Test]
         public void CLC()
         {
             RunProgramFromFragment(false, AssemblyFactory.CLC());
@@ -21,6 +67,35 @@ namespace CSharpTo2600.UnitTests
         {
             RunProgramFromFragment(false, AssemblyFactory.CLD());
             Assert.False(CPU.DecimalFlag);
+        }
+
+        [Test]
+        public void CPXImmediate(
+            [Values(0, 0xFF)] byte a,
+            [Values(0, 0xFF)] byte b)
+        {
+            RunProgramFromFragment(true, AssemblyFactory.LDX(a), AssemblyFactory.CPX(b));
+            var SubtractResult = a - b;
+
+            Assert.AreEqual(SubtractResult == 0, CPU.ZeroFlag);
+            Assert.AreEqual(a >= b, CPU.CarryFlag);
+        }
+
+        [Test]
+        public void DEX(
+            [Values(0, 0xFF)] byte StartValue)
+        {
+            RunProgramFromFragment(true, AssemblyFactory.LDX(StartValue), AssemblyFactory.DEX());
+            var ExpectedValue = (byte)unchecked(StartValue - 1);
+            Assert.AreEqual(ExpectedValue, CPU.XRegister);
+        }
+
+        [Test]
+        // JMP is relied on by literally every test. I'm pretty certain it works.
+        public void JMPAbsolute()
+        {
+            RunProgramFromFragment(false);
+            Assert.AreEqual(ProgramEnd.Value.Value, CPU.ProgramCounter);
         }
 
         [Test]

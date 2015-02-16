@@ -84,15 +84,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction ADC(byte Constant)
         {
-            return new Instruction("ADC", $"${Constant.ToString("X2")}", 2);
-        }
-
-        /// <summary>
-        /// Add with Carry [Absolute indexed] (4 cycles)
-        /// </summary>
-        public static Instruction ADC(int Offset, Index IndexRegister)
-        {
-            return new Instruction("ADC", $"${Offset.ToString("X4")},{IndexRegister}", 4);
+            return new Instruction("ADC", $"#${Constant.ToString("X2")}", 2);
         }
 
         /// <summary>
@@ -105,15 +97,6 @@ namespace CSharpTo2600.Framework.Assembly
                 throw new ArgumentException("Invalid index register.", nameof(IndexRegister));
             }
             return new Instruction("ADC", $"${Offset.ToString("X2")},{IndexRegister}", 4);
-        }
-
-        /// <summary>
-        /// Branch if Not Equal (2-4 cycles)
-        /// </summary>
-        public static Instruction BNE(string Label)
-        {
-            // 4 if branch to new page.
-            return new Instruction("BNE", Label, 4);
         }
 
         /// <summary>

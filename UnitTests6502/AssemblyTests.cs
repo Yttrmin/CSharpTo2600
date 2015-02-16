@@ -11,7 +11,7 @@ namespace CSharpTo2600.UnitTests
     public abstract class AssemblyTests
     {
         protected Processor.Processor CPU { get; }
-        private readonly Symbol ProgramEnd;
+        protected Symbol ProgramEnd { get; }
         private readonly IList<byte> ZeroPage;
         private readonly byte[] OldZeroPage;
         private readonly IList<byte> StackPage;
