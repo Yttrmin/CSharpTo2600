@@ -57,8 +57,8 @@ namespace CSharpTo2600.Compiler
             yield return PLA();
             yield return TSX();
             yield return SEC();
-            yield return SBC(0x100, Index.X);
-            yield return STA(0x100, Index.X);
+            yield return SBC(0, Index.X);
+            yield return STA(0, Index.X);
         }
 
         public static IEnumerable<AssemblyLine> BitwiseOr(Type Type)

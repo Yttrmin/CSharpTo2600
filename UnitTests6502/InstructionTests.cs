@@ -17,7 +17,7 @@ namespace CSharpTo2600.UnitTests
             RunProgramFromFragment(false, AssemblyFactory.LDA(a), AssemblyFactory.CLC(), AssemblyFactory.ADC(b));
             var ExpectedResult = (byte)(a + b);
             Assert.AreEqual(ExpectedResult, CPU.Accumulator);
-            Assert.AreEqual(ExpectedResult < a + b, CPU.CarryFlag);
+            Assert.AreEqual(a + b > byte.MaxValue, CPU.CarryFlag);
         }
 
         [Test]
@@ -28,12 +28,15 @@ namespace CSharpTo2600.UnitTests
         {
             const byte Address = 0xA0;
             var XValue = (byte)(Address - Offset);
+            // Stores b at some arbitrary zero-page address.
+            // X value is loaded with whatever added to Offset would equal the address.
+            // a is loaded into accumulator, carry cleared, perform add.
             RunProgramFromFragment(true, AssemblyFactory.LDA(b), AssemblyFactory.STA(Address),
-                AssemblyFactory.LDA(XValue), AssemblyFactory.TAX(),
+                AssemblyFactory.LDX(XValue),
                 AssemblyFactory.LDA(a), AssemblyFactory.CLC(), AssemblyFactory.ADC(Offset, AssemblyFactory.Index.X));
             var ExpectedResult = (byte)(a + b);
             Assert.AreEqual(ExpectedResult, CPU.Accumulator);
-            Assert.AreEqual(ExpectedResult < a + b, CPU.CarryFlag);
+            Assert.AreEqual(a + b > byte.MaxValue, CPU.CarryFlag);
         }
 
         [Test]
@@ -140,6 +143,34 @@ namespace CSharpTo2600.UnitTests
             {
                 Assert.AreEqual(i, CPU.Memory.ReadValue(i));
             }
+        }
+
+        [Test]
+        public void PLA()
+        {
+            RunProgramFromFragment(true, AssemblyFactory.LDA(TestValue), AssemblyFactory.PHA(),
+                AssemblyFactory.LDA(0), AssemblyFactory.PLA());
+            Assert.AreEqual(TestValue, CPU.Accumulator);
+            Assert.AreEqual(0xFF, CPU.StackPointer);
+        }
+
+        [Test]
+        public void SBCZeroPageIndexedUnsigned(
+            [Values(0, 0xFF)] byte a,
+            [Values(0, 0x80, 0xFF)] byte b,
+            [Values(0, 0xFF)] byte Offset)
+        {
+            const byte Address = 0xA0;
+            var XValue = (byte)(Address - Offset);
+            // Stores b at some arbitrary zero-page address.
+            // X value is loaded with whatever added to Offset would equal the address.
+            // a is loaded into accumulator, carry set, perform subtract.
+            RunProgramFromFragment(true, AssemblyFactory.LDA(b), AssemblyFactory.STA(Address),
+                AssemblyFactory.LDX(XValue),
+                AssemblyFactory.LDA(a), AssemblyFactory.SEC(), AssemblyFactory.SBC(Offset, AssemblyFactory.Index.X));
+            var ExpectedResult = (byte)(a - b);
+            Assert.AreEqual(ExpectedResult, CPU.Accumulator);
+            Assert.AreEqual(a - b < 0, !CPU.CarryFlag);
         }
         
         [Test]

@@ -163,6 +163,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// <summary>
         /// Load Accumulator with Memory [Zero-page] (3 cycles)
         /// </summary>
+        [Obsolete("Use Symbol")]
         public static Instruction LDA(string Name, int Offset = 0)
         {
             //@TODO - Technically the symbol could refer to any point in the ROM,
@@ -212,11 +213,14 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         /// <summary>
-        /// Subtract with Carry [Absolute indexed] (4 cycles)
+        /// Subtract with Carry [Zero-page indexed] (4 cycles)
         /// </summary>
-        public static Instruction SBC(int Offset, Index IndexRegister)
+
+        //@TODO - Can only be zp-indexed with X register. But if we remove that
+        // parameter it'll conflict with the future immediate mode one.
+        public static Instruction SBC(byte Offset, Index IndexRegister)
         {
-            return new Instruction("SBC", $"${Offset.ToString("X4")},{IndexRegister}", 4);
+            return new Instruction("SBC", $"${Offset.ToString("X2")},{IndexRegister}", 4);
         }
 
         /// <summary>
@@ -266,14 +270,6 @@ namespace CSharpTo2600.Framework.Assembly
         public static Instruction STA(byte Offset, Index IndexRegister)
         {
             return new Instruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4);
-        }
-
-        /// <summary>
-        /// Store Accumulator [Absolute indexed] (5 cycles)
-        /// </summary>
-        public static Instruction STA(int Offset, Index IndexRegister)
-        {
-            return new Instruction("STA", $"${Offset.ToString("X4")},{IndexRegister}", 5);
         }
 
         /// <summary>

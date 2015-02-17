@@ -96,6 +96,7 @@ namespace CSharpTo2600.Compiler
             return StackAllocate(ToPad, 0);
         }
 
+        //@TODO - Just take VariableInfo.
         public static IEnumerable<AssemblyLine> AllocateLocal(Type Type, out int Size)
         {
             VerifyType(Type);
@@ -197,16 +198,18 @@ namespace CSharpTo2600.Compiler
             yield return STA((byte)0, Index.X);
         }
 
-        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo=null)
+        // Postcondition: Stack pointer decremented by # of bytes requested.
+        // Postcondition: Value of new stack values are either what was passed in, or garbage otherwise.
+        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo = null)
         {
             //@TODO
             if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
             {
-                if(InitializeTo.HasValue)
+                if (InitializeTo.HasValue)
                 {
                     yield return LDA(InitializeTo.Value);
                 }
-                for(var i = 0; i < Bytes; i++)
+                for (var i = 0; i < Bytes; i++)
                 {
                     yield return PHA();
                 }
