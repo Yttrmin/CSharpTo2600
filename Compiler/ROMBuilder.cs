@@ -7,6 +7,7 @@ using CSharpTo2600.Framework.Assembly;
 using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
 using static CSharpTo2600.Framework.Assembly.Symbols;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace CSharpTo2600.Compiler
 {
@@ -61,10 +62,14 @@ namespace CSharpTo2600.Compiler
             VariableManager = VariableManager.AddVariable(Name, Type);
         }
 
+        /// <summary>
+        /// Assembles only the given AssemblyLines, no other lines are inserted
+        /// by the builder.
+        /// </summary>
+        /// <returns>The bytes of the assembled binary.</returns>
         internal static byte[] BuildRawROM(IEnumerable<AssemblyLine> Lines)
         {
             const string ASMFileName = "tempOut.asm";
-            const string BINFileName = "tempOut.bin";
             using (var Writer = new StreamWriter(ASMFileName))
             {
                 foreach(var Line in Lines)
@@ -73,31 +78,11 @@ namespace CSharpTo2600.Compiler
                 }
             }
 
-            //@TODO - It's really terrible to copy/paste this. Just want to get to tests for now.
-            var DASM = new Process();
-            var FullDASMPath = Path.Combine(Path.GetFullPath(Compiler.DASMPath), "dasm.exe");
-            DASM.StartInfo.FileName = FullDASMPath;
-            if (!File.Exists(FullDASMPath))
-            {
-                throw new FileNotFoundException($"DASM executable not found at: {FullDASMPath}");
-            }
-            DASM.StartInfo.UseShellExecute = false;
-            DASM.StartInfo.RedirectStandardOutput = true;
-            DASM.StartInfo.WorkingDirectory = Compiler.DASMPath;
-            DASM.StartInfo.Arguments = $"\"{Path.GetFullPath(ASMFileName)}\" -f3 -o{BINFileName}";
-            DASM.StartInfo.CreateNoWindow = true;
-
-            DASM.Start();
-            DASM.WaitForExit();
-            Console.WriteLine(DASM.StandardOutput.ReadToEnd());
-            // DASM documentation says this returns 0 on success and 1 otherwise. This is not
-            // true since it returned 0 when the ASM was missing the 'processor' op, causing a
-            // lot of errors and spit out a 0 byte BIN. Hopefully nothing else returns 0 on failure.
-            var Success = DASM.ExitCode == 0;
+            var Success = Compiler.AssembleOutput($"\"{Path.GetFullPath(ASMFileName)}\"");
 
             if(Success)
             {
-                var Data = File.ReadAllBytes(Path.Combine(Compiler.DASMPath, BINFileName));
+                var Data = File.ReadAllBytes("output.bin");
                 return Data;
             }
             else
