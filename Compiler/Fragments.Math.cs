@@ -27,10 +27,10 @@ namespace CSharpTo2600.Compiler
             yield return PLA();
             yield return TSX();
             yield return CLC();
-            yield return ADC(0x100, Index.X);
+            yield return ADC(0, Index.X);
 			// We can't just throw away the top of the stack, so reuse it to store the result.
 			// Otherwise we'll leak stack space.
-            yield return STA(0x100, Index.X);
+            yield return STA(0, Index.X);
         }
 
         public static IEnumerable<AssemblyLine> Add(VariableInfo Variable, byte Constant)
@@ -57,8 +57,8 @@ namespace CSharpTo2600.Compiler
             yield return PLA();
             yield return TSX();
             yield return SEC();
-            yield return SBC(0x100, Index.X);
-            yield return STA(0x100, Index.X);
+            yield return SBC(0, Index.X);
+            yield return STA(0, Index.X);
         }
 
         public static IEnumerable<AssemblyLine> BitwiseOr(Type Type)

@@ -22,11 +22,11 @@ namespace CSharpTo2600.Framework.Assembly
         }
         public static Symbol DefineSymbol(string Name, int Value)
         {
-            if(Value < byte.MinValue || Value > byte.MaxValue)
+            if(Value < ushort.MinValue || Value > ushort.MaxValue)
             {
-                throw new ArgumentException("Value must fit in a byte.");
+                throw new ArgumentException("Value must fit in a short.");
             }
-            return new Symbol(Name, (byte)Value);
+            return new Symbol(Name, (ushort)Value);
         }
         #endregion
 
@@ -84,15 +84,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction ADC(byte Constant)
         {
-            return new Instruction("ADC", $"${Constant.ToString("X2")}", 2);
-        }
-
-        /// <summary>
-        /// Add with Carry [Absolute indexed] (4 cycles)
-        /// </summary>
-        public static Instruction ADC(int Offset, Index IndexRegister)
-        {
-            return new Instruction("ADC", $"${Offset.ToString("X4")},{IndexRegister}", 4);
+            return new Instruction("ADC", $"#${Constant.ToString("X2")}", 2);
         }
 
         /// <summary>
@@ -105,15 +97,6 @@ namespace CSharpTo2600.Framework.Assembly
                 throw new ArgumentException("Invalid index register.", nameof(IndexRegister));
             }
             return new Instruction("ADC", $"${Offset.ToString("X2")},{IndexRegister}", 4);
-        }
-
-        /// <summary>
-        /// Branch if Not Equal (2-4 cycles)
-        /// </summary>
-        public static Instruction BNE(string Label)
-        {
-            // 4 if branch to new page.
-            return new Instruction("BNE", Label, 4);
         }
 
         /// <summary>
@@ -180,6 +163,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// <summary>
         /// Load Accumulator with Memory [Zero-page] (3 cycles)
         /// </summary>
+        [Obsolete("Use Symbol")]
         public static Instruction LDA(string Name, int Offset = 0)
         {
             //@TODO - Technically the symbol could refer to any point in the ROM,
@@ -229,11 +213,14 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         /// <summary>
-        /// Subtract with Carry [Absolute indexed] (4 cycles)
+        /// Subtract with Carry [Zero-page indexed] (4 cycles)
         /// </summary>
-        public static Instruction SBC(int Offset, Index IndexRegister)
+
+        //@TODO - Can only be zp-indexed with X register. But if we remove that
+        // parameter it'll conflict with the future immediate mode one.
+        public static Instruction SBC(byte Offset, Index IndexRegister)
         {
-            return new Instruction("SBC", $"${Offset.ToString("X4")},{IndexRegister}", 4);
+            return new Instruction("SBC", $"${Offset.ToString("X2")},{IndexRegister}", 4);
         }
 
         /// <summary>
@@ -257,7 +244,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction STA(byte Address)
         {
-            return new Instruction("STA", Address.ToString("X2"), 3);
+            return new Instruction("STA", $"${Address.ToString("X2")}", 3);
         }
 
         /// <summary>
@@ -283,14 +270,6 @@ namespace CSharpTo2600.Framework.Assembly
         public static Instruction STA(byte Offset, Index IndexRegister)
         {
             return new Instruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4);
-        }
-
-        /// <summary>
-        /// Store Accumulator [Absolute indexed] (5 cycles)
-        /// </summary>
-        public static Instruction STA(int Offset, Index IndexRegister)
-        {
-            return new Instruction("STA", $"${Offset.ToString("X4")},{IndexRegister}", 5);
         }
 
         /// <summary>

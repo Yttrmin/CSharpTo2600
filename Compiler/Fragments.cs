@@ -96,6 +96,7 @@ namespace CSharpTo2600.Compiler
             return StackAllocate(ToPad, 0);
         }
 
+        //@TODO - Just take VariableInfo.
         public static IEnumerable<AssemblyLine> AllocateLocal(Type Type, out int Size)
         {
             VerifyType(Type);
@@ -180,16 +181,35 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo=null)
+        public static IEnumerable<AssemblyLine> ClearSystem()
+        {
+            yield return SEI();
+            yield return CLD();
+            yield return LDX(0xFF);
+            yield return TXS();
+            yield return LDA(0);
+            var ClearLabel = Label(".ClearMem");
+            yield return ClearLabel;
+            yield return STA((byte)0, Index.X);
+            yield return DEX();
+            yield return BNE(ClearLabel);
+            // Clear address 00 to 0. 00 is VSYNC, which is set almost immediately
+            // afterwards, and only uses a single bit, but might as well be thorough. 
+            yield return STA((byte)0, Index.X);
+        }
+
+        // Postcondition: Stack pointer decremented by # of bytes requested.
+        // Postcondition: Value of new stack values are either what was passed in, or garbage otherwise.
+        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo = null)
         {
             //@TODO
             if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
             {
-                if(InitializeTo.HasValue)
+                if (InitializeTo.HasValue)
                 {
                     yield return LDA(InitializeTo.Value);
                 }
-                for(var i = 0; i < Bytes; i++)
+                for (var i = 0; i < Bytes; i++)
                 {
                     yield return PHA();
                 }

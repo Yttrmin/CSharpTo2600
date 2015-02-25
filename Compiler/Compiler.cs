@@ -21,12 +21,12 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
         private readonly ROMBuilder ROMBuilder;
+        public const string DASMPath = "./Dependencies/DASM/";
 
         static void Main(string[] args)
         {
             //@TODO - Handle more than 1 source file, workspaces.
             var FileName = args[0];
-            var DASMPath = args[1];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
             new Compiler(CreateCompilation(Tree)).Compile(DASMPath);
             Console.ReadLine();
@@ -74,7 +74,7 @@ namespace CSharpTo2600.Compiler
             var Walker = new GameClassCompiler(this, GameClass);
             Walker.Compile();
             var OutputPath = ROMBuilder.WriteToFile("out.asm");
-            var DASMSuccess = CompileOutput(DASMPath, OutputPath);
+            var DASMSuccess = AssembleOutput(OutputPath);
             if(DASMSuccess)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -88,7 +88,7 @@ namespace CSharpTo2600.Compiler
             Console.ForegroundColor = ConsoleColor.Black;
         }
 
-        private bool CompileOutput(string DASMPath, string FullPath)
+        internal static bool AssembleOutput(string AssemblyFilePath)
         {
             var DASM = new Process();
             var FullDASMPath = Path.Combine(DASMPath, "dasm.exe");
@@ -97,15 +97,19 @@ namespace CSharpTo2600.Compiler
             {
                 throw new FileNotFoundException($"DASM executable not found at: {FullDASMPath}");
             }
+            var OutputDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             DASM.StartInfo.UseShellExecute = false;
             DASM.StartInfo.RedirectStandardOutput = true;
             DASM.StartInfo.WorkingDirectory = DASMPath;
-            DASM.StartInfo.Arguments = $"\"{FullPath}\" -f3 -ooutput.bin -soutput.sym -loutput.lst";
+            DASM.StartInfo.Arguments = $"\"{AssemblyFilePath}\" -f3 -o{Path.Combine(OutputDirectory, "output.bin")} -s{Path.Combine(OutputDirectory, "output.sym")} -l{Path.Combine(OutputDirectory, "output.lst")}";
             DASM.StartInfo.CreateNoWindow = true;
 
             DASM.Start();
             DASM.WaitForExit();
             var Output = DASM.StandardOutput.ReadToEnd();
+            // DASM documentation says this returns 0 on success and 1 otherwise. This is not
+            // true since it returned 0 when the ASM was missing the 'processor' op, causing a
+            // lot of errors and spit out a 0 byte BIN. Hopefully nothing else returns 0 on failure.
             var Success = DASM.ExitCode == 0;
             Console.WriteLine(Output);
             return Success;
