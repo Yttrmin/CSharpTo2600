@@ -45,7 +45,7 @@ namespace CSharpTo2600.FunctionalitySamples
 }
 ```
 ### Dependencies (included)
-[6502Net](https://github.com/aaronmell/6502Net) ([MIT License](./Dependencies/6502Net/LICENSE)) - Used for testing generated code.
+[6502Net](https://github.com/aaronmell/6502Net) ([BSD License](./Dependencies/6502Net/LICENSE)) - Used for testing generated code.
 
 [DASM 2.20.11 (unmodified)](http://dasm-dillon.sourceforge.net/) ([GPLv2 License](./Dependencies/DASM/COPYING)) - Assembles the generated assembly file into an Atari 2600 ROM.
 
