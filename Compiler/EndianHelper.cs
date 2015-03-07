@@ -70,34 +70,11 @@ namespace CSharpTo2600.Compiler
 			}
 		}
 
-		public static IEnumerable<byte> GetByteOffsetsForStack(VariableInfo Variable)
-		{
-			// This works regardless of endianness since both amount to just pushing
-			// the variable onto the stack from the highest address to its lowest.
-
-			// For big endian:
-			// Return LSBs, ending with the MSB.
-			// In big endian variables point to the MSB.
-			// So we want to start with the greatest offset and work back to
-			// offset 0.
-
-			// For little endian:
-			// In little endian variables point to the LSB.
-			// So we want the LSB on the top of the stack.
-			// Thus, push from MSB to LSB.
-			// So start from the greatest offset and work back to 0.
-
-			for (var i = Variable.Size - 1; i >= 0; i--)
-			{
-				yield return (byte)i;
-			}
-		}
-
 		/// <summary>
 		/// Returns all the bytes of the Value, starting from the LSB to the MSB.
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		private static IEnumerable<byte> LeastSignificantBytes<T>(T Value) where T : struct
+		internal static IEnumerable<byte> LeastSignificantBytes<T>(T Value) where T : struct
 		{
 			//@TODO - Handle structs with >1 field. Otherwise it'll flip the order of fields as well.
 			var Bytes = StructToByteArray(Value, Marshal.SizeOf(typeof(T)));
@@ -105,7 +82,7 @@ namespace CSharpTo2600.Compiler
 			return Bytes;
 		}
 
-		private static IEnumerable<byte> MostSignificantBytes<T>(T Value) where T : struct
+		internal static IEnumerable<byte> MostSignificantBytes<T>(T Value) where T : struct
 		{
 			//@TODO - Handle structs with >1 field. Otherwise it'll flip the order of fields as well.
 			var Bytes = StructToByteArray(Value, Marshal.SizeOf(typeof(T)));

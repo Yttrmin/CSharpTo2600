@@ -4,6 +4,7 @@ using System.Linq;
 using CSharpTo2600.Compiler;
 using NUnit.Framework;
 using BindingFlags = System.Reflection.BindingFlags;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.UnitTests
 {
@@ -44,7 +45,7 @@ namespace CSharpTo2600.UnitTests
 		}
 
 		[Test]
-		public void PushLiteralUsesBigEndianAndCorrectSize(
+		public void PushLiteral(
 			[Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Input)
 		{
 			RunProgramFromFragment(Fragments.PushLiteral(Input));
@@ -72,6 +73,47 @@ namespace CSharpTo2600.UnitTests
 			Array.ConstrainedCopy(CPU.Memory.DumpMemory(), ExpectedLiteralStart, BigEndianBytes, 0, Size);
 			// Ensure bytes are pushed onto stack in big-endian.
 			Assert.True(ByteArray.SequenceEqual(BigEndianBytes));
+		}
+
+		[Test]
+		public void StoreVariable(
+			[Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
+		{
+			var VarSymbol = AssemblyFactory.DefineSymbol("TEST", 0x80);
+			var VarInfo = new GlobalVariable(VarSymbol.Name, Value.GetType(),
+				new Range(VarSymbol.Value.Value, VarSymbol.Value.Value + Marshal.SizeOf(Value.GetType()) - 1), true);
+
+			RunProgramFromFragment(
+				new[] { VarSymbol }, 
+				Fragments.PushLiteral(Value), 
+				Fragments.StoreVariable(VarInfo, Value.GetType()));
+			// 0x80 should contain the MSB, 0x80+Size-1 the LSB.
+			var Bytes = EndianHelper.MostSignificantBytes((dynamic)Value);
+			for (var i = 0; i < VarInfo.Size; i++)
+			{
+				Assert.AreEqual(Bytes[i], CPU.Memory.ReadValue(VarSymbol.Value.Value + i));
+			}
+		}
+
+		[Test]
+		public void PushVariable(
+			[Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
+		{
+			var VarSymbol = AssemblyFactory.DefineSymbol("TEST", 0x80);
+			var VarInfo = new GlobalVariable(VarSymbol.Name, Value.GetType(), 
+				new Range(VarSymbol.Value.Value, VarSymbol.Value.Value + Marshal.SizeOf(Value.GetType()) - 1), true);
+
+			RunProgramFromFragment(
+				new[] { VarSymbol },
+				Fragments.PushLiteral(Value), 
+				Fragments.StoreVariable(VarInfo, Value.GetType()),
+				Fragments.PushVariable(VarInfo));
+			// SP+1 should contain the MSB, 0xFF the LSB.
+			var Bytes = EndianHelper.MostSignificantBytes((dynamic)Value);
+			for (var i = 0; i < VarInfo.Size; i++)
+			{
+				Assert.AreEqual(Bytes[i], CPU.Memory.ReadValue(CPU.StackPointer+1+i));
+			}
 		}
 	}
 }

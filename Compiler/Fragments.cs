@@ -125,10 +125,12 @@ namespace CSharpTo2600.Compiler
         {
             if (Variable.AddressIsAbsolute)
             {
-				var ByteOffsets = EndianHelper.GetByteOffsetsForStack(Variable);
-				foreach (var Offset in ByteOffsets)
+				// This is not dependent on endianness. Just pushing the bytes at the highest
+				// address first so that its laid out the same way on the stack as it is
+				// in the variable.
+				for (var i = Variable.Size - 1; i >= 0; i--)
 				{
-					yield return LDA(Variable.Symbol, Offset);
+					yield return LDA(Variable.Symbol, i);
 					yield return PHA();
 				}
             }
@@ -159,7 +161,8 @@ namespace CSharpTo2600.Compiler
 
             if (Variable.AddressIsAbsolute)
             {
-                for (var i = Variable.Size - 1; i >= 0; i--)
+				// This is not dependent on endianness. Just a straight copy.
+                for (var i = 0; i < Variable.Size; i++)
                 {
                     yield return PLA();
                     yield return STA(Variable.Symbol, i);
