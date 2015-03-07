@@ -5,7 +5,7 @@ using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
-    partial class Compiler
+    partial class GameCompiler
     {
         private class Optimizer
         {

@@ -77,7 +77,7 @@ namespace CSharpTo2600.Compiler
                 }
             }
 
-            var Success = Compiler.AssembleOutput($"\"{Path.GetFullPath(ASMFileName)}\"");
+            var Success = GameCompiler.AssembleOutput($"\"{Path.GetFullPath(ASMFileName)}\"");
 
             if(Success)
             {

@@ -7,18 +7,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CSharpTo2600.Compiler
 {
-    public sealed partial class Compiler
+    public sealed partial class GameCompiler
     {
         private sealed class GameClassCompiler : CSharpSyntaxWalker
         {
-            private readonly Compiler Compiler;
+            private readonly GameCompiler Compiler;
             private SemanticModel Model { get { return Compiler.Model; } }
             private ROMBuilder ROMBuilder { get { return Compiler.ROMBuilder; } }
             private readonly Optimizer Optimizer;
             private readonly Type ClassType;
             private readonly ClassDeclarationSyntax Root;
 
-            public GameClassCompiler(Compiler Compiler, Type ClassType)
+            public GameClassCompiler(GameCompiler Compiler, Type ClassType)
             {
                 this.Compiler = Compiler;
                 this.ClassType = ClassType;

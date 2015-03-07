@@ -13,11 +13,11 @@ using System.Reflection;
 
 namespace CSharpTo2600.Compiler
 {
-    partial class Compiler
+    partial class GameCompiler
     {
         private sealed class MethodCompiler : CSharpSyntaxWalker
         {
-            private readonly Compiler Compiler;
+            private readonly GameCompiler Compiler;
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
             private readonly List<AssemblyLine> MethodBody;
@@ -30,7 +30,7 @@ namespace CSharpTo2600.Compiler
                 get { return MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined; }
             }
 
-            public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, Compiler Compiler)
+            public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, GameCompiler Compiler)
             {
                 this.MethodInfo = MethodInfo;
                 this.Compiler = Compiler;
@@ -246,9 +246,9 @@ namespace CSharpTo2600.Compiler
             {
                 private LocalVariableManager VariableManager;
                 private readonly MethodDeclarationSyntax Method;
-                private readonly Compiler Compiler;
+                private readonly GameCompiler Compiler;
 
-                public CompilerPrePassLocals(Compiler Compiler, MethodDeclarationSyntax Method)
+                public CompilerPrePassLocals(GameCompiler Compiler, MethodDeclarationSyntax Method)
                 {
                     this.Compiler = Compiler;
                     VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);

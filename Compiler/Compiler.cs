@@ -12,7 +12,7 @@ using System.Diagnostics;
 
 namespace CSharpTo2600.Compiler
 {
-    public sealed partial class Compiler
+    public sealed partial class GameCompiler
     {
         private readonly CSharpCompilation Compilation;
         private CSharpSyntaxTree Tree { get { return (CSharpSyntaxTree)Compilation.SyntaxTrees.Single(); } }
@@ -21,6 +21,7 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
         private readonly ROMBuilder ROMBuilder;
+		private CompileOptions Options;
         public const string DASMPath = "./Dependencies/DASM/";
 
         static void Main(string[] args)
@@ -29,11 +30,16 @@ namespace CSharpTo2600.Compiler
             //@TODO - Handle more than 1 source file, workspaces.
             var FileName = args[0];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
-            new Compiler(CreateCompilation(Tree)).Compile(DASMPath);
+            new GameCompiler(CreateCompilation(Tree)).Compile();
             Console.ReadLine();
         }
 
-        public Compiler(CSharpCompilation Compilation)
+		public GameCompiler(string SourceText)
+			: this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
+        {
+		}
+
+        public GameCompiler(CSharpCompilation Compilation)
         {
             FrameworkAssembly = typeof(Atari2600Game).Assembly;
             ROMBuilder = new ROMBuilder();
@@ -69,7 +75,7 @@ namespace CSharpTo2600.Compiler
             return Compilation;
         }
 
-        public void Compile(string DASMPath)
+        public void Compile()
         {
             var GameClass = GetGameClass();
             var Walker = new GameClassCompiler(this, GameClass);
@@ -88,6 +94,11 @@ namespace CSharpTo2600.Compiler
             }
             Console.ForegroundColor = ConsoleColor.Black;
         }
+
+		internal ROMInfo GetROMInfo()
+		{
+			return new ROMInfo(ROMBuilder);
+		}
 
         internal static bool AssembleOutput(string AssemblyFilePath)
         {
@@ -135,6 +146,16 @@ namespace CSharpTo2600.Compiler
             return TrueType;
         }
     }
+
+	public struct CompileOptions
+	{
+		public readonly bool Optimize;
+
+		public CompileOptions(bool Optimize = true)
+		{
+			this.Optimize = Optimize;
+		}
+	}
 
     internal class FatalCompilationException : Exception
     {

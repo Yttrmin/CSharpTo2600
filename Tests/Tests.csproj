@@ -7,8 +7,8 @@
     <ProjectGuid>{0BA4AFE8-AF1C-4800-93DB-4718700FD999}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>UnitTests6502</RootNamespace>
-    <AssemblyName>UnitTests6502</AssemblyName>
+    <RootNamespace>CSharpTo2600.UnitTests</RootNamespace>
+    <AssemblyName>Tests</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <NuGetPackageImportStamp>cf0a087c</NuGetPackageImportStamp>
@@ -31,6 +31,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
     <Reference Include="nunit.core">
       <HintPath>..\packages\NUnitTestAdapter.1.2\lib\nunit.core.dll</HintPath>
       <Private>False</Private>
@@ -63,6 +64,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyTests.cs" />
+    <Compile Include="CSharpTests.cs" />
     <Compile Include="FragmentTests.cs" />
     <Compile Include="InstructionTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
