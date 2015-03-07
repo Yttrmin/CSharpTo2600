@@ -43,7 +43,7 @@
     <Compile Include="Attributes.cs" />
     <Compile Include="AssemblyLine.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Symbols.cs" />
+    <Compile Include="ReservedSymbols.cs" />
     <Compile Include="TIARegisters.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

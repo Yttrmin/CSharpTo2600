@@ -1,4 +1,6 @@
 ﻿using System;
+using CSharpTo2600.Framework.Assembly;
+using BindingFlags = System.Reflection.BindingFlags;
 
 namespace CSharpTo2600.Framework
 {
@@ -37,11 +39,16 @@ namespace CSharpTo2600.Framework
     [AttributeUsage(AttributeTargets.Property)]
     public class CompilerIntrinsicGlobalAttribute : Attribute
     {
-        public readonly string GlobalName;
+        public readonly Symbol GlobalSymbol;
 
         public CompilerIntrinsicGlobalAttribute(string Name)
         {
-            GlobalName = Name;
+            GlobalSymbol = typeof(ReservedSymbols).GetField(Name, BindingFlags.Static | BindingFlags.Public)
+				.GetValue(null) as Symbol;
+			if (GlobalSymbol == null)
+			{
+				throw new ArgumentException($"There is no reserved symbol called {Name}", nameof(Name));
+			}
         }
     }
 

@@ -5,7 +5,7 @@ When it comes to making Atari 2600 games there are only a couple languages to ch
 ### What's Supported?
 Not much, the project is very early in development. This will be updated as features are added.
 ### Building
-Load the solution into [Visual Studio 2015 CTP 5](https://support2.microsoft.com/kb/2967191) and it should build and run fine.
+Load the solution into [Visual Studio 2015 CTP 6](https://www.visualstudio.com/en-us/downloads/visual-studio-2015-ctp-vs) and it should build and run fine.
 ### Usage
 `Compiler SourceFilePath`
 

@@ -25,6 +25,7 @@ namespace CSharpTo2600.Compiler
 
         static void Main(string[] args)
         {
+			EndianHelper.Endianness = Endianness.Big;
             //@TODO - Handle more than 1 source file, workspaces.
             var FileName = args[0];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));

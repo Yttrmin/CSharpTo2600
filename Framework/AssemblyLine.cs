@@ -138,7 +138,7 @@ namespace CSharpTo2600.Framework.Assembly
                 return $"{Name}:";
             }
         }
-    }
+	}
 
     public sealed class PsuedoOp : AssemblyLine
     {

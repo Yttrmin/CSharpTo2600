@@ -1,4 +1,4 @@
-﻿using static CSharpTo2600.Framework.Assembly.Symbols;
+﻿using static CSharpTo2600.Framework.Assembly.ReservedSymbols;
 
 namespace CSharpTo2600.Framework
 {
@@ -10,7 +10,7 @@ namespace CSharpTo2600.Framework
         // They can't just be declared 'extern' because then we can't load
         // the assembly for reflection.
 
-        [CompilerIntrinsicGlobal(COLUBK)]
+        [CompilerIntrinsicGlobal(nameof(COLUBK))]
         public static byte BackgroundColor { set { } }
     }
 }

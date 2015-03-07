@@ -51,7 +51,8 @@ namespace CSharpTo2600.UnitTests
         }
         
         [Explicit("Takes 6-9 seconds to run, mirroring code and LDA/STA unlikely to change.")]
-        [Test]
+		//@FIXME - Test runs regardless of Explicit attribute. Possibly just an issue on my end.
+        //[Test]
         // Makes sure UpdateMemoryMirror actually works. Crucial for other tests.
         // This test is pretty slow. Probably from running 256 individual 6502 programs that all
         // clear RIOT RAM and TIA registers.

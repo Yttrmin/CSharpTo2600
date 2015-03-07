@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using CSharpTo2600.Framework;
 using CSharpTo2600.Framework.Assembly;
 using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
-using static CSharpTo2600.Framework.Assembly.Symbols;
-using System.Diagnostics;
-using System.Reflection;
+using static CSharpTo2600.Framework.Assembly.ReservedSymbols;
 
 namespace CSharpTo2600.Compiler
 {
@@ -93,37 +92,17 @@ namespace CSharpTo2600.Compiler
 
         private void ReserveGlobals()
         {
-            // Reserve symbols used in VCS.h to ensure no conflicts.
-            // DASM symbols are case-sensitive. So someone can name their variable
-            // "VSyNC" if they really want to.
-            // Offsets are important for if we ever support cartridges with bank switching.
-            // The addresses aren't particularly important, but we have the field in
-            // GlobalInfo so we might as well use it correctly.
+			// Reserve symbols used in VCS.h to ensure no conflicts.
+			// DASM symbols are case-sensitive. So someone can name their variable
+			// "VSyNC" if they really want to.
+			// Offsets are important for if we ever support cartridges with bank switching.
+			// The addresses aren't particularly important, but might as well add them.
 
-            // Not using the const strings in Symbols.cs since we might make those
-            // into symbols.
-            // TIA Write
-            AddReservedGlobals(0, "VSYNC", "VBLANK", "WSYNC", "RSYNC", "NUSIZ0", "NUSIZ1",
-                "COLUP0", "COLUP1", "COLUPF", "COLUBK", "CTRLPF", "REFP0", "REFP1", "PF0",
-                "PF1", "PF2", "RESP0", "RESP1", "RESM0", "RESM1", "RESBL", "AUDC0", "AUDC1",
-                "AUDF0", "AUDF1", "AUDV0", "AUDV1", "GRP0", "GRP1", "ENAM0", "ENAM1", "ENABL",
-                "HMP0", "HMP1", "HMM0", "HMM1", "HMBL", "VDELP0", "VDELP1", "VDELBL", "RESMP0",
-                "RESMP1", "HMOVE", "HMCLR", "CXCLR");
-            // TIA Read. Yes, they overlap TIA Write.
-            AddReservedGlobals(0, "CXM0P", "CXM1P", "CXP0FB", "CXP1FB", "CXM0FB", "CXM1FB",
-                "CXBLPF", "CXPPMM", "INPT0", "INPT1", "INPT2", "INPT3", "INPT4", "INPT5");
-            // RIOT
-            AddReservedGlobals(0x280, "SWCHA", "SWACNT", "SWCHB", "SWBCNT", "INTIM", "TIMINT");
-            AddReservedGlobals(0x294, "TIM1T", "TIM8T", "TIM64T", "T1024T");
-        }
-
-        private void AddReservedGlobals(int Offset, params string[] Names)
-        {
-            for (var i = 0; i < Names.Length; i++)
-            {
-                var Address = new Range(Offset + i, Offset + i);
-                VariableManager = VariableManager.AddVariable(Names[i], typeof(byte), Address, false);
-            }
+			foreach (var SymbolField in typeof(ReservedSymbols).GetTypeInfo().DeclaredFields)
+			{
+				var Symbol = (Symbol)SymbolField.GetValue(null);
+				VariableManager = VariableManager.AddVariable(Symbol, typeof(byte));
+			}
         }
 
         private IEnumerable<AssemblyLine> GenerateInitializer()
@@ -295,9 +274,9 @@ namespace CSharpTo2600.Compiler
         {
             yield return Comment("Globals:", 0);
             foreach (var Global in VariableManager.GetLocalScopeVariables().Cast<GlobalVariable>()
-                .Where(v => v.EmitToFile).OrderBy(v => v.Address.Start))
+                .Where(v => v.EmitToFile).OrderBy(v => v.Symbol.Value.Value))
             {
-                yield return DefineSymbol(Global.Name, Global.Address.Start).WithComment($"{Global.Type} ({Global.Size} bytes)");
+                yield return Global.Symbol.WithComment($"{Global.Type} ({Global.Size} bytes)");
             }
             yield return BlankLine();
         }

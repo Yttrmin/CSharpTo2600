@@ -1,22 +1,24 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
     internal abstract class VariableInfo
     {
-        public readonly string Name;
+		public string Name { get { return this.Symbol.Name; } }
         public readonly Type Type;
         public readonly Range Address;
+		public readonly Symbol Symbol;
         public int Size { get { return Marshal.SizeOf(Type); } }
         public abstract bool AddressIsAbsolute { get; }
         public abstract bool AddressIsFrameRelative { get; }
 
         public VariableInfo(string Name, Type Type, Range Address)
         {
-            this.Name = Name;
             this.Type = Type;
             this.Address = Address;
+			this.Symbol = AssemblyFactory.DefineSymbol(Name, Address.Start);
         }
 
         public bool ConflictsWith(VariableInfo Other)

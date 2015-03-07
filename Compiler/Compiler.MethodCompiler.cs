@@ -51,11 +51,9 @@ namespace CSharpTo2600.Compiler
 
             private void AllocateLocals()
             {
-                foreach(var Variable in VariableManager.GetLocalScopeVariables().OrderBy(v => v.Address.Start))
+                foreach(var Variable in VariableManager.GetLocalScopeVariables().Cast<LocalVariable>().OrderBy(v => v.Address.Start))
                 {
-                    //@TODO - Symbol
-                    var size = 0;
-                    MethodBody.AddRange(Fragments.AllocateLocal(Variable.Type, out size));
+                    MethodBody.AddRange(Fragments.AllocateLocal(Variable));
                 }
             }
 
@@ -97,13 +95,9 @@ namespace CSharpTo2600.Compiler
             public override void VisitCastExpression(CastExpressionSyntax node)
             {
                 base.VisitCastExpression(node);
-                var From = TypeStack.Pop();
+                var FromType = TypeStack.Pop();
                 var ToType = Compiler.GetType(node.Type);
-                if(!IsCastable(From, ToType))
-                {
-                    throw new FatalCompilationException($"Cannot perform typecast from: {From} to {ToType}");
-                }
-                MethodBody.AddRange(Fragments.Fit(From, ToType));
+                MethodBody.AddRange(Fragments.Cast(FromType, ToType));
                 TypeStack.Push(ToType);
             }
 
@@ -113,7 +107,7 @@ namespace CSharpTo2600.Compiler
                 var Type = TypeStack.Pop();
                 var Symbol = Compiler.Model.GetSymbolInfo(node.Operand).Symbol;
                 var Variable = GetVariable(Symbol);
-                switch(node.CSharpKind())
+                switch(node.Kind())
                 {
                     case SyntaxKind.PostIncrementExpression:
                         MethodBody.AddRange(Fragments.Add(Variable, 1));
@@ -129,7 +123,7 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitBinaryExpression(BinaryExpressionSyntax node)
             {
-                var Kind = node.CSharpKind();
+                var Kind = node.Kind();
                 // Handles commutativity?
                 if (Kind == SyntaxKind.SubtractExpression || Kind == SyntaxKind.DivideExpression)
                 {
@@ -148,7 +142,7 @@ namespace CSharpTo2600.Compiler
                 {
                     throw new InvalidOperationException("Types don't match");
                 }
-                switch(node.CSharpKind())
+                switch(node.Kind())
                 {
                     case SyntaxKind.AddExpression:
                         MethodBody.AddRange(Fragments.Add(TypeA));
@@ -159,7 +153,7 @@ namespace CSharpTo2600.Compiler
                         TypeStack.Push(TypeA);
                         break;
                     default:
-                        throw new NotImplementedException(node.CSharpKind().ToString());
+                        throw new NotImplementedException(node.Kind().ToString());
                 }
                 
             }
@@ -193,21 +187,6 @@ namespace CSharpTo2600.Compiler
                 MethodBody.AddRange(Fragments.PushVariable(Variable));
                 base.VisitIdentifierName(node);
             }
-
-            [Obsolete("Fragments")]
-            private bool IsCastable(Type From, Type To)
-            {
-                //@TODO - Not complete.
-                if(From == To || From.IsAssignableFrom(To))
-                {
-                    return true;
-                }
-                if(From.IsPrimitive && To.IsPrimitive)
-                {
-                    return true;
-                }
-                return false;
-            }
             
             private VariableInfo GetVariable(ISymbol Symbol)
             {
@@ -216,7 +195,7 @@ namespace CSharpTo2600.Compiler
                     var ContainingType = Compiler.FrameworkAssembly.GetType(Symbol.ContainingType.ToString(), true);
                     var Member = ContainingType.GetMember(Symbol.Name, MemberTypes.Property,
                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).Single();
-                    var GlobalName = Member.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>().GlobalName;
+                    var GlobalName = Member.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>().GlobalSymbol.Name;
                     return VariableManager.GetVariable(GlobalName);
                 }
                 else

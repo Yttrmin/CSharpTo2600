@@ -11,13 +11,10 @@ namespace CSharpTo2600.Compiler
     // and examining the registers and memory after execution.
     internal static partial class Fragments
     {
-        static Fragments()
-        {
-            if(!BitConverter.IsLittleEndian)
-            {
-                throw new FatalCompilationException("This architecture is big-endian and not supported.");
-            }
-        }
+		public static IEnumerable<AssemblyLine> Cast(Type From, Type To)
+		{
+			throw new NotImplementedException();
+		}
 
         /// <summary>
         /// Pads or truncates a value on the stack of type From to match the
@@ -25,7 +22,7 @@ namespace CSharpTo2600.Compiler
         /// </summary>
         /// <param name="From">Type of the value on the stack to fit.</param>
         /// <param name="To">Type to pad/truncate the stack value to.</param>
-        public static IEnumerable<AssemblyLine> Fit(Type From, Type To)
+        private static IEnumerable<AssemblyLine> Fit(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -49,8 +46,8 @@ namespace CSharpTo2600.Compiler
                 throw new ArgumentException($"Attempted to fit types of same size: {From} to {To}");
             }
         }
-        
-        public static IEnumerable<AssemblyLine> Truncate(Type From, Type To)
+
+		private static IEnumerable<AssemblyLine> Truncate(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -73,7 +70,7 @@ namespace CSharpTo2600.Compiler
             return StackDeallocate(ToDrop);
         }
 
-        public static IEnumerable<AssemblyLine> Pad(Type From, Type To)
+		private static IEnumerable<AssemblyLine> Pad(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -92,16 +89,13 @@ namespace CSharpTo2600.Compiler
                 throw new ArgumentException($"Attempt to pad to a same-size type. Something wrong is probably happening. From {From} to {To}");
             }
             var ToPad = ToSize - FromSize;
-            //@TODO - Check endian
             return StackAllocate(ToPad, 0);
         }
-
-        //@TODO - Just take VariableInfo.
-        public static IEnumerable<AssemblyLine> AllocateLocal(Type Type, out int Size)
+		
+        public static IEnumerable<AssemblyLine> AllocateLocal(LocalVariable Local)
         {
-            VerifyType(Type);
-            Size = Marshal.SizeOf(Type);
-            return StackAllocate(Size);
+            VerifyType(Local.Type);
+            return StackAllocate(Local.Size);
         }
 
         // Really make sure you're calling this on the most recently allocated local.
@@ -115,17 +109,12 @@ namespace CSharpTo2600.Compiler
         public static IEnumerable<AssemblyLine> PushLiteral(object Value)
         {
             VerifyType(Value.GetType());
-            var Size = Marshal.SizeOf(Value.GetType());
-            var Bytes = StructToByteArray(Value, Size);
-            // Compiler-generated stack operations are stored big-endian for ease. Padding
-            // is done by pushing more most-significant bytes. Truncating is done by
-            // popping the most-significant bytes. This is easy when the most-significant
-            // byte is at the top of the stack.
-            for(var i = 0; i < Bytes.Length; i++)
-            {
-                yield return LDA(Bytes[i]);
-                yield return PHA();
-            }
+			var Bytes = EndianHelper.GetBytesForStack((dynamic)Value);
+			foreach (var Byte in Bytes)
+			{
+				yield return LDA(Byte);
+				yield return PHA();
+			}
         }
 
         /// <summary>
@@ -136,11 +125,12 @@ namespace CSharpTo2600.Compiler
         {
             if (Variable.AddressIsAbsolute)
             {
-                for (var i = 0; i < Variable.Size; i++)
-                {
-                    yield return LDA(Variable.Name, i);
-                    yield return PHA();
-                }
+				var ByteOffsets = EndianHelper.GetByteOffsetsForStack(Variable);
+				foreach (var Offset in ByteOffsets)
+				{
+					yield return LDA(Variable.Symbol, Offset);
+					yield return PHA();
+				}
             }
             else if (Variable.AddressIsFrameRelative)
             {
@@ -172,7 +162,7 @@ namespace CSharpTo2600.Compiler
                 for (var i = Variable.Size - 1; i >= 0; i--)
                 {
                     yield return PLA();
-                    yield return STA(Variable.Name, i);
+                    yield return STA(Variable.Symbol, i);
                 }
             }
             else if(Variable.AddressIsFrameRelative)
@@ -198,28 +188,29 @@ namespace CSharpTo2600.Compiler
             yield return STA((byte)0, Index.X);
         }
 
-        // Postcondition: Stack pointer decremented by # of bytes requested.
-        // Postcondition: Value of new stack values are either what was passed in, or garbage otherwise.
-        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo = null)
-        {
-            //@TODO
-            if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
-            {
-                if (InitializeTo.HasValue)
-                {
-                    yield return LDA(InitializeTo.Value);
-                }
-                for (var i = 0; i < Bytes; i++)
-                {
-                    yield return PHA();
-                }
-            }
-            else
-            {
-                // Manually subtract stack pointer. Less cycles than >3 PHAs
-                throw new NotImplementedException();
-            }
-        }
+		// Postcondition: Stack pointer decremented by # of bytes requested.
+		//                Warning: Could cause stack overflow (decrement past 0x00 or overwrite globals).
+		// Postcondition: Value of new stack values are either what was passed in, or garbage otherwise.
+		private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo = null)
+		{
+			//@TODO
+			if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
+			{
+				if (InitializeTo.HasValue)
+				{
+					yield return LDA(InitializeTo.Value);
+				}
+				for (var i = 0; i < Bytes; i++)
+				{
+					yield return PHA();
+				}
+			}
+			else
+			{
+				// Manually subtract stack pointer. Less cycles than >3 PHAs
+				throw new NotImplementedException();
+			}
+		}
 
         private static IEnumerable<AssemblyLine> StackDeallocate(int Bytes)
         {
@@ -267,18 +258,6 @@ namespace CSharpTo2600.Compiler
                 return true;
             }
             return false;
-        }
-
-        /// <returns>The struct's bytes in little-endian. That is, a[0] is the
-        /// least-significant byte, a[length-1] is the most-significant byte.</returns>
-        private static byte[] StructToByteArray(object Struct, int Size)
-        {
-            var Ptr = Marshal.AllocHGlobal(Size);
-            var Array = new byte[Size];
-            Marshal.StructureToPtr(Struct, Ptr, false);
-            Marshal.Copy(Ptr, Array, 0, Array.Length);
-            Marshal.FreeHGlobal(Ptr);
-            return Array;
         }
     }
 }

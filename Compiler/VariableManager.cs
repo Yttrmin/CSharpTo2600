@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
+using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
@@ -94,6 +95,13 @@ namespace CSharpTo2600.Compiler
             var Variable = new GlobalVariable(Name, Type, Address, EmitToFile);
             return new GlobalVariableManager(this, Variable);
         }
+
+		public GlobalVariableManager AddVariable(Symbol Symbol, Type Type)
+		{
+			Fragments.VerifyType(Type);
+			var Address = new Range(Symbol.Value.Value, Symbol.Value.Value + Marshal.SizeOf(Type) - 1);
+			return AddVariable(Symbol.Name, Type, Address, false);
+		}
     }
 
     internal sealed class LocalVariableManager : VariableManager
