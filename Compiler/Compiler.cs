@@ -21,7 +21,7 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
         private readonly ROMBuilder ROMBuilder;
-		private CompileOptions Options = CompileOptions.Default;
+        private CompileOptions Options = CompileOptions.Default;
         public const string DASMPath = "./Dependencies/DASM/";
 
         static void Main(string[] args)
@@ -33,36 +33,36 @@ namespace CSharpTo2600.Compiler
             Console.ReadLine();
         }
 
-		public GameCompiler(string SourceText, CompileOptions Options)
-			: this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
+        public GameCompiler(string SourceText, CompileOptions Options)
+            : this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
         {
-			this.Options = Options;
-		}
+            this.Options = Options;
+        }
 
-		public GameCompiler(string SourceText)
-			: this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
-		{
-		}
-
-		public GameCompiler(CSharpCompilation Compilation)
+        public GameCompiler(string SourceText)
+            : this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
         {
-			if (!EndianHelper.EndiannessIsSet)
-			{
-				EndianHelper.Endianness = Options.Endianness;
-			}
-			
-			FrameworkAssembly = typeof(Atari2600Game).Assembly;
+        }
+
+        public GameCompiler(CSharpCompilation Compilation)
+        {
+            if (!EndianHelper.EndiannessIsSet)
+            {
+                EndianHelper.Endianness = Options.Endianness;
+            }
+
+            FrameworkAssembly = typeof(Atari2600Game).Assembly;
             ROMBuilder = new ROMBuilder();
 
             this.Compilation = Compilation;
-            
+
             using (var Stream = new MemoryStream())
             {
                 this.Compilation.Emit(Stream);
                 CompiledAssembly = Assembly.Load(Stream.ToArray());
             }
             Model = this.Compilation.GetSemanticModel(this.Compilation.SyntaxTrees.Single());
-            
+
             Console.WriteLine(this.Tree.GetRoot());
         }
 
@@ -92,7 +92,7 @@ namespace CSharpTo2600.Compiler
             Walker.Compile();
             var OutputPath = ROMBuilder.WriteToFile("out.asm");
             var DASMSuccess = AssembleOutput(OutputPath);
-            if(DASMSuccess)
+            if (DASMSuccess)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Compilation successful.");
@@ -105,17 +105,17 @@ namespace CSharpTo2600.Compiler
             Console.ForegroundColor = ConsoleColor.Black;
         }
 
-		internal ROMBuilder.ROMInfo GetROMInfo()
-		{
-			return new ROMBuilder.ROMInfo(ROMBuilder);
-		}
+        internal ROMBuilder.ROMInfo GetROMInfo()
+        {
+            return new ROMBuilder.ROMInfo(ROMBuilder);
+        }
 
         internal static bool AssembleOutput(string AssemblyFilePath)
         {
             var DASM = new Process();
             var FullDASMPath = Path.Combine(DASMPath, "dasm.exe");
             DASM.StartInfo.FileName = FullDASMPath;
-            if(!File.Exists(FullDASMPath))
+            if (!File.Exists(FullDASMPath))
             {
                 throw new FileNotFoundException($"DASM executable not found at: {FullDASMPath}");
             }
@@ -140,12 +140,12 @@ namespace CSharpTo2600.Compiler
         private Type GetGameClass()
         {
             var GameClass = CompiledAssembly.DefinedTypes
-				.SingleOrDefault(t => t.GetCustomAttribute<Atari2600Game>() != null);
-			if (GameClass == null)
-			{
-				throw new GameClassNotFoundException();
-			}
-			return GameClass;
+                .SingleOrDefault(t => t.GetCustomAttribute<Atari2600Game>() != null);
+            if (GameClass == null)
+            {
+                throw new GameClassNotFoundException();
+            }
+            return GameClass;
         }
 
         private Type GetType(TypeSyntax TypeSyntax)
@@ -163,17 +163,17 @@ namespace CSharpTo2600.Compiler
         }
     }
 
-	public struct CompileOptions
-	{
-		public readonly bool Optimize;
-		public readonly Endianness Endianness;
-		public static readonly CompileOptions Default = 
-			new CompileOptions(Optimize: true, Endianness: Endianness.Big);
+    public struct CompileOptions
+    {
+        public readonly bool Optimize;
+        public readonly Endianness Endianness;
+        public static readonly CompileOptions Default =
+            new CompileOptions(Optimize: true, Endianness: Endianness.Big);
 
-		public CompileOptions(bool Optimize, Endianness Endianness)
-		{
-			this.Optimize = Optimize;
-			this.Endianness = Endianness;
-		}
-	}
+        public CompileOptions(bool Optimize, Endianness Endianness)
+        {
+            this.Optimize = Optimize;
+            this.Endianness = Endianness;
+        }
+    }
 }

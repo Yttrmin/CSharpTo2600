@@ -49,9 +49,9 @@ namespace CSharpTo2600.UnitTests
             Array.Copy(ZeroPage.ToArray(), OldZeroPage, ZeroPage.Count);
             Array.Copy(StackPage.ToArray(), OldStackPage, StackPage.Count);
         }
-        
+
         [Explicit("Takes 6-9 seconds to run, mirroring code and LDA/STA unlikely to change.")]
-		//@FIXME - Test runs regardless of Explicit attribute. Possibly just an issue on my end.
+        //@FIXME - Test runs regardless of Explicit attribute. Possibly just an issue on my end.
         //[Test]
         // Makes sure UpdateMemoryMirror actually works. Crucial for other tests.
         // This test is pretty slow. Probably from running 256 individual 6502 programs that all
@@ -77,17 +77,17 @@ namespace CSharpTo2600.UnitTests
             }
         }
 
-		protected void RunProgramFromFragment(params IEnumerable<AssemblyLine>[] FragmentLines)
-		{
-			var Lines = new List<AssemblyLine>();
-			foreach (var LineEnmuerable in FragmentLines)
-			{
-				Lines.AddRange(LineEnmuerable);
-			}
-			RunProgramFromFragment(Lines.ToArray(), true);
-		}
+        protected void RunProgramFromFragment(params IEnumerable<AssemblyLine>[] FragmentLines)
+        {
+            var Lines = new List<AssemblyLine>();
+            foreach (var LineEnmuerable in FragmentLines)
+            {
+                Lines.AddRange(LineEnmuerable);
+            }
+            RunProgramFromFragment(Lines.ToArray(), true);
+        }
 
-		protected void RunProgramFromFragment(bool InsertClearSystemCode = true, params AssemblyLine[] FragmentLines)
+        protected void RunProgramFromFragment(bool InsertClearSystemCode = true, params AssemblyLine[] FragmentLines)
         {
             RunProgramFromFragment(FragmentLines, InsertClearSystemCode);
         }

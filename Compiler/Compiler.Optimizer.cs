@@ -7,21 +7,21 @@ namespace CSharpTo2600.Compiler
 {
     partial class GameCompiler
     {
-		private interface IOptimizer
-		{
-			Subroutine PerformAllOptimizations(Subroutine Subroutine);
-		}
+        private interface IOptimizer
+        {
+            Subroutine PerformAllOptimizations(Subroutine Subroutine);
+        }
 
-		private class NullOptimizer : IOptimizer
-		{
-			public Subroutine PerformAllOptimizations(Subroutine Subroutine)
-			{
-				// Do nothing.
-				return Subroutine;
-			}
-		}
+        private class NullOptimizer : IOptimizer
+        {
+            public Subroutine PerformAllOptimizations(Subroutine Subroutine)
+            {
+                // Do nothing.
+                return Subroutine;
+            }
+        }
 
-		private class Optimizer : IOptimizer
+        private class Optimizer : IOptimizer
         {
             private delegate ImmutableArray<AssemblyLine> OptimizingMethod(ImmutableArray<AssemblyLine> SubroutineBody);
 
@@ -49,9 +49,9 @@ namespace CSharpTo2600.Compiler
             {
                 var Optimized = new List<AssemblyLine>();
                 Instruction PreviousInstruction = null;
-                foreach(var Instruction in FilterLineOptimizing<Instruction>(Body, Optimized))
+                foreach (var Instruction in FilterLineOptimizing<Instruction>(Body, Optimized))
                 {
-                    if(PreviousInstruction != null && PreviousInstruction.OpCode == "PHA" && Instruction.OpCode == "PLA")
+                    if (PreviousInstruction != null && PreviousInstruction.OpCode == "PHA" && Instruction.OpCode == "PLA")
                     {
                         Optimized.Remove(PreviousInstruction);
                         PreviousInstruction = null;
@@ -118,9 +118,9 @@ namespace CSharpTo2600.Compiler
             private IEnumerable<T> FilterLineOptimizing<T>(IEnumerable<AssemblyLine> Lines, IList<AssemblyLine> NewLines)
                 where T : AssemblyLine
             {
-                foreach(var Line in Lines)
+                foreach (var Line in Lines)
                 {
-                    if(Line is T)
+                    if (Line is T)
                     {
                         yield return (T)Line;
                     }

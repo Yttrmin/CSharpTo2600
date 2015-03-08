@@ -133,13 +133,13 @@ namespace CSharpTo2600.UnitTests
             // Fill up RIOT RAM with values equaling the (zero page) address.
             // Read it back from the simulator and check it was all pushed correctly.
             var Lines = new List<AssemblyLine>();
-            for(byte i = 0xFF; i >= 0x80; i--)
+            for (byte i = 0xFF; i >= 0x80; i--)
             {
                 Lines.Add(AssemblyFactory.LDA(i));
                 Lines.Add(AssemblyFactory.PHA());
             }
             RunProgramFromFragment(Lines, true);
-            for(var i = 0xFF; i >= 0x80; i--)
+            for (var i = 0xFF; i >= 0x80; i--)
             {
                 Assert.AreEqual(i, CPU.Memory.ReadValue(i));
             }
@@ -172,7 +172,7 @@ namespace CSharpTo2600.UnitTests
             Assert.AreEqual(ExpectedResult, CPU.Accumulator);
             Assert.AreEqual(a - b < 0, !CPU.CarryFlag);
         }
-        
+
         [Test]
         public void STAZeroPage(
             [Values(0, 0x80, 0xFF)] byte Address)

@@ -7,7 +7,7 @@
 
         public Range(int Start, int End)
         {
-            if(End < Start)
+            if (End < Start)
             {
                 throw new System.ArgumentException("End must be greater than or equal to Start.");
             }
@@ -22,7 +22,7 @@
             // 5-12 overlaps 0-7
             // 0-7 overlaps 7-12
             // 0-0 overlaps 0-0
-            return Other.Start >= this.Start && Other.Start <= this.End 
+            return Other.Start >= this.Start && Other.Start <= this.End
                 || Other.End >= this.Start && Other.End <= this.End;
         }
 
@@ -50,7 +50,7 @@
 
         public override bool Equals(object obj)
         {
-            if(obj == null)
+            if (obj == null)
             {
                 return false;
             }

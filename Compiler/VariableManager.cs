@@ -77,7 +77,7 @@ namespace CSharpTo2600.Compiler
         {
             this.RAMRange = Old.RAMRange;
             // Increase NextVariableStart if this is a normal variable.
-            if(NewVariable.EmitToFile)
+            if (NewVariable.EmitToFile)
             {
                 this.NextVariableStart = Old.NextVariableStart + NewVariable.Size;
             }
@@ -105,12 +105,12 @@ namespace CSharpTo2600.Compiler
             return new GlobalVariableManager(this, Variable);
         }
 
-		public GlobalVariableManager AddVariable(Symbol Symbol, Type Type)
-		{
-			Fragments.VerifyType(Type);
-			var Address = new Range(Symbol.Value.Value, Symbol.Value.Value + Marshal.SizeOf(Type) - 1);
-			return AddVariable(Symbol.Name, Type, Address, false);
-		}
+        public GlobalVariableManager AddVariable(Symbol Symbol, Type Type)
+        {
+            Fragments.VerifyType(Type);
+            var Address = new Range(Symbol.Value.Value, Symbol.Value.Value + Marshal.SizeOf(Type) - 1);
+            return AddVariable(Symbol.Name, Type, Address, false);
+        }
     }
 
     internal sealed class LocalVariableManager : VariableManager

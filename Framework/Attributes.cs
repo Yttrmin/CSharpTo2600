@@ -44,11 +44,11 @@ namespace CSharpTo2600.Framework
         public CompilerIntrinsicGlobalAttribute(string Name)
         {
             GlobalSymbol = typeof(ReservedSymbols).GetField(Name, BindingFlags.Static | BindingFlags.Public)
-				.GetValue(null) as Symbol;
-			if (GlobalSymbol == null)
-			{
-				throw new ArgumentException($"There is no reserved symbol called {Name}", nameof(Name));
-			}
+                .GetValue(null) as Symbol;
+            if (GlobalSymbol == null)
+            {
+                throw new ArgumentException($"There is no reserved symbol called {Name}", nameof(Name));
+            }
         }
     }
 

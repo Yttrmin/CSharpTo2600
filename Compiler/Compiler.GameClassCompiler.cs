@@ -23,31 +23,31 @@ namespace CSharpTo2600.Compiler
                 this.Compiler = Compiler;
                 this.ClassType = ClassType;
 
-				if (!(ClassType.IsAbstract && ClassType.IsSealed))
-				{
-					throw new GameClassNotStaticException(ClassType);
-				}
+                if (!(ClassType.IsAbstract && ClassType.IsSealed))
+                {
+                    throw new GameClassNotStaticException(ClassType);
+                }
 
                 Root = this.Compiler.Root.DescendantNodes().Where(n => (n as ClassDeclarationSyntax)?.Identifier.Text == ClassType.Name)
                     .Cast<ClassDeclarationSyntax>().Single();
-				if (Compiler.Options.Optimize)
-				{
-					Optimizer = new Optimizer();
-				}
-				else
-				{
-					Optimizer = new NullOptimizer();
-				}
+                if (Compiler.Options.Optimize)
+                {
+                    Optimizer = new Optimizer();
+                }
+                else
+                {
+                    Optimizer = new NullOptimizer();
+                }
             }
 
             public void Compile()
             {
                 Visit(Root);
             }
-			
+
             public override void VisitFieldDeclaration(FieldDeclarationSyntax FieldNode)
             {
-                if(FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
+                if (FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
                 {
                     throw new FatalCompilationException("Fields can't have initializers yet.", FieldNode);
                 }
@@ -62,14 +62,14 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node)
             {
-                if(node.Initializer != null)
+                if (node.Initializer != null)
                 {
                     throw new FatalCompilationException("Properties can't have initializers yet.", node);
                 }
                 var Type = Compiler.GetType(node.Type);
                 var Accessors = node.AccessorList.Accessors;
                 var AutoImplemented = Accessors.Any(a => a.Body == null);
-                if(AutoImplemented)
+                if (AutoImplemented)
                 {
                     // Auto-implemented properties are just thin wrappers over private backing fields.
                     // There's no point compiling get_/set_ methods, just treat it as a regular global.
@@ -96,9 +96,9 @@ namespace CSharpTo2600.Compiler
             private MethodInfo GetMethodInfo(MethodDeclarationSyntax node)
             {
                 //@TODO - Probably won't work properly with overloaded methods.
-                var Method = ClassType.GetMethod(node.Identifier.Text, BindingFlags.Public | BindingFlags.NonPublic 
+                var Method = ClassType.GetMethod(node.Identifier.Text, BindingFlags.Public | BindingFlags.NonPublic
                     | BindingFlags.Static);
-                if(Method == null)
+                if (Method == null)
                 {
                     throw new FatalCompilationException($"Reflection failed to find method: {node.Identifier.Text}", node);
                 }

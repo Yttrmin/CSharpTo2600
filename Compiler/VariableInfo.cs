@@ -6,10 +6,10 @@ namespace CSharpTo2600.Compiler
 {
     internal abstract class VariableInfo
     {
-		public string Name { get { return this.Symbol.Name; } }
+        public string Name { get { return this.Symbol.Name; } }
         public readonly Type Type;
         public readonly Range Address;
-		public readonly Symbol Symbol;
+        public readonly Symbol Symbol;
         public int Size { get { return Marshal.SizeOf(Type); } }
         public abstract bool AddressIsAbsolute { get; }
         public abstract bool AddressIsFrameRelative { get; }
@@ -18,7 +18,7 @@ namespace CSharpTo2600.Compiler
         {
             this.Type = Type;
             this.Address = Address;
-			this.Symbol = AssemblyFactory.DefineSymbol(Name, Address.Start);
+            this.Symbol = AssemblyFactory.DefineSymbol(Name, Address.Start);
         }
 
         public bool ConflictsWith(VariableInfo Other)
@@ -45,10 +45,10 @@ namespace CSharpTo2600.Compiler
         public override bool AddressIsAbsolute { get { return false; } }
         public override bool AddressIsFrameRelative { get { return true; } }
 
-        public LocalVariable(string Name, Type Type, Range Address) 
+        public LocalVariable(string Name, Type Type, Range Address)
             : base(Name, Type, Address)
         {
-            
+
         }
     }
 

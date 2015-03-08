@@ -22,7 +22,7 @@ namespace CSharpTo2600.Framework.Assembly
 
         protected string MergeComment(string NewComment)
         {
-            if(Comment == null)
+            if (Comment == null)
             {
                 return NewComment;
             }
@@ -39,7 +39,7 @@ namespace CSharpTo2600.Framework.Assembly
 
         public override string ToString()
         {
-            if(String.IsNullOrEmpty(Comment))
+            if (String.IsNullOrEmpty(Comment))
             {
                 return Text;
             }
@@ -61,7 +61,7 @@ namespace CSharpTo2600.Framework.Assembly
             {
                 return false;
             }
-            
+
             return Equals(AsLine);
         }
 
@@ -172,7 +172,7 @@ namespace CSharpTo2600.Framework.Assembly
         internal PsuedoOp(string Text, string Comment = null)
             : base(Text, Comment)
         {
-            
+
         }
 
         protected override AssemblyLine WithCommentInternal(string Comment)

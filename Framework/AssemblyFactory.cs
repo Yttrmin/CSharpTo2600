@@ -22,7 +22,7 @@ namespace CSharpTo2600.Framework.Assembly
         }
         public static Symbol DefineSymbol(string Name, int Value)
         {
-            if(Value < ushort.MinValue || Value > ushort.MaxValue)
+            if (Value < ushort.MinValue || Value > ushort.MaxValue)
             {
                 throw new ArgumentException("Value must fit in a short.");
             }
@@ -39,7 +39,7 @@ namespace CSharpTo2600.Framework.Assembly
         public static PsuedoOp Org(int Address)
         {
             //@TODO - Min?
-            if(Address > 0xFFFF)
+            if (Address > 0xFFFF)
             {
                 throw new ArgumentException($"org address is out of range: 0x{Address.ToString("X4")}");
             }
@@ -105,7 +105,7 @@ namespace CSharpTo2600.Framework.Assembly
         public static Instruction BNE(Symbol Label)
         {
             // 4 if branch to new page.
-            if(Label.Value.HasValue)
+            if (Label.Value.HasValue)
             {
                 throw new ArgumentException("Can only branch to label.");
             }
@@ -160,29 +160,29 @@ namespace CSharpTo2600.Framework.Assembly
             return new Instruction("LDA", $"#${Value.ToString("X2")}", 2);
         }
 
-		/// <summary>
-		/// Load Accumulator with Memory [Zero-page] (3 cycles)
-		/// </summary>
-		public static Instruction LDA(Symbol Symbol, int Offset = 0)
-		{
-			//@TODO - Technically the symbol could refer to any point in the ROM,
-			// maybe not zero-page. Figure out a solution.
-			string Argument;
-			if (Offset == 0)
-			{
-				Argument = Symbol.Name;
-			}
-			else
-			{
-				Argument = $"{Symbol.Name}+{Offset}";
-			}
-			return new Instruction("LDA", Argument, 3);
-		}
+        /// <summary>
+        /// Load Accumulator with Memory [Zero-page] (3 cycles)
+        /// </summary>
+        public static Instruction LDA(Symbol Symbol, int Offset = 0)
+        {
+            //@TODO - Technically the symbol could refer to any point in the ROM,
+            // maybe not zero-page. Figure out a solution.
+            string Argument;
+            if (Offset == 0)
+            {
+                Argument = Symbol.Name;
+            }
+            else
+            {
+                Argument = $"{Symbol.Name}+{Offset}";
+            }
+            return new Instruction("LDA", Argument, 3);
+        }
 
-		/// <summary>
-		/// Load X Register [Immediate] (2 cycles)
-		/// </summary>
-		public static Instruction LDX(byte Value)
+        /// <summary>
+        /// Load X Register [Immediate] (2 cycles)
+        /// </summary>
+        public static Instruction LDX(byte Value)
         {
             return new Instruction("LDX", $"#${Value.ToString("X2")}", 2);
         }
@@ -237,7 +237,7 @@ namespace CSharpTo2600.Framework.Assembly
         {
             return new Instruction("SEC", 2);
         }
-        
+
         /// <summary>
         /// Store Accumulator [Zero-page] (3 cycles)
         /// </summary>
@@ -246,27 +246,27 @@ namespace CSharpTo2600.Framework.Assembly
             return new Instruction("STA", $"${Address.ToString("X2")}", 3);
         }
 
-		/// <summary>
-		/// Store Accumulator [Zero-page] (3 cycles)
-		/// </summary>
-		public static Instruction STA(Symbol Symbol, int Offset = 0)
-		{
-			string Argument;
-			if (Offset == 0)
-			{
-				Argument = Symbol.Name;
-			}
-			else
-			{
-				Argument = $"{Symbol.Name}+{Offset}";
-			}
-			return new Instruction("STA", Argument, 3);
-		}
+        /// <summary>
+        /// Store Accumulator [Zero-page] (3 cycles)
+        /// </summary>
+        public static Instruction STA(Symbol Symbol, int Offset = 0)
+        {
+            string Argument;
+            if (Offset == 0)
+            {
+                Argument = Symbol.Name;
+            }
+            else
+            {
+                Argument = $"{Symbol.Name}+{Offset}";
+            }
+            return new Instruction("STA", Argument, 3);
+        }
 
-		/// <summary>
-		/// Store Accumulator [Zero-page indexed] (4 cycles)
-		/// </summary>
-		public static Instruction STA(byte Offset, Index IndexRegister)
+        /// <summary>
+        /// Store Accumulator [Zero-page indexed] (4 cycles)
+        /// </summary>
+        public static Instruction STA(byte Offset, Index IndexRegister)
         {
             return new Instruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4);
         }

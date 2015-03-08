@@ -16,11 +16,11 @@ namespace CSharpTo2600.Compiler
     // that can be optimized? Or add some special cases?
     partial class Fragments
     {
-		public static IEnumerable<AssemblyLine> Add(Type Type)
+        public static IEnumerable<AssemblyLine> Add(Type Type)
         {
             VerifyType(Type);
             var Size = Marshal.SizeOf(Type);
-            if(Size > 1)
+            if (Size > 1)
             {
                 throw new NotImplementedException(">8-bit math not supported yet.");
             }
@@ -28,8 +28,8 @@ namespace CSharpTo2600.Compiler
             yield return TSX();
             yield return CLC();
             yield return ADC(0, Index.X);
-			// We can't just throw away the top of the stack, so reuse it to store the result.
-			// Otherwise we'll leak stack space.
+            // We can't just throw away the top of the stack, so reuse it to store the result.
+            // Otherwise we'll leak stack space.
             yield return STA(0, Index.X);
         }
 

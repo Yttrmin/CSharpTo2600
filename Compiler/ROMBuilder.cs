@@ -71,7 +71,7 @@ namespace CSharpTo2600.Compiler
             const string ASMFileName = "tempOut.asm";
             using (var Writer = new StreamWriter(ASMFileName))
             {
-                foreach(var Line in Lines)
+                foreach (var Line in Lines)
                 {
                     Writer.WriteLine(Line.ToString());
                 }
@@ -79,7 +79,7 @@ namespace CSharpTo2600.Compiler
 
             var Success = GameCompiler.AssembleOutput($"\"{Path.GetFullPath(ASMFileName)}\"");
 
-            if(Success)
+            if (Success)
             {
                 var Data = File.ReadAllBytes("output.bin");
                 return Data;
@@ -92,23 +92,23 @@ namespace CSharpTo2600.Compiler
 
         private void ReserveGlobals()
         {
-			// Reserve symbols used in VCS.h to ensure no conflicts.
-			// DASM symbols are case-sensitive. So someone can name their variable
-			// "VSyNC" if they really want to.
-			// Offsets are important for if we ever support cartridges with bank switching.
-			// The addresses aren't particularly important, but might as well add them.
+            // Reserve symbols used in VCS.h to ensure no conflicts.
+            // DASM symbols are case-sensitive. So someone can name their variable
+            // "VSyNC" if they really want to.
+            // Offsets are important for if we ever support cartridges with bank switching.
+            // The addresses aren't particularly important, but might as well add them.
 
-			foreach (var SymbolField in typeof(ReservedSymbols).GetTypeInfo().DeclaredFields)
-			{
-				var Symbol = (Symbol)SymbolField.GetValue(null);
-				VariableManager = VariableManager.AddVariable(Symbol, typeof(byte));
-			}
+            foreach (var SymbolField in typeof(ReservedSymbols).GetTypeInfo().DeclaredFields)
+            {
+                var Symbol = (Symbol)SymbolField.GetValue(null);
+                VariableManager = VariableManager.AddVariable(Symbol, typeof(byte));
+            }
         }
 
         private IEnumerable<AssemblyLine> GenerateInitializer()
         {
             yield return Subroutine(StartLabel);
-            foreach(var Line in Fragments.ClearSystem())
+            foreach (var Line in Fragments.ClearSystem())
             {
                 yield return Line;
             }
@@ -182,7 +182,7 @@ namespace CSharpTo2600.Compiler
                 Generator = GenerateEmptyKernel;
             }
 
-            foreach(var Line in Generator(KernelSubroutine))
+            foreach (var Line in Generator(KernelSubroutine))
             {
                 yield return Line;
             }
@@ -205,7 +205,7 @@ namespace CSharpTo2600.Compiler
             yield return LoopLabel;
             yield return DEX();
             yield return Comment("Beginning of user code.");
-            foreach(var Line in UserCode.Body)
+            foreach (var Line in UserCode.Body)
             {
                 yield return Line;
             }
@@ -228,7 +228,7 @@ namespace CSharpTo2600.Compiler
             yield return LDA(2);
             yield return STA(VBLANK);
             var UserSubroutine = GetSpecialSubroutine(MethodType.Overscan);
-            if(UserSubroutine != null)
+            if (UserSubroutine != null)
             {
                 yield return Comment("Beginning of user code.");
                 foreach (var Line in UserSubroutine.Body)
@@ -284,7 +284,7 @@ namespace CSharpTo2600.Compiler
         private IEnumerable<AssemblyLine> WriteSubroutine(Subroutine Subroutine)
         {
             yield return Label(Subroutine.Name);
-            foreach(var Line in Subroutine.Body)
+            foreach (var Line in Subroutine.Body)
             {
                 yield return Line;
             }

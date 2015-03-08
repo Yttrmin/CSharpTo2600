@@ -26,18 +26,18 @@ namespace CSharpTo2600.Compiler
         {
             VerifyType(From);
             VerifyType(To);
-            if(From == To)
+            if (From == To)
             {
                 throw new ArgumentException($"Attempted to fit to same type: {From}");
             }
             //@TODO - Should there be all those type checks we did in MethodCompiler in here?
             var FromSize = Marshal.SizeOf(From);
             var ToSize = Marshal.SizeOf(To);
-            if(ToSize > FromSize)
+            if (ToSize > FromSize)
             {
                 return Pad(From, To);
             }
-            else if(ToSize < FromSize)
+            else if (ToSize < FromSize)
             {
                 return Truncate(From, To);
             }
@@ -51,7 +51,7 @@ namespace CSharpTo2600.Compiler
         {
             VerifyType(From);
             VerifyType(To);
-            if(From == To)
+            if (From == To)
             {
                 throw new ArgumentException($"Attempted to truncate to the same type: {From}");
             }
@@ -61,7 +61,7 @@ namespace CSharpTo2600.Compiler
             {
                 throw new ArgumentException($"Attempted to truncate to a larger type: from {From} to {To}");
             }
-            if(ToSize == FromSize)
+            if (ToSize == FromSize)
             {
                 throw new ArgumentException($"Attempt to truncate to a same-size type. Something wrong is probably happening. From {From} to {To}");
             }
@@ -91,7 +91,7 @@ namespace CSharpTo2600.Compiler
             var ToPad = ToSize - FromSize;
             return StackAllocate(ToPad, 0);
         }
-        
+
         public static IEnumerable<AssemblyLine> AllocateLocal(LocalVariable Local)
         {
             VerifyType(Local.Type);
@@ -168,7 +168,7 @@ namespace CSharpTo2600.Compiler
                     yield return STA(Variable.Symbol, i);
                 }
             }
-            else if(Variable.AddressIsFrameRelative)
+            else if (Variable.AddressIsFrameRelative)
             {
                 throw new NotImplementedException();
             }
@@ -218,7 +218,7 @@ namespace CSharpTo2600.Compiler
         private static IEnumerable<AssemblyLine> StackDeallocate(int Bytes)
         {
             //@TODO
-            if(true/*Bytes <= 2*/)
+            if (true/*Bytes <= 2*/)
             {
                 return Enumerable.Repeat(PLA(), Bytes);
             }
@@ -235,15 +235,15 @@ namespace CSharpTo2600.Compiler
             {
                 throw new ArgumentException("Type must be a value type.");
             }
-            if(Type == typeof(float) || Type == typeof(double))
+            if (Type == typeof(float) || Type == typeof(double))
             {
                 throw new ArgumentException("Type can not be a floating-point type.");
             }
-            if(Type == typeof(decimal))
+            if (Type == typeof(decimal))
             {
                 throw new ArgumentException("Type can not be a decimal.");
             }
-            if(Type == typeof(char))
+            if (Type == typeof(char))
             {
                 throw new ArgumentException("Type can not be a char.");
             }

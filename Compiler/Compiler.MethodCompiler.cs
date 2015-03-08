@@ -51,7 +51,7 @@ namespace CSharpTo2600.Compiler
 
             private void AllocateLocals()
             {
-                foreach(var Variable in VariableManager.GetLocalScopeVariables().Cast<LocalVariable>().OrderBy(v => v.Address.Start))
+                foreach (var Variable in VariableManager.GetLocalScopeVariables().Cast<LocalVariable>().OrderBy(v => v.Address.Start))
                 {
                     MethodBody.AddRange(Fragments.AllocateLocal(Variable));
                 }
@@ -107,7 +107,7 @@ namespace CSharpTo2600.Compiler
                 var Type = TypeStack.Pop();
                 var Symbol = Compiler.Model.GetSymbolInfo(node.Operand).Symbol;
                 var Variable = GetVariable(Symbol);
-                switch(node.Kind())
+                switch (node.Kind())
                 {
                     case SyntaxKind.PostIncrementExpression:
                         MethodBody.AddRange(Fragments.Add(Variable, 1));
@@ -135,14 +135,14 @@ namespace CSharpTo2600.Compiler
                     base.Visit(node.Left);
                     base.Visit(node.Right);
                 }
-                
+
                 var TypeA = TypeStack.Pop();
                 var TypeB = TypeStack.Pop();
-                if(TypeA != TypeB)
+                if (TypeA != TypeB)
                 {
                     throw new InvalidOperationException("Types don't match");
                 }
-                switch(node.Kind())
+                switch (node.Kind())
                 {
                     case SyntaxKind.AddExpression:
                         MethodBody.AddRange(Fragments.Add(TypeA));
@@ -155,7 +155,7 @@ namespace CSharpTo2600.Compiler
                     default:
                         throw new NotImplementedException(node.Kind().ToString());
                 }
-                
+
             }
 
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
@@ -176,7 +176,7 @@ namespace CSharpTo2600.Compiler
                 var Assignment = node.Parent as AssignmentExpressionSyntax;
                 // If this identifier is from the left side of an assignment,
                 // don't push it onto the stack.
-                if(Assignment?.Left == node)
+                if (Assignment?.Left == node)
                 {
                     base.VisitIdentifierName(node);
                     return;
@@ -187,10 +187,10 @@ namespace CSharpTo2600.Compiler
                 MethodBody.AddRange(Fragments.PushVariable(Variable));
                 base.VisitIdentifierName(node);
             }
-            
+
             private VariableInfo GetVariable(ISymbol Symbol)
             {
-                if(Symbol.ContainingAssembly.ToString() == Compiler.FrameworkAssembly.ToString())
+                if (Symbol.ContainingAssembly.ToString() == Compiler.FrameworkAssembly.ToString())
                 {
                     var ContainingType = Compiler.FrameworkAssembly.GetType(Symbol.ContainingType.ToString(), true);
                     var Member = ContainingType.GetMember(Symbol.Name, MemberTypes.Property,
@@ -210,7 +210,7 @@ namespace CSharpTo2600.Compiler
                 // Roundabout since you can only unbox to its actual type.
                 var NumericValue = long.Parse(Value.ToString());
                 // Make sure to add these from smallest to largest!
-                if(byte.MinValue <= NumericValue && NumericValue <= byte.MaxValue)
+                if (byte.MinValue <= NumericValue && NumericValue <= byte.MaxValue)
                 {
                     return (byte)NumericValue;
                 }
@@ -274,7 +274,7 @@ namespace CSharpTo2600.Compiler
                     // fiddling with the stack frame, but then we'd have to somehow statically track
                     // when and what addresses are used. Could give each local a global address if
                     // there's enough? Let's just stick with stack for now for simplicity.
-                    foreach(var Identifier in Identifiers)
+                    foreach (var Identifier in Identifiers)
                     {
                         var AddressStart = NextOffset();
                         var AddressEnd = NextOffset() + Marshal.SizeOf(LocalType) - 1;
@@ -287,7 +287,7 @@ namespace CSharpTo2600.Compiler
                 //@TODO - Anticipate return address when we get to method calls.
                 private int NextOffset()
                 {
-                    if(!VariableManager.GetLocalScopeVariables().Any())
+                    if (!VariableManager.GetLocalScopeVariables().Any())
                     {
                         return 0;
                     }
