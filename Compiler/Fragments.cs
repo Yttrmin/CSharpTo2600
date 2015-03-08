@@ -11,10 +11,10 @@ namespace CSharpTo2600.Compiler
     // and examining the registers and memory after execution.
     internal static partial class Fragments
     {
-		public static IEnumerable<AssemblyLine> Cast(Type From, Type To)
-		{
-			throw new NotImplementedException();
-		}
+        public static IEnumerable<AssemblyLine> Cast(Type From, Type To)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// Pads or truncates a value on the stack of type From to match the
@@ -47,7 +47,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-		private static IEnumerable<AssemblyLine> Truncate(Type From, Type To)
+        private static IEnumerable<AssemblyLine> Truncate(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -70,7 +70,7 @@ namespace CSharpTo2600.Compiler
             return StackDeallocate(ToDrop);
         }
 
-		private static IEnumerable<AssemblyLine> Pad(Type From, Type To)
+        private static IEnumerable<AssemblyLine> Pad(Type From, Type To)
         {
             VerifyType(From);
             VerifyType(To);
@@ -91,7 +91,7 @@ namespace CSharpTo2600.Compiler
             var ToPad = ToSize - FromSize;
             return StackAllocate(ToPad, 0);
         }
-		
+        
         public static IEnumerable<AssemblyLine> AllocateLocal(LocalVariable Local)
         {
             VerifyType(Local.Type);
@@ -109,12 +109,12 @@ namespace CSharpTo2600.Compiler
         public static IEnumerable<AssemblyLine> PushLiteral(object Value)
         {
             VerifyType(Value.GetType());
-			var Bytes = EndianHelper.GetBytesForStack((dynamic)Value);
-			foreach (var Byte in Bytes)
-			{
-				yield return LDA(Byte);
-				yield return PHA();
-			}
+            var Bytes = EndianHelper.GetBytesForStack((dynamic)Value);
+            foreach (var Byte in Bytes)
+            {
+                yield return LDA(Byte);
+                yield return PHA();
+            }
         }
 
         /// <summary>
@@ -125,14 +125,14 @@ namespace CSharpTo2600.Compiler
         {
             if (Variable.AddressIsAbsolute)
             {
-				// This is not dependent on endianness. Just pushing the bytes at the highest
-				// address first so that its laid out the same way on the stack as it is
-				// in the variable.
-				for (var i = Variable.Size - 1; i >= 0; i--)
-				{
-					yield return LDA(Variable.Symbol, i);
-					yield return PHA();
-				}
+                // This is not dependent on endianness. Just pushing the bytes at the highest
+                // address first so that its laid out the same way on the stack as it is
+                // in the variable.
+                for (var i = Variable.Size - 1; i >= 0; i--)
+                {
+                    yield return LDA(Variable.Symbol, i);
+                    yield return PHA();
+                }
             }
             else if (Variable.AddressIsFrameRelative)
             {
@@ -161,7 +161,7 @@ namespace CSharpTo2600.Compiler
 
             if (Variable.AddressIsAbsolute)
             {
-				// This is not dependent on endianness. Just a straight copy.
+                // This is not dependent on endianness. Just a straight copy.
                 for (var i = 0; i < Variable.Size; i++)
                 {
                     yield return PLA();
@@ -191,29 +191,29 @@ namespace CSharpTo2600.Compiler
             yield return STA((byte)0, Index.X);
         }
 
-		// Postcondition: Stack pointer decremented by # of bytes requested.
-		//                Warning: Could cause stack overflow (decrement past 0x00 or overwrite globals).
-		// Postcondition: Value of new stack values are either what was passed in, or garbage otherwise.
-		private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo = null)
-		{
-			//@TODO
-			if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
-			{
-				if (InitializeTo.HasValue)
-				{
-					yield return LDA(InitializeTo.Value);
-				}
-				for (var i = 0; i < Bytes; i++)
-				{
-					yield return PHA();
-				}
-			}
-			else
-			{
-				// Manually subtract stack pointer. Less cycles than >3 PHAs
-				throw new NotImplementedException();
-			}
-		}
+        // Postcondition: Stack pointer decremented by # of bytes requested.
+        //                Warning: Could cause stack overflow (decrement past 0x00 or overwrite globals).
+        // Postcondition: Value of new stack values are either what was passed in, or garbage otherwise.
+        private static IEnumerable<AssemblyLine> StackAllocate(int Bytes, byte? InitializeTo = null)
+        {
+            //@TODO
+            if (true/*Bytes <= 3*/ || InitializeTo.HasValue)
+            {
+                if (InitializeTo.HasValue)
+                {
+                    yield return LDA(InitializeTo.Value);
+                }
+                for (var i = 0; i < Bytes; i++)
+                {
+                    yield return PHA();
+                }
+            }
+            else
+            {
+                // Manually subtract stack pointer. Less cycles than >3 PHAs
+                throw new NotImplementedException();
+            }
+        }
 
         private static IEnumerable<AssemblyLine> StackDeallocate(int Bytes)
         {

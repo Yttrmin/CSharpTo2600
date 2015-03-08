@@ -48,6 +48,32 @@ namespace CSharpTo2600.Framework.Assembly
                 return $"{Text} ; {Comment}";
             }
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+            {
+                return false;
+            }
+
+            var AsLine = obj as AssemblyLine;
+            if (AsLine == null)
+            {
+                return false;
+            }
+            
+            return Equals(AsLine);
+        }
+
+        public bool Equals(AssemblyLine Other)
+        {
+            if (Other == null)
+            {
+                return false;
+            }
+
+            return Text == Other.Text;
+        }
     }
 
     public sealed class Instruction : AssemblyLine
@@ -138,7 +164,7 @@ namespace CSharpTo2600.Framework.Assembly
                 return $"{Name}:";
             }
         }
-	}
+    }
 
     public sealed class PsuedoOp : AssemblyLine
     {

@@ -10,7 +10,7 @@ using static CSharpTo2600.Framework.Assembly.ReservedSymbols;
 
 namespace CSharpTo2600.Compiler
 {
-    internal class ROMBuilder
+    internal partial class ROMBuilder
     {
         private static readonly Range RAMRange = new Range(0x80, 0xFF);
         public GlobalVariableManager VariableManager { get; private set; }

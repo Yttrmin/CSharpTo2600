@@ -7,11 +7,25 @@ namespace CSharpTo2600.Compiler
 {
     partial class GameCompiler
     {
-        private class Optimizer
+		private interface IOptimizer
+		{
+			Subroutine PerformAllOptimizations(Subroutine Subroutine);
+		}
+
+		private class NullOptimizer : IOptimizer
+		{
+			public Subroutine PerformAllOptimizations(Subroutine Subroutine)
+			{
+				// Do nothing.
+				return Subroutine;
+			}
+		}
+
+		private class Optimizer : IOptimizer
         {
             private delegate ImmutableArray<AssemblyLine> OptimizingMethod(ImmutableArray<AssemblyLine> SubroutineBody);
 
-            public Subroutine PefromAllOptimizations(Subroutine Subroutine)
+            public Subroutine PerformAllOptimizations(Subroutine Subroutine)
             {
                 //@TODO - We need to loop and alternate between these two. Removing PHA/PLAs creates
                 // LDA/PLAs. Removing LDA/PLAs creates PHA/PLAs.

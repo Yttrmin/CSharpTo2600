@@ -14,7 +14,7 @@ namespace CSharpTo2600.Compiler
             private readonly GameCompiler Compiler;
             private SemanticModel Model { get { return Compiler.Model; } }
             private ROMBuilder ROMBuilder { get { return Compiler.ROMBuilder; } }
-            private readonly Optimizer Optimizer;
+            private readonly IOptimizer Optimizer;
             private readonly Type ClassType;
             private readonly ClassDeclarationSyntax Root;
 
@@ -22,16 +22,29 @@ namespace CSharpTo2600.Compiler
             {
                 this.Compiler = Compiler;
                 this.ClassType = ClassType;
+
+				if (!(ClassType.IsAbstract && ClassType.IsSealed))
+				{
+					throw new GameClassNotStaticException(ClassType);
+				}
+
                 Root = this.Compiler.Root.DescendantNodes().Where(n => (n as ClassDeclarationSyntax)?.Identifier.Text == ClassType.Name)
                     .Cast<ClassDeclarationSyntax>().Single();
-                Optimizer = new Optimizer();
+				if (Compiler.Options.Optimize)
+				{
+					Optimizer = new Optimizer();
+				}
+				else
+				{
+					Optimizer = new NullOptimizer();
+				}
             }
 
             public void Compile()
             {
                 Visit(Root);
             }
-
+			
             public override void VisitFieldDeclaration(FieldDeclarationSyntax FieldNode)
             {
                 if(FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
@@ -75,7 +88,7 @@ namespace CSharpTo2600.Compiler
                 var MethodInfo = GetMethodInfo(node);
                 var MethodCompiler = new MethodCompiler(node, MethodInfo, Compiler);
                 var Subroutine = MethodCompiler.Compile();
-                Subroutine = Optimizer.PefromAllOptimizations(Subroutine);
+                Subroutine = Optimizer.PerformAllOptimizations(Subroutine);
                 ROMBuilder.AddSubroutine(Subroutine);
                 base.VisitMethodDeclaration(node);
             }

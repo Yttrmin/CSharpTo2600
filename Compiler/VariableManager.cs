@@ -19,6 +19,15 @@ namespace CSharpTo2600.Compiler
 
         protected VariableManager(VariableManager OldThis, VariableInfo NewVariable)
         {
+            VariableInfo ConflictingVariable;
+            OldThis.Variables.TryGetValue(NewVariable.Name, out ConflictingVariable);
+            // Conflicts should only happen with VCS.h reserved variables, since the regular
+            // C# compilation process will catch normal ones.
+            if (ConflictingVariable != null)
+            {
+                throw new VariableNameAlreadyUsedException(ConflictingVariable, NewVariable);
+            }
+
             this.Parent = OldThis.Parent;
             this.Variables = OldThis.Variables.Add(NewVariable.Name, NewVariable);
         }
@@ -84,7 +93,7 @@ namespace CSharpTo2600.Compiler
             var Address = new Range(NextVariableStart, NextVariableStart + Marshal.SizeOf(Type) - 1);
             if (!RAMRange.Contains(Address.End))
             {
-                throw new FatalCompilationException($"Insufficient RAM to add var {Name} of type {Type}");
+                throw new HeapOverflowException(Name, Type, NextVariableStart - 1, Address.End);
             }
             return AddVariable(Name, Type, Address, true);
         }

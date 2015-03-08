@@ -99,6 +99,7 @@
   <ItemGroup>
     <Compile Include="Compiler.Optimizer.cs" />
     <Compile Include="EndianHelper.cs" />
+    <Compile Include="Exceptions.cs" />
     <Compile Include="Fragments.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

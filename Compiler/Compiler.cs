@@ -21,12 +21,11 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
         private readonly ROMBuilder ROMBuilder;
-		private CompileOptions Options;
+		private CompileOptions Options = CompileOptions.Default;
         public const string DASMPath = "./Dependencies/DASM/";
 
         static void Main(string[] args)
         {
-			EndianHelper.Endianness = Endianness.Big;
             //@TODO - Handle more than 1 source file, workspaces.
             var FileName = args[0];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
@@ -34,14 +33,25 @@ namespace CSharpTo2600.Compiler
             Console.ReadLine();
         }
 
-		public GameCompiler(string SourceText)
+		public GameCompiler(string SourceText, CompileOptions Options)
 			: this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
         {
+			this.Options = Options;
 		}
 
-        public GameCompiler(CSharpCompilation Compilation)
+		public GameCompiler(string SourceText)
+			: this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
+		{
+		}
+
+		public GameCompiler(CSharpCompilation Compilation)
         {
-            FrameworkAssembly = typeof(Atari2600Game).Assembly;
+			if (!EndianHelper.EndiannessIsSet)
+			{
+				EndianHelper.Endianness = Options.Endianness;
+			}
+			
+			FrameworkAssembly = typeof(Atari2600Game).Assembly;
             ROMBuilder = new ROMBuilder();
 
             this.Compilation = Compilation;
@@ -95,9 +105,9 @@ namespace CSharpTo2600.Compiler
             Console.ForegroundColor = ConsoleColor.Black;
         }
 
-		internal ROMInfo GetROMInfo()
+		internal ROMBuilder.ROMInfo GetROMInfo()
 		{
-			return new ROMInfo(ROMBuilder);
+			return new ROMBuilder.ROMInfo(ROMBuilder);
 		}
 
         internal static bool AssembleOutput(string AssemblyFilePath)
@@ -129,7 +139,13 @@ namespace CSharpTo2600.Compiler
 
         private Type GetGameClass()
         {
-            return CompiledAssembly.DefinedTypes.Single(t => t.GetCustomAttribute<Atari2600Game>() != null);
+            var GameClass = CompiledAssembly.DefinedTypes
+				.SingleOrDefault(t => t.GetCustomAttribute<Atari2600Game>() != null);
+			if (GameClass == null)
+			{
+				throw new GameClassNotFoundException();
+			}
+			return GameClass;
         }
 
         private Type GetType(TypeSyntax TypeSyntax)
@@ -150,24 +166,14 @@ namespace CSharpTo2600.Compiler
 	public struct CompileOptions
 	{
 		public readonly bool Optimize;
+		public readonly Endianness Endianness;
+		public static readonly CompileOptions Default = 
+			new CompileOptions(Optimize: true, Endianness: Endianness.Big);
 
-		public CompileOptions(bool Optimize = true)
+		public CompileOptions(bool Optimize, Endianness Endianness)
 		{
 			this.Optimize = Optimize;
+			this.Endianness = Endianness;
 		}
 	}
-
-    internal class FatalCompilationException : Exception
-    {
-        public FatalCompilationException(string Message) : base(Message)
-        {
-
-        }
-
-        public FatalCompilationException(string Message, SyntaxNode Node)
-            : this($"(Line #{Node.SyntaxTree.GetLineSpan(Node.Span).StartLinePosition.Line}): {Message}")
-        {
-
-        }
-    }
 }
