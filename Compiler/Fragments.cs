@@ -148,15 +148,10 @@ namespace CSharpTo2600.Compiler
         /// Postcondition: Value is removed from 6502 stack. Variable holds value.
         public static IEnumerable<AssemblyLine> StoreVariable(VariableInfo Variable, Type StackType)
         {
-            VerifyType(StackType);
-            var Result = Enumerable.Empty<AssemblyLine>();
-            if (!IsCastable(StackType, Variable.Type))
+            // We should never have to perform casts here.
+            if (StackType != Variable.Type)
             {
-                throw new FatalCompilationException($"Types don't match for assignment: {StackType} to {Variable.Type}");
-            }
-            else if (StackType != Variable.Type)
-            {
-                Result = Result.Concat(Fit(StackType, Variable.Type));
+                throw new FatalCompilationException($"Stack/Target Type mismtach. [{StackType}] on stack, but [{Variable.Type}] is target.");
             }
 
             if (Variable.AddressIsAbsolute)

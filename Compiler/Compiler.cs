@@ -161,6 +161,19 @@ namespace CSharpTo2600.Compiler
             }
             return TrueType;
         }
+
+        private Type GetType(ITypeSymbol TypeSymbol)
+        {
+            var FullyQualifiedNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+            var FullyQualifiedName = TypeSymbol.ToMinimalDisplayString(Model, 0, FullyQualifiedNameFormat);
+            //@TODO - Won't find types outside of mscorlib.
+            var TrueType = Type.GetType(FullyQualifiedName);
+            if (TrueType == null)
+            {
+                throw new ArgumentException("TypeSyntaxes must correspond to an mscorlib type for now.", nameof(TypeSymbol));
+            }
+            return TrueType;
+        }
     }
 
     public struct CompileOptions

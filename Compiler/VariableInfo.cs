@@ -54,6 +54,7 @@ namespace CSharpTo2600.Compiler
 
     internal class GlobalVariable : VariableInfo
     {
+        [Obsolete]
         public readonly bool EmitToFile;
         public override bool AddressIsAbsolute { get { return true; } }
         public override bool AddressIsFrameRelative { get { return false; } }

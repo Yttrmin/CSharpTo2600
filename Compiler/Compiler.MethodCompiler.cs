@@ -160,13 +160,11 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
             {
-                //@TODO - Just use the type of the literal determined by the compiler?
-                // The only problem is there are no byte literals (2.4.4.2), so we'll
-                // be stuck with an int at the minimum pushed onto the stack. Perhaps
-                // some optimizations will recognize and strip out the wasteful 32-bit
-                // push and truncation though?
-                var Value = ToSmallestNumeric(node.Token.Value);
-                TypeStack.Push(Value.GetType());
+                var LiteralTypeSymbol = Compiler.Model.GetTypeInfo(node).ConvertedType;
+                var LiteralType = Compiler.GetType(LiteralTypeSymbol);
+                var ParseMethod = LiteralType.GetMethod("Parse", new[] { typeof(string) });
+                var Value = ParseMethod.Invoke(null, new[] { node.Token.ValueText });
+                TypeStack.Push(LiteralType);
                 MethodBody.AddRange(Fragments.PushLiteral(Value));
                 base.VisitLiteralExpression(node);
             }
@@ -202,23 +200,6 @@ namespace CSharpTo2600.Compiler
                 {
                     return VariableManager.GetVariable(Symbol.Name);
                 }
-            }
-
-            private object ToSmallestNumeric(object Value)
-            {
-                //@TODO - May have to try ulong as well.
-                // Roundabout since you can only unbox to its actual type.
-                var NumericValue = long.Parse(Value.ToString());
-                // Make sure to add these from smallest to largest!
-                if (byte.MinValue <= NumericValue && NumericValue <= byte.MaxValue)
-                {
-                    return (byte)NumericValue;
-                }
-                if (int.MinValue <= NumericValue && NumericValue <= int.MaxValue)
-                {
-                    return (int)NumericValue;
-                }
-                throw new ArgumentException("Value does not fit in a supported type.");
             }
 
             private void DebugPrintNode(SyntaxNode node)
