@@ -8,6 +8,7 @@ namespace CSharpTo2600.Compiler
     {
         public string Name { get { return this.Symbol.Name; } }
         public readonly Type Type;
+        [Obsolete]
         public readonly Range Address;
         public readonly Symbol Symbol;
         public int Size { get { return Marshal.SizeOf(Type); } }

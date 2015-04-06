@@ -14,6 +14,7 @@ namespace CSharpTo2600.Compiler
         public MethodInfo OriginalMethod { get; }
         public int InstructionCount { get { return Body.OfType<Instruction>().Count(); } }
         public int CycleCount { get { return Body.OfType<Instruction>().Sum(i => i.Cycles); } }
+        //@TODO - IsInstance/IsStatic
 
         public Subroutine(string Name, MethodInfo OriginalMethod, ImmutableArray<AssemblyLine> Body, MethodType Type)
         {

@@ -88,21 +88,8 @@ namespace CSharpTo2600.Compiler
         public void Compile()
         {
             var GameClass = GetGameClass();
-            var Walker = new GameClassCompiler(this, GameClass);
-            Walker.Compile();
-            var OutputPath = ROMBuilder.WriteToFile("out.asm");
-            var DASMSuccess = AssembleOutput(OutputPath);
-            if (DASMSuccess)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Compilation successful.");
-            }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Compilation failed.");
-            }
-            Console.ForegroundColor = ConsoleColor.Black;
+            TypeCompiler.CompileType(GameClass, this);
+            throw new NotImplementedException();
         }
 
         internal ROMBuilder.ROMInfo GetROMInfo()

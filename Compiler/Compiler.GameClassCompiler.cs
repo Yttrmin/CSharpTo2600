@@ -9,6 +9,7 @@ namespace CSharpTo2600.Compiler
 {
     public sealed partial class GameCompiler
     {
+        [Obsolete("Use TypeCompiler", true)]
         private sealed class GameClassCompiler : CSharpSyntaxWalker
         {
             private readonly GameCompiler Compiler;

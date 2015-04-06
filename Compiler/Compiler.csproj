@@ -97,7 +97,10 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CompilationInfo.cs" />
+    <Compile Include="CompiledType.cs" />
     <Compile Include="Compiler.Optimizer.cs" />
+    <Compile Include="Compiler.TypeCompiler.cs" />
     <Compile Include="EndianHelper.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="Fragments.cs" />
@@ -105,6 +108,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Range.cs" />
     <Compile Include="ROMBuilder.cs" />
+    <Compile Include="ROMCreator.cs" />
     <Compile Include="ROMInfo.cs" />
     <Compile Include="Subroutine.cs" />
     <Compile Include="Compiler.GameClassCompiler.cs" />
