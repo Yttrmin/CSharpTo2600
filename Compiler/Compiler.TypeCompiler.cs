@@ -19,6 +19,7 @@ namespace CSharpTo2600.Compiler
             private TypeInfo TypeInfo { get; }
             private readonly GameCompiler Compiler;
             private readonly ClassDeclarationSyntax ClassNode;
+            private readonly INamedTypeSymbol Symbol;
 
             private TypeCompiler(Type CLRType, GameCompiler Compiler)
             {
@@ -34,24 +35,29 @@ namespace CSharpTo2600.Compiler
                              let className = classNode.Identifier.Text
                              where className == CLRType.Name
                              select classNode).Single();
+                Symbol = Compiler.Compilation.Assembly.GetTypeByMetadataName(CLRType.FullName);
+                if (Symbol == null)
+                {
+                    throw new FatalCompilationException($"Could not find type symbol in compilation: {CLRType.FullName}");
+                }
             }
 
             public static CompiledType CompileType(Type CLRType, GameCompiler GCompiler)
             {
                 var Compiler = new TypeCompiler(CLRType, GCompiler);
                 var Globals = Compiler.ParseFields();
-                Compiler.ParseMethods();
+                var Subroutines = Compiler.ParseMethods();
                 throw new NotImplementedException();
             }
 
-            private ImmutableDictionary<SyntaxToken, GlobalVariable> ParseFields()
+            private ImmutableDictionary<string, GlobalVariable> ParseFields()
             {
                 var AllFields = ClassNode.ChildNodes().OfType<FieldDeclarationSyntax>();
                 if (AllFields.Count() != CLRType.GetTypeInfo().DeclaredFields.Count())
                 {
                     throw new FatalCompilationException($"SyntaxTree and reflection field count don't match. Tree: {AllFields.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredFields.Count()}");
                 }
-                var Result = new Dictionary<SyntaxToken, GlobalVariable>();
+                var Result = new Dictionary<string, GlobalVariable>();
                 foreach (var Field in AllFields)
                 {
                     var Tuples = ParseFieldDeclaration(Field);
@@ -63,33 +69,31 @@ namespace CSharpTo2600.Compiler
                 return Result.ToImmutableDictionary();
             }
 
-            private ImmutableArray<Subroutine> ParseMethods()
+            private ImmutableDictionary<string, Subroutine> ParseMethods()
             {
                 var AllMethods = ClassNode.ChildNodes().OfType<MethodDeclarationSyntax>();
                 if (AllMethods.Count() != CLRType.GetTypeInfo().DeclaredMethods.Count())
                 {
                     throw new FatalCompilationException($"SyntaxTree and reflection method count don't match. Tree: {AllMethods.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredMethods.Count()}");
                 }
-                var Result = new List<Subroutine>();
+                var Result = new Dictionary<string, Subroutine>();
                 foreach (var Method in AllMethods)
                 {
-                    Result.Add(ParseMethodDeclaration(Method));
+                    var ParsedMethod = ParseMethodDeclaration(Method);
+                    Result.Add(ParsedMethod.Item1, ParsedMethod.Item2);
                 }
-                return Result.ToImmutableArray();
+                return Result.ToImmutableDictionary();
             }
 
-            private IEnumerable<Tuple<SyntaxToken, GlobalVariable>> ParseFieldDeclaration(FieldDeclarationSyntax FieldNode)
+            private IEnumerable<Tuple<string, GlobalVariable>> ParseFieldDeclaration(FieldDeclarationSyntax FieldNode)
             {
                 if (FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
                 {
                     throw new FatalCompilationException("Fields can't have initializers yet.", FieldNode);
                 }
-                var Results = new List<Tuple<ISymbol, GlobalVariable>>();
-                //var RealType = Compiler.GetType(FieldNode.Declaration.Type);
                 foreach (var Declarator in FieldNode.Declaration.Variables)
                 {
-                    var Identifier = Declarator.Identifier;
-                    var VariableName = Identifier.ToString();
+                    var VariableName = Declarator.Identifier.ToString();
                     var FieldInfo = TypeInfo.GetDeclaredField(VariableName);
                     if (!FieldInfo.IsStatic)
                     {
@@ -97,13 +101,16 @@ namespace CSharpTo2600.Compiler
                     }
 
                     var Global = new GlobalVariable(VariableName, FieldInfo.FieldType, new Range(), false);
-                    yield return new Tuple<SyntaxToken, GlobalVariable>(Identifier, Global);
+                    yield return new Tuple<string, GlobalVariable>(VariableName, Global);
                 }
             }
 
-            private Subroutine ParseMethodDeclaration(MethodDeclarationSyntax MethodNode)
+            private Tuple<string, Subroutine> ParseMethodDeclaration(MethodDeclarationSyntax MethodNode)
             {
-                throw new NotImplementedException();
+                var MethodName = MethodNode.Identifier.Text;
+                var MethodInfo = TypeInfo.GetDeclaredMethod(MethodName);
+                var Subroutine = MethodCompiler.CompileMethod(MethodNode, MethodInfo, Symbol, Compiler);
+                return new Tuple<string, Subroutine>(MethodName, Subroutine);
             }
         }
     }

@@ -111,7 +111,6 @@
     <Compile Include="ROMCreator.cs" />
     <Compile Include="ROMInfo.cs" />
     <Compile Include="Subroutine.cs" />
-    <Compile Include="Compiler.GameClassCompiler.cs" />
     <Compile Include="VariableInfo.cs" />
     <Compile Include="VariableManager.cs" />
   </ItemGroup>

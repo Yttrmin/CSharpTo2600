@@ -23,6 +23,7 @@ namespace CSharpTo2600.Compiler
             private readonly List<AssemblyLine> MethodBody;
             private readonly Stack<Type> TypeStack;
             private readonly MethodInfo MethodInfo;
+            private readonly IMethodSymbol Symbol;
             private LocalVariableManager VariableManager;
 
             private MethodType MethodType
@@ -30,7 +31,8 @@ namespace CSharpTo2600.Compiler
                 get { return MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined; }
             }
 
-            public MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, GameCompiler Compiler)
+            private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
+                INamedTypeSymbol ContainingType, GameCompiler Compiler)
             {
                 this.MethodInfo = MethodInfo;
                 this.Compiler = Compiler;
@@ -39,14 +41,37 @@ namespace CSharpTo2600.Compiler
                 MethodBody = new List<AssemblyLine>();
                 TypeStack = new Stack<Type>();
                 VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);
+
+                var Parameters = MethodInfo.GetParameters();
+                var PossibleMethods = ContainingType.GetMembers(MethodInfo.Name).Cast<IMethodSymbol>();
+                foreach (var Method in PossibleMethods)
+                {
+                    for (var i = 0; i < Method.Parameters.Count(); i++)
+                    {
+                        //@TODO - This seems like a really shaky way to check type equality!
+                        if (Method.Parameters[i].Type.ToString() != Parameters[i].ToString())
+                        {
+                            continue;
+                        }
+                    }
+                    Symbol = Method;
+                }
+                if (Symbol == null)
+                {
+                    throw new FatalCompilationException($"Could not find method symbol for: {MethodInfo.Name}");
+                }
+
             }
 
-            public Subroutine Compile()
+            public static Subroutine CompileMethod(MethodDeclarationSyntax MethodDeclaration, 
+                MethodInfo MethodInfo, INamedTypeSymbol ContainingType, GameCompiler GCompiler)
             {
-                VariableManager = new CompilerPrePassLocals(Compiler, MethodDeclaration).Process();
-                AllocateLocals();
-                Visit(MethodDeclaration);
-                return new Subroutine(Name, MethodInfo, MethodBody.ToImmutableArray(), MethodType);
+                var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, ContainingType, GCompiler);
+                Compiler.VariableManager = new CompilerPrePassLocals(GCompiler, MethodDeclaration).Process();
+                Compiler.AllocateLocals();
+                Compiler.Visit(MethodDeclaration);
+                return new Subroutine(Compiler.Name, MethodInfo, Compiler.MethodBody.ToImmutableArray(), 
+                    Compiler.MethodType);
             }
 
             private void AllocateLocals()
@@ -263,6 +288,12 @@ namespace CSharpTo2600.Compiler
                         VariableManager = VariableManager.AddVariable(Identifier, LocalType, Address);
                     }
                     base.VisitLocalDeclarationStatement(node);
+                }
+
+                public override void VisitInvocationExpression(InvocationExpressionSyntax node)
+                {
+                    //@TODO - Update subroutine caller/callee graph.
+                    base.VisitInvocationExpression(node);
                 }
 
                 //@TODO - Anticipate return address when we get to method calls.

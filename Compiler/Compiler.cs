@@ -20,6 +20,7 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly CompiledAssembly;
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
+        [Obsolete]
         private readonly ROMBuilder ROMBuilder;
         private CompileOptions Options = CompileOptions.Default;
         public const string DASMPath = "./Dependencies/DASM/";
