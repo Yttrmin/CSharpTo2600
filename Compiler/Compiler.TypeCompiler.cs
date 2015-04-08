@@ -35,7 +35,7 @@ namespace CSharpTo2600.Compiler
                              let className = classNode.Identifier.Text
                              where className == CLRType.Name
                              select classNode).Single();
-                Symbol = Compiler.Compilation.Assembly.GetTypeByMetadataName(CLRType.FullName);
+                Symbol = (INamedTypeSymbol)Compiler.Model.GetDeclaredSymbol(ClassNode);
                 if (Symbol == null)
                 {
                     throw new FatalCompilationException($"Could not find type symbol in compilation: {CLRType.FullName}");
@@ -110,7 +110,7 @@ namespace CSharpTo2600.Compiler
                     {
                         throw new FatalCompilationException($"Instance fields not yet supported: {FieldInfo.Name}");
                     }
-                    var FieldSymbol = Symbol.GetMembers(FieldInfo.Name).Cast<IFieldSymbol>().Single();
+                    var FieldSymbol = (IFieldSymbol)Compiler.Model.GetDeclaredSymbol(Declarator);
                     var Global = new GlobalVariable(VariableName, FieldInfo.FieldType, new Range(), false);
                     yield return new Tuple<IFieldSymbol, GlobalVariable>(FieldSymbol, Global);
                 }
@@ -123,27 +123,14 @@ namespace CSharpTo2600.Compiler
 
                 var Parameters = MethodInfo.GetParameters();
                 var PossibleMethods = Symbol.GetMembers(MethodInfo.Name).Cast<IMethodSymbol>();
-                IMethodSymbol MethodSymbol = null;
-                foreach (var Method in PossibleMethods)
-                {
-                    for (var i = 0; i < Method.Parameters.Count(); i++)
-                    {
-                        //@TODO - This seems like a really shaky way to check type equality!
-                        if (Method.Parameters[i].Type.ToString() != Parameters[i].ToString())
-                        {
-                            continue;
-                        }
-                    }
-                    MethodSymbol = Method;
-                    break;
-                }
+                var MethodSymbol = (IMethodSymbol)Compiler.Model.GetDeclaredSymbol(MethodNode);
                 if (Symbol == null)
                 {
                     throw new FatalCompilationException($"Could not find method symbol for: {MethodInfo.Name}");
                 }
                 
-                //@TODO - Get actual MethodType
-                var Subroutine = new Subroutine(MethodName, MethodInfo, MethodSymbol, Framework.MethodType.None);
+                var MethodType = MethodInfo.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
+                var Subroutine = new Subroutine(MethodName, MethodInfo, MethodSymbol, MethodType);
                 return new Tuple<IMethodSymbol, Subroutine>(MethodSymbol, Subroutine);
             }
         }
