@@ -98,7 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CompilationInfo.cs" />
-    <Compile Include="CompiledType.cs" />
+    <Compile Include="ProcessedType.cs" />
     <Compile Include="Compiler.Optimizer.cs" />
     <Compile Include="Compiler.TypeCompiler.cs" />
     <Compile Include="EndianHelper.cs" />

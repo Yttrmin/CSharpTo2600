@@ -42,22 +42,28 @@ namespace CSharpTo2600.Compiler
                 }
             }
 
-            public static CompiledType CompileType(Type CLRType, GameCompiler GCompiler)
+            public static ProcessedType CompileType(Type CLRType, GameCompiler GCompiler)
             {
                 var Compiler = new TypeCompiler(CLRType, GCompiler);
                 var Globals = Compiler.ParseFields();
-                var Subroutines = Compiler.ParseMethods();
+                var ParsedSubroutines = Compiler.ParseMethods();
+                // We've determined the type's fields and methods (although not the method bodies).
+                // That's enough for any other class to deal with us (other types' know our fields, don't
+                // need to know our method bodies).
+                // So method compilation should go fine even if we have to compile another type (e.g.
+                // we try to access another un-processed type's fields).
+                var FirstStageType = new ProcessedType(CLRType, Compiler.Symbol, ParsedSubroutines, Globals);
                 throw new NotImplementedException();
             }
 
-            private ImmutableDictionary<string, GlobalVariable> ParseFields()
+            private ImmutableDictionary<IFieldSymbol, GlobalVariable> ParseFields()
             {
                 var AllFields = ClassNode.ChildNodes().OfType<FieldDeclarationSyntax>();
                 if (AllFields.Count() != CLRType.GetTypeInfo().DeclaredFields.Count())
                 {
                     throw new FatalCompilationException($"SyntaxTree and reflection field count don't match. Tree: {AllFields.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredFields.Count()}");
                 }
-                var Result = new Dictionary<string, GlobalVariable>();
+                var Result = new Dictionary<IFieldSymbol, GlobalVariable>();
                 foreach (var Field in AllFields)
                 {
                     var Tuples = ParseFieldDeclaration(Field);
@@ -69,14 +75,14 @@ namespace CSharpTo2600.Compiler
                 return Result.ToImmutableDictionary();
             }
 
-            private ImmutableDictionary<string, Subroutine> ParseMethods()
+            private ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods()
             {
                 var AllMethods = ClassNode.ChildNodes().OfType<MethodDeclarationSyntax>();
                 if (AllMethods.Count() != CLRType.GetTypeInfo().DeclaredMethods.Count())
                 {
                     throw new FatalCompilationException($"SyntaxTree and reflection method count don't match. Tree: {AllMethods.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredMethods.Count()}");
                 }
-                var Result = new Dictionary<string, Subroutine>();
+                var Result = new Dictionary<IMethodSymbol, Subroutine>();
                 foreach (var Method in AllMethods)
                 {
                     var ParsedMethod = ParseMethodDeclaration(Method);
@@ -85,7 +91,12 @@ namespace CSharpTo2600.Compiler
                 return Result.ToImmutableDictionary();
             }
 
-            private IEnumerable<Tuple<string, GlobalVariable>> ParseFieldDeclaration(FieldDeclarationSyntax FieldNode)
+            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(ImmutableDictionary<IMethodSymbol, Subroutine> NoncompiledMethods)
+            {
+                throw new NotImplementedException();
+            }
+
+            private IEnumerable<Tuple<IFieldSymbol, GlobalVariable>> ParseFieldDeclaration(FieldDeclarationSyntax FieldNode)
             {
                 if (FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
                 {
@@ -99,18 +110,41 @@ namespace CSharpTo2600.Compiler
                     {
                         throw new FatalCompilationException($"Instance fields not yet supported: {FieldInfo.Name}");
                     }
-
+                    var FieldSymbol = Symbol.GetMembers(FieldInfo.Name).Cast<IFieldSymbol>().Single();
                     var Global = new GlobalVariable(VariableName, FieldInfo.FieldType, new Range(), false);
-                    yield return new Tuple<string, GlobalVariable>(VariableName, Global);
+                    yield return new Tuple<IFieldSymbol, GlobalVariable>(FieldSymbol, Global);
                 }
             }
 
-            private Tuple<string, Subroutine> ParseMethodDeclaration(MethodDeclarationSyntax MethodNode)
+            private Tuple<IMethodSymbol, Subroutine> ParseMethodDeclaration(MethodDeclarationSyntax MethodNode)
             {
                 var MethodName = MethodNode.Identifier.Text;
                 var MethodInfo = TypeInfo.GetDeclaredMethod(MethodName);
-                var Subroutine = MethodCompiler.CompileMethod(MethodNode, MethodInfo, Symbol, Compiler);
-                return new Tuple<string, Subroutine>(MethodName, Subroutine);
+
+                var Parameters = MethodInfo.GetParameters();
+                var PossibleMethods = Symbol.GetMembers(MethodInfo.Name).Cast<IMethodSymbol>();
+                IMethodSymbol MethodSymbol = null;
+                foreach (var Method in PossibleMethods)
+                {
+                    for (var i = 0; i < Method.Parameters.Count(); i++)
+                    {
+                        //@TODO - This seems like a really shaky way to check type equality!
+                        if (Method.Parameters[i].Type.ToString() != Parameters[i].ToString())
+                        {
+                            continue;
+                        }
+                    }
+                    MethodSymbol = Method;
+                    break;
+                }
+                if (Symbol == null)
+                {
+                    throw new FatalCompilationException($"Could not find method symbol for: {MethodInfo.Name}");
+                }
+                
+                //@TODO - Get actual MethodType
+                var Subroutine = new Subroutine(MethodName, MethodInfo, MethodSymbol, Framework.MethodType.None);
+                return new Tuple<IMethodSymbol, Subroutine>(MethodSymbol, Subroutine);
             }
         }
     }
