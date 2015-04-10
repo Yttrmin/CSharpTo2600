@@ -15,142 +15,34 @@ namespace CSharpTo2600.Compiler
     {
         private sealed class TypeCompiler
         {
-            private readonly Type CLRType;
-            private TypeInfo TypeInfo { get; }
-            private readonly GameCompiler Compiler;
-            private readonly ClassDeclarationSyntax ClassNode;
-            private readonly INamedTypeSymbol Symbol;
+            private readonly ProcessedType ParsedType;
+            private Type CLRType { get { return ParsedType.CLRType; } }
+            private TypeInfo TypeInfo { get { return CLRType.GetTypeInfo(); } }
 
-            private TypeCompiler(Type CLRType, GameCompiler Compiler)
+            private TypeCompiler(ProcessedType ParsedType)
             {
-                this.CLRType = CLRType;
-                TypeInfo = CLRType.GetTypeInfo();
-                this.Compiler = Compiler;
-                //@TODO - Classes of same name but in differing namespaces. Also, messy.
-                ClassNode = (from tree in Compiler.Compilation.SyntaxTrees
-                             let root = tree.GetRoot()
-                             from node in root.DescendantNodes()
-                             let classNode = node as ClassDeclarationSyntax
-                             where classNode != null
-                             let className = classNode.Identifier.Text
-                             where className == CLRType.Name
-                             select classNode).Single();
-                Symbol = (INamedTypeSymbol)Compiler.Model.GetDeclaredSymbol(ClassNode);
-                if (Symbol == null)
-                {
-                    throw new FatalCompilationException($"Could not find type symbol in compilation: {CLRType.FullName}");
-                }
+                this.ParsedType = ParsedType;
             }
 
-            public static ProcessedType CompileType(Type CLRType, CompilationInfo Info, GameCompiler GCompiler)
+            public static ProcessedType CompileType(ProcessedType ParsedType, CompilationInfo Info, GameCompiler GCompiler)
             {
-                var Compiler = new TypeCompiler(CLRType, GCompiler);
-                var Globals = Compiler.ParseFields();
-                var ParsedSubroutines = Compiler.ParseMethods();
-                // We've determined the type's fields and methods (although not the method bodies).
-                // That's enough for any other class to deal with us (other types' know our fields, don't
-                // need to know our method bodies).
-                // So method compilation should go fine even if we have to compile another type (e.g.
-                // we try to access another un-processed type's fields).
-                var FirstStageType = new ProcessedType(CLRType, Compiler.Symbol, ParsedSubroutines, Globals);
-                var NewInfo = Info.WithCompiledType(FirstStageType);
-                var CompiledSubroutines = Compiler.CompileMethods(NewInfo);
-                throw new NotImplementedException();
+                var Compiler = new TypeCompiler(ParsedType);
+                var CompiledMethods = Compiler.CompileMethods(Info, GCompiler);
+                return new ProcessedType(ParsedType.CLRType, ParsedType.Symbol, CompiledMethods, ParsedType.Globals);
             }
 
-            private ImmutableDictionary<IFieldSymbol, GlobalVariable> ParseFields()
+            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationInfo CompilationInfo, GameCompiler GCompiler)
             {
-                var AllFields = ClassNode.ChildNodes().OfType<FieldDeclarationSyntax>();
-                if (AllFields.Count() != CLRType.GetTypeInfo().DeclaredFields.Count())
-                {
-                    throw new FatalCompilationException($"SyntaxTree and reflection field count don't match. Tree: {AllFields.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredFields.Count()}");
-                }
-                var Result = new Dictionary<IFieldSymbol, GlobalVariable>();
-                foreach (var Field in AllFields)
-                {
-                    var Tuples = ParseFieldDeclaration(Field);
-                    foreach (var Tuple in Tuples)
-                    {
-                        Result.Add(Tuple.Item1, Tuple.Item2);
-                    }
-                }
-                return Result.ToImmutableDictionary();
-            }
-
-            private ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods()
-            {
-                var AllMethods = ClassNode.ChildNodes().OfType<MethodDeclarationSyntax>();
-                if (AllMethods.Count() != CLRType.GetTypeInfo().DeclaredMethods.Count())
-                {
-                    throw new FatalCompilationException($"SyntaxTree and reflection method count don't match. Tree: {AllMethods.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredMethods.Count()}");
-                }
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
-                foreach (var Method in AllMethods)
+                foreach (var SymbolSubPair in ParsedType.Subroutines)
                 {
-                    var ParsedMethod = ParseMethodDeclaration(Method);
-                    Result.Add(ParsedMethod.Item1, ParsedMethod.Item2);
+                    var MethodNode = (MethodDeclarationSyntax)SymbolSubPair.Key.DeclaringSyntaxReferences.Single().GetSyntax();
+                    var MethodInfo = SymbolSubPair.Value.OriginalMethod;
+                    var CompiledSubroutine = MethodCompiler.CompileMethod(MethodNode, MethodInfo, 
+                        SymbolSubPair.Key, CompilationInfo, GCompiler);
+                    Result.Add(SymbolSubPair.Key, CompiledSubroutine);
                 }
                 return Result.ToImmutableDictionary();
-            }
-
-            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationInfo CompilationInfo)
-            {
-                var AllMethods = ClassNode.ChildNodes().OfType<MethodDeclarationSyntax>();
-                if (AllMethods.Count() != CLRType.GetTypeInfo().DeclaredMethods.Count())
-                {
-                    throw new FatalCompilationException($"SyntaxTree and reflection method count don't match. Tree: {AllMethods.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredMethods.Count()}");
-                }
-                var Result = new Dictionary<IMethodSymbol, Subroutine>();
-                foreach (var Method in AllMethods)
-                {
-                    var MethodSymbol = (IMethodSymbol)Compiler.Model.GetDeclaredSymbol(Method);
-                    var Info = GetMethodInfoFromSymbol(MethodSymbol);
-                    var Subroutine = MethodCompiler.CompileMethod(Method, Info, MethodSymbol, CompilationInfo, Compiler);
-                    Result.Add(MethodSymbol, Subroutine);
-                }
-                return Result.ToImmutableDictionary();
-            }
-
-            private IEnumerable<Tuple<IFieldSymbol, GlobalVariable>> ParseFieldDeclaration(FieldDeclarationSyntax FieldNode)
-            {
-                if (FieldNode.Declaration.Variables.Any(v => v.Initializer != null))
-                {
-                    throw new FatalCompilationException("Fields can't have initializers yet.", FieldNode);
-                }
-                foreach (var Declarator in FieldNode.Declaration.Variables)
-                {
-                    var VariableName = Declarator.Identifier.ToString();
-                    var FieldInfo = TypeInfo.GetDeclaredField(VariableName);
-                    if (!FieldInfo.IsStatic)
-                    {
-                        throw new FatalCompilationException($"Instance fields not yet supported: {FieldInfo.Name}");
-                    }
-                    var FieldSymbol = (IFieldSymbol)Compiler.Model.GetDeclaredSymbol(Declarator);
-                    var Global = new GlobalVariable(VariableName, FieldInfo.FieldType, new Range(), false);
-                    yield return new Tuple<IFieldSymbol, GlobalVariable>(FieldSymbol, Global);
-                }
-            }
-
-            private Tuple<IMethodSymbol, Subroutine> ParseMethodDeclaration(MethodDeclarationSyntax MethodNode)
-            {
-                var MethodSymbol = (IMethodSymbol)Compiler.Model.GetDeclaredSymbol(MethodNode);
-                var MethodInfo = GetMethodInfoFromSymbol(MethodSymbol);
-                
-                if (Symbol == null)
-                {
-                    throw new FatalCompilationException($"Could not find method symbol for: {MethodInfo.Name}");
-                }
-
-                var MethodType = MethodInfo.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
-                var Subroutine = new Subroutine(MethodSymbol.Name, MethodInfo, MethodSymbol, MethodType);
-                return new Tuple<IMethodSymbol, Subroutine>(MethodSymbol, Subroutine);
-            }
-
-            private MethodInfo GetMethodInfoFromSymbol(IMethodSymbol MethodSymbol)
-            {
-                // Despite the documentation, GetDeclaredMethod gets Public|NonPublic|Instance|Static|DeclaredOnly.
-                //@TODO - Parameters
-                return TypeInfo.GetDeclaredMethod(MethodSymbol.Name);
             }
         }
     }

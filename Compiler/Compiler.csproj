@@ -98,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CompilationInfo.cs" />
+    <Compile Include="Compiler.TypeParser.cs" />
     <Compile Include="ProcessedType.cs" />
     <Compile Include="Compiler.Optimizer.cs" />
     <Compile Include="Compiler.TypeCompiler.cs" />

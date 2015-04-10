@@ -88,9 +88,19 @@ namespace CSharpTo2600.Compiler
 
         public void Compile()
         {
-            var GameClass = GetGameClass();
             var CompilationInfo = new CompilationInfo(Model);
-            TypeCompiler.CompileType(GameClass, CompilationInfo, this);
+            // First stage is to parse the types without compiling any methods. This gets us the
+            // type's fields and subroutine signatures.
+            foreach (var Type in CompiledAssembly.DefinedTypes)
+            {
+                CompilationInfo = CompilationInfo.WithParsedType(TypeParser.ParseType(Type, Compilation));
+            }
+            // Now we can compile methods, knowing any field accesses or method calls should work
+            // since we explored them in the parsing stage.
+            foreach (var Type in CompilationInfo.Types)
+            {
+                CompilationInfo = CompilationInfo.WithCompiledType(TypeCompiler.CompileType(Type.Value, CompilationInfo, this));
+            }
             throw new NotImplementedException();
         }
 

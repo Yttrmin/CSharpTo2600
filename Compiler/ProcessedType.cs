@@ -3,12 +3,13 @@ using System.Collections.Immutable;
 using System.Reflection;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using System.Collections.Generic;
 
 namespace CSharpTo2600.Compiler
 {
     internal sealed class ProcessedType
     {
-        private readonly Type CLRType;
+        public readonly Type CLRType;
         public readonly INamedTypeSymbol Symbol;
         public readonly ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines;
         public readonly ImmutableDictionary<IFieldSymbol, GlobalVariable> Globals;

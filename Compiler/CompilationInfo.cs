@@ -7,7 +7,7 @@ namespace CSharpTo2600.Compiler
 {
     internal sealed class CompilationInfo
     {
-        private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
+        public readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
         private readonly SemanticModel Model;
 
         public CompilationInfo(SemanticModel Model)
@@ -18,7 +18,8 @@ namespace CSharpTo2600.Compiler
 
         private CompilationInfo(CompilationInfo OldInfo, INamedTypeSymbol Symbol, ProcessedType Type)
         {
-            Types = OldInfo.Types.Add(Symbol, Type);
+            // Either adding a key/value that didn't exist before or overwriting an existing value.
+            Types = OldInfo.Types.SetItem(Symbol, Type);
             Model = OldInfo.Model;
         }
 
@@ -44,11 +45,20 @@ namespace CSharpTo2600.Compiler
             var Type = Types[TypeSymbol];
             var FieldSymbol = (IFieldSymbol)Model.GetSymbolInfo(Node.Name).Symbol;
             var VarInfo = Type.Globals[FieldSymbol];
-            throw new NotImplementedException();
+            return VarInfo;
+        }
+
+        public CompilationInfo WithParsedType(ProcessedType Type)
+        {
+            return new CompilationInfo(this, Type.Symbol, Type);
         }
 
         public CompilationInfo WithCompiledType(ProcessedType Type)
         {
+            if (!Types.ContainsKey(Type.Symbol))
+            {
+                throw new ArgumentException($"Type was not previously parsed: {Type}", nameof(Type));
+            }
             return new CompilationInfo(this, Type.Symbol, Type);
         }
     }

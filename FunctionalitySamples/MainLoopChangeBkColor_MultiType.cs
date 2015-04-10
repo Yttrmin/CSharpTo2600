@@ -9,7 +9,7 @@ namespace CSharpTo2600.FunctionalitySamples
         [SpecialMethod(MethodType.MainLoop)]
         static void Tick()
         {
-            OtherStaticClass.Color++;
+            //OtherStaticClass.Color++;
             BackgroundColor = OtherStaticClass.Color;
         }
     }
