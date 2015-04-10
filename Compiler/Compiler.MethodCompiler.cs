@@ -23,6 +23,8 @@ namespace CSharpTo2600.Compiler
             private readonly List<AssemblyLine> MethodBody;
             private readonly Stack<Type> TypeStack;
             private readonly MethodInfo MethodInfo;
+            private readonly CompilationInfo CompilationInfo;
+            [Obsolete]
             private LocalVariableManager VariableManager;
 
             private MethodType MethodType
@@ -31,9 +33,10 @@ namespace CSharpTo2600.Compiler
             }
 
             private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
-                INamedTypeSymbol ContainingType, GameCompiler Compiler)
+                INamedTypeSymbol ContainingType, CompilationInfo CompilationInfo, GameCompiler Compiler)
             {
                 this.MethodInfo = MethodInfo;
+                this.CompilationInfo = CompilationInfo;
                 this.Compiler = Compiler;
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
@@ -43,9 +46,10 @@ namespace CSharpTo2600.Compiler
             }
 
             public static Subroutine CompileMethod(MethodDeclarationSyntax MethodDeclaration, 
-                MethodInfo MethodInfo, IMethodSymbol Symbol, INamedTypeSymbol ContainingType, GameCompiler GCompiler)
+                MethodInfo MethodInfo, IMethodSymbol Symbol, CompilationInfo CompilationInfo, 
+                GameCompiler GCompiler)
             {
-                var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, ContainingType, GCompiler);
+                var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, Symbol.ContainingType, CompilationInfo, GCompiler);
                 Compiler.VariableManager = new CompilerPrePassLocals(GCompiler, MethodDeclaration).Process();
                 Compiler.AllocateLocals();
                 Compiler.Visit(MethodDeclaration);
@@ -171,6 +175,15 @@ namespace CSharpTo2600.Compiler
                 TypeStack.Push(LiteralType);
                 MethodBody.AddRange(Fragments.PushLiteral(Value));
                 base.VisitLiteralExpression(node);
+            }
+
+            public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+            {
+                var Variable = CompilationInfo.GetVariableFromFieldAccess(node);
+                TypeStack.Push(Variable.Type);
+                MethodBody.AddRange(Fragments.PushVariable(Variable));
+                // Return so we don't trigger IdentifierName handling.
+                return;
             }
 
             public override void VisitIdentifierName(IdentifierNameSyntax node)

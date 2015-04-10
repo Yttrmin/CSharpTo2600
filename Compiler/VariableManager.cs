@@ -60,6 +60,7 @@ namespace CSharpTo2600.Compiler
         }
     }
 
+    [Obsolete]
     internal sealed class GlobalVariableManager : VariableManager
     {
         private readonly Range RAMRange;

@@ -89,7 +89,8 @@ namespace CSharpTo2600.Compiler
         public void Compile()
         {
             var GameClass = GetGameClass();
-            TypeCompiler.CompileType(GameClass, this);
+            var CompilationInfo = new CompilationInfo(Model);
+            TypeCompiler.CompileType(GameClass, CompilationInfo, this);
             throw new NotImplementedException();
         }
 

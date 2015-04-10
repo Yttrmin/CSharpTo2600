@@ -42,7 +42,7 @@ namespace CSharpTo2600.Compiler
                 }
             }
 
-            public static ProcessedType CompileType(Type CLRType, GameCompiler GCompiler)
+            public static ProcessedType CompileType(Type CLRType, CompilationInfo Info, GameCompiler GCompiler)
             {
                 var Compiler = new TypeCompiler(CLRType, GCompiler);
                 var Globals = Compiler.ParseFields();
@@ -53,6 +53,8 @@ namespace CSharpTo2600.Compiler
                 // So method compilation should go fine even if we have to compile another type (e.g.
                 // we try to access another un-processed type's fields).
                 var FirstStageType = new ProcessedType(CLRType, Compiler.Symbol, ParsedSubroutines, Globals);
+                var NewInfo = Info.WithCompiledType(FirstStageType);
+                var CompiledSubroutines = Compiler.CompileMethods(NewInfo);
                 throw new NotImplementedException();
             }
 
@@ -91,9 +93,22 @@ namespace CSharpTo2600.Compiler
                 return Result.ToImmutableDictionary();
             }
 
-            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(ImmutableDictionary<IMethodSymbol, Subroutine> NoncompiledMethods)
+            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationInfo CompilationInfo)
             {
-                throw new NotImplementedException();
+                var AllMethods = ClassNode.ChildNodes().OfType<MethodDeclarationSyntax>();
+                if (AllMethods.Count() != CLRType.GetTypeInfo().DeclaredMethods.Count())
+                {
+                    throw new FatalCompilationException($"SyntaxTree and reflection method count don't match. Tree: {AllMethods.Count()}   Reflection: {CLRType.GetTypeInfo().DeclaredMethods.Count()}");
+                }
+                var Result = new Dictionary<IMethodSymbol, Subroutine>();
+                foreach (var Method in AllMethods)
+                {
+                    var MethodSymbol = (IMethodSymbol)Compiler.Model.GetDeclaredSymbol(Method);
+                    var Info = GetMethodInfoFromSymbol(MethodSymbol);
+                    var Subroutine = MethodCompiler.CompileMethod(Method, Info, MethodSymbol, CompilationInfo, Compiler);
+                    Result.Add(MethodSymbol, Subroutine);
+                }
+                return Result.ToImmutableDictionary();
             }
 
             private IEnumerable<Tuple<IFieldSymbol, GlobalVariable>> ParseFieldDeclaration(FieldDeclarationSyntax FieldNode)
@@ -118,20 +133,24 @@ namespace CSharpTo2600.Compiler
 
             private Tuple<IMethodSymbol, Subroutine> ParseMethodDeclaration(MethodDeclarationSyntax MethodNode)
             {
-                var MethodName = MethodNode.Identifier.Text;
-                var MethodInfo = TypeInfo.GetDeclaredMethod(MethodName);
-
-                var Parameters = MethodInfo.GetParameters();
-                var PossibleMethods = Symbol.GetMembers(MethodInfo.Name).Cast<IMethodSymbol>();
                 var MethodSymbol = (IMethodSymbol)Compiler.Model.GetDeclaredSymbol(MethodNode);
+                var MethodInfo = GetMethodInfoFromSymbol(MethodSymbol);
+                
                 if (Symbol == null)
                 {
                     throw new FatalCompilationException($"Could not find method symbol for: {MethodInfo.Name}");
                 }
-                
+
                 var MethodType = MethodInfo.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
-                var Subroutine = new Subroutine(MethodName, MethodInfo, MethodSymbol, MethodType);
+                var Subroutine = new Subroutine(MethodSymbol.Name, MethodInfo, MethodSymbol, MethodType);
                 return new Tuple<IMethodSymbol, Subroutine>(MethodSymbol, Subroutine);
+            }
+
+            private MethodInfo GetMethodInfoFromSymbol(IMethodSymbol MethodSymbol)
+            {
+                // Despite the documentation, GetDeclaredMethod gets Public|NonPublic|Instance|Static|DeclaredOnly.
+                //@TODO - Parameters
+                return TypeInfo.GetDeclaredMethod(MethodSymbol.Name);
             }
         }
     }
