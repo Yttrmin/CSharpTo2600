@@ -1,5 +1,4 @@
 ﻿using CSharpTo2600.Framework;
-using static CSharpTo2600.Framework.TIARegisters;
 
 namespace CSharpTo2600.FunctionalitySamples
 {
@@ -9,8 +8,9 @@ namespace CSharpTo2600.FunctionalitySamples
         [SpecialMethod(MethodType.MainLoop)]
         static void Tick()
         {
-            //OtherStaticClass.Color++;
-            BackgroundColor = OtherStaticClass.Color;
+            OtherStaticClass.Color++;
+            // Not supported yet.
+            //BackgroundColor = OtherStaticClass.Color;
         }
     }
 

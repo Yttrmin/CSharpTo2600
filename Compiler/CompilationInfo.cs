@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CSharpTo2600.Compiler
 {
@@ -38,14 +37,10 @@ namespace CSharpTo2600.Compiler
             throw new NotImplementedException();
         }
 
-        public VariableInfo GetVariableFromFieldAccess(MemberAccessExpressionSyntax Node)
+        public VariableInfo GetVariableFromField(IFieldSymbol FieldSymbol)
         {
-            var TypeSymbol = (INamedTypeSymbol)Model.GetSymbolInfo(Node.Expression).Symbol;
-            //@TODO - What if type isn't compiled/parsed yet?
-            var Type = Types[TypeSymbol];
-            var FieldSymbol = (IFieldSymbol)Model.GetSymbolInfo(Node.Name).Symbol;
-            var VarInfo = Type.Globals[FieldSymbol];
-            return VarInfo;
+            var Type = Types[FieldSymbol.ContainingType];
+            return Type.Globals[FieldSymbol];
         }
 
         public CompilationInfo WithParsedType(ProcessedType Type)

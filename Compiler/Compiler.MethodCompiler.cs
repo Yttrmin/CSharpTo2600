@@ -5,9 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using CSharpTo2600.Framework;
-using System.Linq;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using CSharpTo2600.Framework.Assembly;
 using System.Reflection;
 
@@ -24,8 +22,6 @@ namespace CSharpTo2600.Compiler
             private readonly Stack<Type> TypeStack;
             private readonly MethodInfo MethodInfo;
             private readonly CompilationInfo CompilationInfo;
-            [Obsolete]
-            private LocalVariableManager VariableManager;
 
             private MethodType MethodType
             {
@@ -42,7 +38,6 @@ namespace CSharpTo2600.Compiler
                 this.MethodDeclaration = MethodDeclaration;
                 MethodBody = new List<AssemblyLine>();
                 TypeStack = new Stack<Type>();
-                VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);
             }
 
             public static Subroutine CompileMethod(MethodDeclarationSyntax MethodDeclaration, 
@@ -50,19 +45,9 @@ namespace CSharpTo2600.Compiler
                 GameCompiler GCompiler)
             {
                 var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, Symbol.ContainingType, CompilationInfo, GCompiler);
-                Compiler.VariableManager = new CompilerPrePassLocals(GCompiler, MethodDeclaration).Process();
-                Compiler.AllocateLocals();
                 Compiler.Visit(MethodDeclaration);
                 return new Subroutine(Compiler.Name, MethodInfo, Symbol, Compiler.MethodBody.ToImmutableArray(), 
                     Compiler.MethodType);
-            }
-
-            private void AllocateLocals()
-            {
-                foreach (var Variable in VariableManager.GetLocalScopeVariables().Cast<LocalVariable>().OrderBy(v => v.Address.Start))
-                {
-                    MethodBody.AddRange(Fragments.AllocateLocal(Variable));
-                }
             }
 
             public override void Visit(SyntaxNode node)
@@ -90,7 +75,12 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitAssignmentExpression(AssignmentExpressionSyntax node)
             {
-                base.VisitAssignmentExpression(node);
+                if (node.Kind() != SyntaxKind.SimpleAssignmentExpression)
+                {
+                    throw new FatalCompilationException("Only simple assignment currently permitted.");
+                }
+                // Don't visit left so we don't end up pushing it on the stack.
+                base.Visit(node.Right);
                 var Type = TypeStack.Pop();
                 // At the point of assignment there should only be one thing on the TypeStack, the
                 // type of the result of the right-side expression.
@@ -179,7 +169,7 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
             {
-                var Variable = CompilationInfo.GetVariableFromFieldAccess(node);
+                var Variable = GetVariable(node);
                 TypeStack.Push(Variable.Type);
                 MethodBody.AddRange(Fragments.PushVariable(Variable));
                 // Return so we don't trigger IdentifierName handling.
@@ -203,19 +193,22 @@ namespace CSharpTo2600.Compiler
                 base.VisitIdentifierName(node);
             }
 
+            private VariableInfo GetVariable(MemberAccessExpressionSyntax Node)
+            {
+                var FieldSymbol = (IFieldSymbol)Compiler.Model.GetSymbolInfo(Node.Name).Symbol;
+                return GetVariable(FieldSymbol);
+            }
+
             private VariableInfo GetVariable(ISymbol Symbol)
             {
-                if (Symbol.ContainingAssembly.ToString() == Compiler.FrameworkAssembly.ToString())
+                var FieldSymbol = Symbol as IFieldSymbol;
+                if (FieldSymbol != null)
                 {
-                    var ContainingType = Compiler.FrameworkAssembly.GetType(Symbol.ContainingType.ToString(), true);
-                    var Member = ContainingType.GetMember(Symbol.Name, MemberTypes.Property,
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).Single();
-                    var GlobalName = Member.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>().GlobalSymbol.Name;
-                    return VariableManager.GetVariable(GlobalName);
+                    return CompilationInfo.GetVariableFromField(FieldSymbol);
                 }
                 else
                 {
-                    return VariableManager.GetVariable(Symbol.Name);
+                    throw new FatalCompilationException($"Attempted to access something other than a static field: {Symbol.Name}");
                 }
             }
 
@@ -238,65 +231,6 @@ namespace CSharpTo2600.Compiler
                     IterNode = IterNode.Parent;
                 }
                 return i;
-            }
-
-            private sealed class CompilerPrePassLocals : CSharpSyntaxWalker
-            {
-                private LocalVariableManager VariableManager;
-                private readonly MethodDeclarationSyntax Method;
-                private readonly GameCompiler Compiler;
-
-                public CompilerPrePassLocals(GameCompiler Compiler, MethodDeclarationSyntax Method)
-                {
-                    this.Compiler = Compiler;
-                    VariableManager = new LocalVariableManager(Compiler.ROMBuilder.VariableManager);
-                    this.Method = Method;
-                }
-
-                public LocalVariableManager Process()
-                {
-                    Visit(Method);
-                    return VariableManager;
-                }
-
-                public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
-                {
-                    // Child scopes (blocks) shouldn't be an issue since that only affects accessibility,
-                    // and Roslyn will already ensure there's no errors. It shouldn't have an effect
-                    // on measuring lifetime either.
-                    var Identifiers = node.Declaration.Variables.Select(v => v.Identifier.ToString());//Single().Identifier.ToString();
-                    var TypeSyntax = node.Declaration.Type;
-                    var LocalType = Compiler.GetType(TypeSyntax);
-
-                    // It could be possible to just use unused globals space and save the hassle of
-                    // fiddling with the stack frame, but then we'd have to somehow statically track
-                    // when and what addresses are used. Could give each local a global address if
-                    // there's enough? Let's just stick with stack for now for simplicity.
-                    foreach (var Identifier in Identifiers)
-                    {
-                        var AddressStart = NextOffset();
-                        var AddressEnd = NextOffset() + Marshal.SizeOf(LocalType) - 1;
-                        var Address = new Range(AddressStart, AddressEnd);
-                        VariableManager = VariableManager.AddVariable(Identifier, LocalType, Address);
-                    }
-                    base.VisitLocalDeclarationStatement(node);
-                }
-
-                public override void VisitInvocationExpression(InvocationExpressionSyntax node)
-                {
-                    //@TODO - Update subroutine caller/callee graph.
-                    base.VisitInvocationExpression(node);
-                }
-
-                //@TODO - Anticipate return address when we get to method calls.
-                private int NextOffset()
-                {
-                    if (!VariableManager.GetLocalScopeVariables().Any())
-                    {
-                        return 0;
-                    }
-                    return VariableManager.GetLocalScopeVariables().Max(v => v.Address.End) + 1;
-                }
             }
         }
     }
