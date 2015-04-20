@@ -92,12 +92,6 @@ namespace CSharpTo2600.Compiler
             return StackAllocate(ToPad, 0);
         }
 
-        public static IEnumerable<AssemblyLine> AllocateLocal(LocalVariable Local)
-        {
-            VerifyType(Local.Type);
-            return StackAllocate(Local.Size);
-        }
-
         // Really make sure you're calling this on the most recently allocated local.
         public static IEnumerable<AssemblyLine> DeallocateLocal(Type Type)
         {
@@ -123,20 +117,24 @@ namespace CSharpTo2600.Compiler
         /// Postcondition: Value of Variable is pushed onto 6502 stack in big-endian.
         public static IEnumerable<AssemblyLine> PushVariable(VariableInfo Variable)
         {
-            if (Variable.AddressIsAbsolute)
+            if (Variable.IsDirectlyAddressable)
             {
                 // This is not dependent on endianness. Just pushing the bytes at the highest
                 // address first so that its laid out the same way on the stack as it is
                 // in the variable.
                 for (var i = Variable.Size - 1; i >= 0; i--)
                 {
-                    yield return LDA(Variable.Symbol, i);
+                    yield return LDA(Variable.AssemblySymbol, i);
                     yield return PHA();
                 }
             }
-            else if (Variable.AddressIsFrameRelative)
+            else if (Variable.IsStackRelative)
             {
                 throw new NotImplementedException();
+            }
+            else
+            {
+                throw new FatalCompilationException($"Attempted push of non-addressable variable: {Variable.Name}");
             }
         }
 
@@ -154,18 +152,22 @@ namespace CSharpTo2600.Compiler
                 throw new FatalCompilationException($"Stack/Target Type mismtach. [{StackType}] on stack, but [{Variable.Type}] is target.");
             }
 
-            if (Variable.AddressIsAbsolute)
+            if (Variable.IsDirectlyAddressable)
             {
                 // This is not dependent on endianness. Just a straight copy.
                 for (var i = 0; i < Variable.Size; i++)
                 {
                     yield return PLA();
-                    yield return STA(Variable.Symbol, i);
+                    yield return STA(Variable.AssemblySymbol, i);
                 }
             }
-            else if (Variable.AddressIsFrameRelative)
+            else if (Variable.IsStackRelative)
             {
                 throw new NotImplementedException();
+            }
+            else
+            {
+                throw new FatalCompilationException($"Attempted store to non-addressable variable: {Variable.Name}");
             }
         }
 

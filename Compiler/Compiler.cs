@@ -20,8 +20,6 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly CompiledAssembly;
         private readonly Assembly FrameworkAssembly;
         private readonly SemanticModel Model;
-        [Obsolete]
-        private readonly ROMBuilder ROMBuilder;
         private CompileOptions Options = CompileOptions.Default;
         public const string DASMPath = "./Dependencies/DASM/";
 
@@ -53,7 +51,6 @@ namespace CSharpTo2600.Compiler
             }
 
             FrameworkAssembly = typeof(Atari2600Game).Assembly;
-            ROMBuilder = new ROMBuilder();
 
             this.Compilation = Compilation;
 
@@ -95,18 +92,27 @@ namespace CSharpTo2600.Compiler
             {
                 CompilationInfo = CompilationInfo.WithParsedType(TypeParser.ParseType(Type, Compilation));
             }
+            // All fields have been explored, so we have enough information to layout globals
+            // in memory.
+            CompilationInfo = MemoryManager.Analyze(CompilationInfo);
             // Now we can compile methods, knowing any field accesses or method calls should work
             // since we explored them in the parsing stage.
-            foreach (var Type in CompilationInfo.Types)
+            foreach (var Type in CompilationInfo.AllTypes)
             {
-                CompilationInfo = CompilationInfo.WithCompiledType(TypeCompiler.CompileType(Type.Value, CompilationInfo, this));
+                CompilationInfo = CompilationInfo.WithCompiledType(TypeCompiler.CompileType(Type, CompilationInfo, this));
             }
-            throw new NotImplementedException();
-        }
-
-        internal ROMBuilder.ROMInfo GetROMInfo()
-        {
-            return new ROMBuilder.ROMInfo(ROMBuilder);
+            var ASMPath = ROMStandard4K.CreateASMFile(CompilationInfo);
+            var DASMSuccess = AssembleOutput(ASMPath);
+            if (DASMSuccess)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Compilation successful.");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Compilation failed.");
+            }
         }
 
         internal static bool AssembleOutput(string AssemblyFilePath)

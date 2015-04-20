@@ -108,12 +108,9 @@
     <Compile Include="Compiler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Range.cs" />
-    <Compile Include="ROMBuilder.cs" />
     <Compile Include="ROMCreator.cs" />
-    <Compile Include="ROMInfo.cs" />
     <Compile Include="Subroutine.cs" />
     <Compile Include="VariableInfo.cs" />
-    <Compile Include="VariableManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compiler.MethodCompiler.cs" />

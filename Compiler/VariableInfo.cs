@@ -1,69 +1,84 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using CSharpTo2600.Framework.Assembly;
+using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
     internal abstract class VariableInfo
     {
-        public string Name { get { return this.Symbol.Name; } }
+        private readonly ISymbol CompilerSymbol;
+        public readonly Symbol AssemblySymbol;
         public readonly Type Type;
-        [Obsolete]
-        public readonly Range Address;
-        public readonly Symbol Symbol;
+        public string Name { get { return CompilerSymbol.Name; } }
         public int Size { get { return Marshal.SizeOf(Type); } }
-        public abstract bool AddressIsAbsolute { get; }
-        public abstract bool AddressIsFrameRelative { get; }
+        public abstract bool IsDirectlyAddressable { get; }
+        public abstract bool IsStackRelative { get; }
 
-        public VariableInfo(string Name, Type Type, Range Address)
+        private VariableInfo(ISymbol CompilerSymbol, Symbol AssemblySymbol, Type Type)
         {
+            this.CompilerSymbol = CompilerSymbol;
+            this.AssemblySymbol = AssemblySymbol;
             this.Type = Type;
-            this.Address = Address;
-            this.Symbol = AssemblyFactory.DefineSymbol(Name, Address.Start);
         }
 
-        public bool ConflictsWith(VariableInfo Other)
+        public static VariableInfo CreateDirectlyAddressableVariable(ISymbol Symbol, Type Type, int StartAddress)
         {
-            if (this.Name == Other.Name)
+            return new DirectlyAddressableVariable(Symbol, Type, new Range(StartAddress, StartAddress + Marshal.SizeOf(Type)));
+        }
+
+        public static VariableInfo CreateStackVariable(ISymbol Symbol)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static VariableInfo CreatePlaceholderVariable(ISymbol Symbol, Type Type)
+        {
+            return new UnknownVariable(Symbol, Type);
+        }
+
+        /// <summary>
+        /// Represents a variable that exists at a known, constant address.
+        /// No assumptions are made about its lifetime or uniqueness of its address.
+        /// </summary>
+        private sealed class DirectlyAddressableVariable : VariableInfo
+        {
+            private readonly Range Address;
+            public override bool IsDirectlyAddressable { get { return true; } }
+            public override bool IsStackRelative { get { return false; } }
+
+            public DirectlyAddressableVariable(ISymbol CompilerSymbol, Type Type, Range Address)
+                : base(CompilerSymbol, AssemblyFactory.DefineSymbol(CompilerSymbol.Name, Address.Start), Type)
             {
-                return true;
+                this.Address = Address;
             }
-            if (this.Address.Overlaps(Other.Address))
+        }
+
+        /// <summary>
+        /// Represents a variable that exists at a constant offset from the stack frame.
+        /// </summary>
+        private sealed class StackRelativeVariable : VariableInfo
+        {
+            public override bool IsDirectlyAddressable { get { return false; } }
+            public override bool IsStackRelative { get { return true; } }
+
+            public StackRelativeVariable(ISymbol CompilerSymbol, Type Type, Range Offset)
+                : base(CompilerSymbol, AssemblyFactory.DefineSymbol($".{CompilerSymbol.Name}", Offset.Start), Type)
             {
-                return true;
+
             }
-            return false;
         }
 
-        public override string ToString()
+        private sealed class UnknownVariable : VariableInfo
         {
-            return $"{Type} {Name} ({Address})";
-        }
-    }
+            public override bool IsDirectlyAddressable { get { return false; } }
+            public override bool IsStackRelative { get { return false; } }
 
-    internal class LocalVariable : VariableInfo
-    {
-        public override bool AddressIsAbsolute { get { return false; } }
-        public override bool AddressIsFrameRelative { get { return true; } }
+            public UnknownVariable(ISymbol CompilerSymbol, Type Type)
+                : base(CompilerSymbol, null, Type)
+            {
 
-        public LocalVariable(string Name, Type Type, Range Address)
-            : base(Name, Type, Address)
-        {
-
-        }
-    }
-
-    internal class GlobalVariable : VariableInfo
-    {
-        [Obsolete]
-        public readonly bool EmitToFile;
-        public override bool AddressIsAbsolute { get { return true; } }
-        public override bool AddressIsFrameRelative { get { return false; } }
-
-        public GlobalVariable(string Name, Type Type, Range Address, bool EmitToFile)
-            : base(Name, Type, Address)
-        {
-            this.EmitToFile = EmitToFile;
+            }
         }
     }
 }

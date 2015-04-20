@@ -40,14 +40,13 @@ namespace CSharpTo2600.Compiler
                 return FirstStageType;
             }
 
-            private ImmutableDictionary<IFieldSymbol, GlobalVariable> ParseFields()
+            private ImmutableDictionary<IFieldSymbol, VariableInfo> ParseFields()
             {
-                var Result = new Dictionary<IFieldSymbol, GlobalVariable>();
+                var Result = new Dictionary<IFieldSymbol, VariableInfo>();
                 foreach (var Field in TypeInfo.DeclaredFields)
                 {
                     var FieldSymbol = (IFieldSymbol)Symbol.GetMembers(Field.Name).Single();
-                    var Global = new GlobalVariable(Field.Name, Field.FieldType, new Range(), false);
-                    Result.Add(FieldSymbol, Global);
+                    Result.Add(FieldSymbol, VariableInfo.CreatePlaceholderVariable(FieldSymbol, Field.FieldType));
                 }
                 return Result.ToImmutableDictionary();
             }

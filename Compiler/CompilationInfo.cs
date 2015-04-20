@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
@@ -6,8 +7,36 @@ namespace CSharpTo2600.Compiler
 {
     internal sealed class CompilationInfo
     {
-        public readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
+        private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
         private readonly SemanticModel Model;
+
+        public IEnumerable<ProcessedType> AllTypes { get { return Types.Values; } }
+        public IEnumerable<VariableInfo> AllGlobals
+        {
+            get
+            {
+                foreach (var Type in AllTypes)
+                {
+                    foreach (var Global in Type.Globals.Values)
+                    {
+                        yield return Global;
+                    }
+                }
+            }
+        }
+        public IEnumerable<Subroutine> AllSubroutines
+        {
+            get
+            {
+                foreach (var Type in AllTypes)
+                {
+                    foreach (var Subroutine in Type.Subroutines.Values)
+                    {
+                        yield return Subroutine;
+                    }
+                }
+            }
+        }
 
         public CompilationInfo(SemanticModel Model)
         {
@@ -49,6 +78,15 @@ namespace CSharpTo2600.Compiler
         }
 
         public CompilationInfo WithCompiledType(ProcessedType Type)
+        {
+            if (!Types.ContainsKey(Type.Symbol))
+            {
+                throw new ArgumentException($"Type was not previously parsed: {Type}", nameof(Type));
+            }
+            return new CompilationInfo(this, Type.Symbol, Type);
+        }
+
+        public CompilationInfo ReplaceType(ProcessedType Type)
         {
             if (!Types.ContainsKey(Type.Symbol))
             {
