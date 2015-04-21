@@ -197,18 +197,26 @@ namespace CSharpTo2600.Compiler
                 base.VisitIdentifierName(node);
             }
 
-            private VariableInfo GetVariable(MemberAccessExpressionSyntax Node)
+            private IVariableInfo GetVariable(MemberAccessExpressionSyntax Node)
             {
                 var FieldSymbol = (IFieldSymbol)Compiler.Model.GetSymbolInfo(Node.Name).Symbol;
                 return GetVariable(FieldSymbol);
             }
 
-            private VariableInfo GetVariable(ISymbol Symbol)
+            private IVariableInfo GetVariable(ISymbol Symbol)
             {
                 var FieldSymbol = Symbol as IFieldSymbol;
                 if (FieldSymbol != null)
                 {
                     return CompilationInfo.GetVariableFromField(FieldSymbol);
+                }
+                //@TODO @DELETEME - Support properties in general, no special case.
+                else if (Symbol is IPropertySymbol && Symbol.ContainingType.Name == nameof(TIARegisters))
+                {
+                    var Type = typeof(TIARegisters);
+                    var Property = Type.GetTypeInfo().GetDeclaredProperty(Symbol.Name);
+                    var IntrinsicAttribte = Property.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>();
+                    return VariableInfo.CreateRegisterVariable(IntrinsicAttribte.GlobalSymbol);
                 }
                 else
                 {

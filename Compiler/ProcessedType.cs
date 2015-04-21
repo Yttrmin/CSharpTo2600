@@ -12,14 +12,14 @@ namespace CSharpTo2600.Compiler
         public readonly Type CLRType;
         public readonly INamedTypeSymbol Symbol;
         public readonly ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines;
-        public readonly ImmutableDictionary<IFieldSymbol, VariableInfo> Globals;
+        public readonly ImmutableDictionary<IFieldSymbol, IVariableInfo> Globals;
         public bool IsStatic { get { return CLRType.IsAbstract && CLRType.IsSealed; } }
         public bool IsValueType { get { return CLRType.IsValueType; } }
         public bool IsCompiled { get { return Subroutines.Values.Any(s => !s.IsCompiled); } }
 
         public ProcessedType(Type CLRType, INamedTypeSymbol Symbol, 
             ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines,
-            ImmutableDictionary<IFieldSymbol, VariableInfo> Globals)
+            ImmutableDictionary<IFieldSymbol, IVariableInfo> Globals)
         {
             this.CLRType = CLRType;
             this.Symbol = Symbol;
@@ -29,7 +29,7 @@ namespace CSharpTo2600.Compiler
 
         public ProcessedType(ProcessedType Base, Type CLRType=null, INamedTypeSymbol Symbol=null,
             ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines=null,
-            ImmutableDictionary<IFieldSymbol, VariableInfo> Globals=null)
+            ImmutableDictionary<IFieldSymbol, IVariableInfo> Globals=null)
         {
             this.CLRType = CLRType ?? Base.CLRType;
             this.Symbol = Symbol ?? Base.Symbol;

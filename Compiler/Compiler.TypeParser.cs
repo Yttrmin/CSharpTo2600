@@ -37,9 +37,9 @@ namespace CSharpTo2600.Compiler
                 return FirstStageType;
             }
 
-            private ImmutableDictionary<IFieldSymbol, VariableInfo> ParseFields()
+            private ImmutableDictionary<IFieldSymbol, IVariableInfo> ParseFields()
             {
-                var Result = new Dictionary<IFieldSymbol, VariableInfo>();
+                var Result = new Dictionary<IFieldSymbol, IVariableInfo>();
                 foreach (var Field in TypeInfo.DeclaredFields)
                 {
                     var FieldSymbol = (IFieldSymbol)Symbol.GetMembers(Field.Name).Single();

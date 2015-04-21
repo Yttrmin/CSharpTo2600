@@ -11,7 +11,7 @@ namespace CSharpTo2600.Compiler
         private readonly SemanticModel Model;
 
         public IEnumerable<ProcessedType> AllTypes { get { return Types.Values; } }
-        public IEnumerable<VariableInfo> AllGlobals
+        public IEnumerable<IVariableInfo> AllGlobals
         {
             get
             {
@@ -66,7 +66,7 @@ namespace CSharpTo2600.Compiler
             throw new NotImplementedException();
         }
 
-        public VariableInfo GetVariableFromField(IFieldSymbol FieldSymbol)
+        public IVariableInfo GetVariableFromField(IFieldSymbol FieldSymbol)
         {
             var Type = Types[FieldSymbol.ContainingType];
             return Type.Globals[FieldSymbol];

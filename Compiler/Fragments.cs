@@ -115,7 +115,7 @@ namespace CSharpTo2600.Compiler
         /// Pushes the value of a variable onto the stack.
         /// </summary>
         /// Postcondition: Value of Variable is pushed onto 6502 stack in big-endian.
-        public static IEnumerable<AssemblyLine> PushVariable(VariableInfo Variable)
+        public static IEnumerable<AssemblyLine> PushVariable(IVariableInfo Variable)
         {
             if (Variable.IsDirectlyAddressable)
             {
@@ -144,7 +144,7 @@ namespace CSharpTo2600.Compiler
         /// <param name="StackType">The type of the value on the stack.</param>
         /// Precondition: Big-endian value is on the 6502 stack.
         /// Postcondition: Value is removed from 6502 stack. Variable holds value.
-        public static IEnumerable<AssemblyLine> StoreVariable(VariableInfo Variable, Type StackType)
+        public static IEnumerable<AssemblyLine> StoreVariable(IVariableInfo Variable, Type StackType)
         {
             // We should never have to perform casts here.
             if (StackType != Variable.Type)

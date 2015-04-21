@@ -57,7 +57,7 @@ namespace CSharpTo2600.Compiler
 
             private ProcessedType AssignGlobalsAddresses(ProcessedType Type)
             {
-                var NewGlobals = new Dictionary<IFieldSymbol, VariableInfo>();
+                var NewGlobals = new Dictionary<IFieldSymbol, IVariableInfo>();
                 foreach (var Global in Type.Globals)
                 {
                     var Symbol = Global.Key;

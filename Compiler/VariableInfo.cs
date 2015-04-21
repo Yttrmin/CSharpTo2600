@@ -1,15 +1,26 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Reflection;
 using CSharpTo2600.Framework.Assembly;
 using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
-    internal abstract class VariableInfo
+    internal interface IVariableInfo
+    {
+        string Name { get; }
+        Type Type { get; }
+        int Size { get; }
+        Symbol AssemblySymbol { get; }
+        bool IsDirectlyAddressable { get; }
+        bool IsStackRelative { get; }
+    }
+
+    internal abstract class VariableInfo : IVariableInfo
     {
         private readonly ISymbol CompilerSymbol;
-        public readonly Symbol AssemblySymbol;
-        public readonly Type Type;
+        public Symbol AssemblySymbol { get; }
+        public Type Type { get; }
         public string Name { get { return CompilerSymbol.Name; } }
         public int Size { get { return Marshal.SizeOf(Type); } }
         public abstract bool IsDirectlyAddressable { get; }
@@ -22,17 +33,27 @@ namespace CSharpTo2600.Compiler
             this.Type = Type;
         }
 
-        public static VariableInfo CreateDirectlyAddressableVariable(ISymbol Symbol, Type Type, int StartAddress)
+        public static IVariableInfo CreateDirectlyAddressableVariable(ISymbol Symbol, Type Type, int StartAddress)
         {
             return new DirectlyAddressableVariable(Symbol, Type, new Range(StartAddress, StartAddress + Marshal.SizeOf(Type)));
         }
 
-        public static VariableInfo CreateStackVariable(ISymbol Symbol)
+        public static IVariableInfo CreateStackVariable(ISymbol Symbol)
         {
             throw new NotImplementedException();
         }
 
-        public static VariableInfo CreatePlaceholderVariable(ISymbol Symbol, Type Type)
+        public static IVariableInfo CreateRegisterVariable(Symbol AssemblySymbol)
+        {
+            var a = typeof(ReservedSymbols).GetTypeInfo().GetDeclaredField(AssemblySymbol.Name);
+            if (a == null)
+            {
+                throw new FatalCompilationException($"Symbol must refer to a TIA/RIOT register: {AssemblySymbol}");
+            }
+            return new RegisterVariable(AssemblySymbol);
+        }
+
+        public static IVariableInfo CreatePlaceholderVariable(ISymbol Symbol, Type Type)
         {
             return new UnknownVariable(Symbol, Type);
         }
@@ -66,6 +87,21 @@ namespace CSharpTo2600.Compiler
                 : base(CompilerSymbol, AssemblyFactory.DefineSymbol($".{CompilerSymbol.Name}", Offset.Start), Type)
             {
 
+            }
+        }
+
+        private sealed class RegisterVariable : IVariableInfo
+        {
+            public string Name { get { return AssemblySymbol.Name; } }
+            public Type Type { get { return typeof(byte); } }
+            public int Size { get { return sizeof(byte); } }
+            public Symbol AssemblySymbol { get; }
+            public bool IsDirectlyAddressable { get { return true; } }
+            public bool IsStackRelative { get { return false; } }
+
+            public RegisterVariable(Symbol AssemblySymbol)
+            {
+                this.AssemblySymbol = AssemblySymbol;
             }
         }
 

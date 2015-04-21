@@ -33,7 +33,7 @@ namespace CSharpTo2600.Compiler
             yield return STA(0, Index.X);
         }
 
-        public static IEnumerable<AssemblyLine> Add(VariableInfo Variable, byte Constant)
+        public static IEnumerable<AssemblyLine> Add(IVariableInfo Variable, byte Constant)
         {
             //@TODO - Use INC when Constant=1
             if (Variable.Size > 1)

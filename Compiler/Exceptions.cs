@@ -19,7 +19,7 @@ namespace CSharpTo2600.Compiler
 
     internal class VariableNameAlreadyUsedException : FatalCompilationException
     {
-        public VariableNameAlreadyUsedException(VariableInfo AlreadyExists, VariableInfo NewVariable)
+        public VariableNameAlreadyUsedException(IVariableInfo AlreadyExists, IVariableInfo NewVariable)
             : base($"Attempted to create variable [{NewVariable.Name}] that conflicts with the name of an existing variable [{AlreadyExists.Name}].")
         {
 
