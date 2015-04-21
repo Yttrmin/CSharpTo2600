@@ -90,7 +90,7 @@ namespace CSharpTo2600.Compiler
             // type's fields and subroutine signatures.
             foreach (var Type in CompiledAssembly.DefinedTypes)
             {
-                CompilationInfo = CompilationInfo.WithParsedType(TypeParser.ParseType(Type, Compilation));
+                CompilationInfo = CompilationInfo.WithType(TypeParser.ParseType(Type, Compilation));
             }
             // All fields have been explored, so we have enough information to layout globals
             // in memory.
@@ -99,9 +99,9 @@ namespace CSharpTo2600.Compiler
             // since we explored them in the parsing stage.
             foreach (var Type in CompilationInfo.AllTypes)
             {
-                CompilationInfo = CompilationInfo.WithCompiledType(TypeCompiler.CompileType(Type, CompilationInfo, this));
+                CompilationInfo = CompilationInfo.WithReplacedType(TypeCompiler.CompileType(Type, CompilationInfo, this));
             }
-            var ASMPath = ROMStandard4K.CreateASMFile(CompilationInfo);
+            var ASMPath = ROMCreator.CreateASMFile(CompilationInfo);
             var DASMSuccess = AssembleOutput(ASMPath);
             if (DASMSuccess)
             {

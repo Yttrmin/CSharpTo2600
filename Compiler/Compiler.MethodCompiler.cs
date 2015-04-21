@@ -53,6 +53,10 @@ namespace CSharpTo2600.Compiler
             public override void Visit(SyntaxNode node)
             {
                 DebugPrintNode(node);
+                if (node.Parent is BlockSyntax && !(node is BlockSyntax))
+                {
+                    MethodBody.Add(AssemblyFactory.Comment(node.GetText().ToString().Trim(), 0));
+                }
                 base.Visit(node);
             }
 

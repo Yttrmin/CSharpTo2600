@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,97 +11,23 @@ using static CSharpTo2600.Framework.Assembly.ReservedSymbols;
 
 namespace CSharpTo2600.Compiler
 {
-    internal abstract class ROMCreator
+    internal sealed class ROMCreator
     {
-        protected CompilationInfo CompilationInfo { get; private set; }
-        protected readonly Symbol StartLabel = Label("__StartProgram");
-        protected readonly Symbol MainLoopLabel = Label("__MainLoop");
-        protected readonly Symbol OverscanLabel = Label("__Overscan");
+        private readonly CompilationInfo CompilationInfo;
+        private readonly Symbol StartLabel = Label("__StartProgram");
+        private readonly Symbol MainLoopLabel = Label("__MainLoop");
+        private readonly Symbol OverscanLabel = Label("__Overscan");
 
-        public ROMCreator(CompilationInfo CompilationInfo)
+        private ROMCreator(CompilationInfo Info)
         {
-            this.CompilationInfo = CompilationInfo;
+            this.CompilationInfo = Info;
         }
-
-        public static void CreateRawROM()
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    class MemoryManager
-    {
-        private readonly CompilationInfo Info;
-        private int NextAddress = GlobalsStart;
-        private const int RAMAmount = 128;
-        private const int GlobalsStart = 0x80;
-        private const int StackStart = 0xFF;
-        //@TODO
-        // Reserve a completely arbitrary amount of memory for globals.
-        private const int GlobalUsageLimit = 100;
-
-        private MemoryManager(CompilationInfo Info)
-        {
-            this.Info = Info;
-        }
-
-        public static CompilationInfo Analyze(CompilationInfo Info)
-        {
-            // Note types won't be compiled at this point.
-            var Manager = new MemoryManager(Info);
-            foreach (var NewType in Manager.LayoutGlobals())
-            {
-                Info = Info.ReplaceType(NewType);
-            }
-            return Info;
-        }
-
-        private IEnumerable<ProcessedType> LayoutGlobals()
-        {
-            var MemoryUsage = Info.AllGlobals.Sum(v => v.Size);
-            if (MemoryUsage > GlobalUsageLimit)
-            {
-                throw new FatalCompilationException($"Too many globals, {MemoryUsage} bytes needed, but only {GlobalUsageLimit} bytes available.");
-            }
-
-            foreach (var Type in Info.AllTypes)
-            {
-                if (Type.Globals.Any())
-                {
-                    yield return AssignGlobalsAddresses(Type);
-                }
-                else
-                {
-                    yield return Type;
-                }
-            }
-        }
-
-        private ProcessedType AssignGlobalsAddresses(ProcessedType Type)
-        {
-            var NewGlobals = new Dictionary<IFieldSymbol, VariableInfo>();
-            foreach (var Global in Type.Globals)
-            {
-                var Symbol = Global.Key;
-                var NewVariable = VariableInfo.CreateDirectlyAddressableVariable(Global.Key,
-                    Global.Value.Type, NextAddress);
-                NewGlobals.Add(Symbol, NewVariable);
-                NextAddress += NewVariable.Size;
-            }
-            return new ProcessedType(Type, Globals: NewGlobals.ToImmutableDictionary());
-        }
-    }
-
-    internal sealed class ROMStandard4K : ROMCreator
-    {
-        private ROMStandard4K(CompilationInfo Info)
-            : base(Info)
-        { }
 
         public static string CreateASMFile(CompilationInfo Info)
         {
-            var Creator = new ROMStandard4K(Info);
+            var Creator = new ROMCreator(Info);
             var Builder = new StringBuilder();
+            var Lines = new List<AssemblyLine>();
             WriteLines(Creator.CreateHeader(), Builder);
             WriteLines(Creator.CreateSymbolDefinitions(), Builder);
             WriteLines(Creator.CreateEntryPoint(), Builder);
@@ -141,8 +66,14 @@ namespace CSharpTo2600.Compiler
         {
             foreach (var Global in CompilationInfo.AllGlobals)
             {
-                yield return Global.AssemblySymbol;
+                if (CompilationInfo.AllGlobals.Any(v => v != Global && v.Name == Global.Name))
+                {
+                    //@TODO - Prepend class name? Namespace and class name? Arbitrary text?
+                    throw new NotImplementedException("Same name globals in different types not supported yet.");
+                }
+                yield return Global.AssemblySymbol.WithComment($"{Global.Type} - {Global.Size} bytes");
             }
+            yield return BlankLine();
         }
 
         private IEnumerable<AssemblyLine> CreateEntryPoint()

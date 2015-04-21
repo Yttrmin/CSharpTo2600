@@ -58,7 +58,7 @@ namespace CSharpTo2600.Compiler
 
         public ProcessedType GetTypeFromSymbol(INamedTypeSymbol TypeSymbol)
         {
-            throw new NotImplementedException();
+            return Types[TypeSymbol];
         }
 
         public Subroutine GetSubroutineFromSymbol(IMethodSymbol MethodSymbol)
@@ -72,21 +72,12 @@ namespace CSharpTo2600.Compiler
             return Type.Globals[FieldSymbol];
         }
 
-        public CompilationInfo WithParsedType(ProcessedType Type)
+        public CompilationInfo WithType(ProcessedType Type)
         {
             return new CompilationInfo(this, Type.Symbol, Type);
         }
 
-        public CompilationInfo WithCompiledType(ProcessedType Type)
-        {
-            if (!Types.ContainsKey(Type.Symbol))
-            {
-                throw new ArgumentException($"Type was not previously parsed: {Type}", nameof(Type));
-            }
-            return new CompilationInfo(this, Type.Symbol, Type);
-        }
-
-        public CompilationInfo ReplaceType(ProcessedType Type)
+        public CompilationInfo WithReplacedType(ProcessedType Type)
         {
             if (!Types.ContainsKey(Type.Symbol))
             {
