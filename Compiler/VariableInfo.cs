@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
-    internal interface IVariableInfo
+    public interface IVariableInfo
     {
         string Name { get; }
         Type Type { get; }
@@ -36,6 +36,11 @@ namespace CSharpTo2600.Compiler
         public static IVariableInfo CreateDirectlyAddressableVariable(ISymbol Symbol, Type Type, int StartAddress)
         {
             return new DirectlyAddressableVariable(Symbol, Type, new Range(StartAddress, StartAddress + Marshal.SizeOf(Type)));
+        }
+
+        public static IVariableInfo CreateDirectlyAddressableCustomVariable(string Name, Type Type, int StartAddress)
+        {
+            return new DirectlyAddressableCustomVariable(Name, Type, StartAddress);
         }
 
         public static IVariableInfo CreateStackVariable(ISymbol Symbol)
@@ -90,6 +95,10 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        /// <summary>
+        /// Represents a variable that directly maps to a TIA/RIOT register.
+        /// These variables consume no RAM.
+        /// </summary>
         private sealed class RegisterVariable : IVariableInfo
         {
             public string Name { get { return AssemblySymbol.Name; } }
@@ -105,6 +114,28 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        private sealed class DirectlyAddressableCustomVariable : IVariableInfo
+        {
+            public Symbol AssemblySymbol { get; }
+            public bool IsDirectlyAddressable { get { return true; } }
+            public bool IsStackRelative { get { return false; } }
+            public string Name { get; }
+            public int Size { get { return Marshal.SizeOf(Type); } }
+            public Type Type { get; }
+
+            public DirectlyAddressableCustomVariable(string Name, Type Type, int StartAddress)
+            {
+                AssemblySymbol = AssemblyFactory.DefineSymbol(Name, StartAddress);
+                this.Name = Name;
+                this.Type = Type;
+            }
+        }
+
+        /// <summary>
+        /// Represents a variable that has not yet had its storage location type decided.
+        /// Used as a placeholder during the initial parsing of types until the MemoryManager
+        /// decides where each variable goes.
+        /// </summary>
         private sealed class UnknownVariable : VariableInfo
         {
             public override bool IsDirectlyAddressable { get { return false; } }

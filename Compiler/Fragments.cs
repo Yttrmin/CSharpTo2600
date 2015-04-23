@@ -7,8 +7,6 @@ using CSharpTo2600.Framework.Assembly;
 
 namespace CSharpTo2600.Compiler
 {
-    //@TODO - Unit test all these. Probably by running the output of the assembler into an emulator
-    // and examining the registers and memory after execution.
     internal static partial class Fragments
     {
         public static IEnumerable<AssemblyLine> Cast(Type From, Type To)

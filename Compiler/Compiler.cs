@@ -28,28 +28,18 @@ namespace CSharpTo2600.Compiler
             //@TODO - Handle more than 1 source file, workspaces.
             var FileName = args[0];
             var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
-            new GameCompiler(CreateCompilation(Tree)).Compile();
+            GameCompiler.Compile(CreateCompilation(Tree), CompileOptions.Default);
             Console.ReadLine();
         }
-
-        public GameCompiler(string SourceText, CompileOptions Options)
-            : this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
-        {
-            this.Options = Options;
-        }
-
-        public GameCompiler(string SourceText)
-            : this(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)))
-        {
-        }
-
-        public GameCompiler(CSharpCompilation Compilation)
+        
+        private GameCompiler(CSharpCompilation Compilation, CompileOptions Options)
         {
             if (!EndianHelper.EndiannessIsSet)
             {
                 EndianHelper.Endianness = Options.Endianness;
             }
 
+            this.Options = Options;
             FrameworkAssembly = typeof(Atari2600Game).Assembly;
 
             this.Compilation = Compilation;
@@ -83,12 +73,23 @@ namespace CSharpTo2600.Compiler
             return Compilation;
         }
 
-        public void Compile()
+        public static ROMInfo Compile(string SourceText)
         {
-            var CompilationInfo = new CompilationInfo(Model);
+            return Compile(SourceText, CompileOptions.Default);
+        }
+
+        public static ROMInfo Compile(string SourceText, CompileOptions CompileOptions)
+        {
+            return Compile(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)), CompileOptions);
+        }
+        
+        public static ROMInfo Compile(CSharpCompilation Compilation, CompileOptions Options)
+        {
+            var Compiler = new GameCompiler(Compilation, Options);
+            var CompilationInfo = new CompilationInfo(Compiler.Model);
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
-            foreach (var Type in CompiledAssembly.DefinedTypes)
+            foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
             {
                 CompilationInfo = CompilationInfo.WithType(TypeParser.ParseType(Type, Compilation));
             }
@@ -99,11 +100,10 @@ namespace CSharpTo2600.Compiler
             // since we explored them in the parsing stage.
             foreach (var Type in CompilationInfo.AllTypes)
             {
-                CompilationInfo = CompilationInfo.WithReplacedType(TypeCompiler.CompileType(Type, CompilationInfo, this));
+                CompilationInfo = CompilationInfo.WithReplacedType(TypeCompiler.CompileType(Type, CompilationInfo, Compiler));
             }
-            var ASMPath = ROMCreator.CreateASMFile(CompilationInfo);
-            var DASMSuccess = AssembleOutput(ASMPath);
-            if (DASMSuccess)
+            var ROMInfo = ROMCreator.CreateROM(CompilationInfo);
+            if (ROMInfo.Success)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Compilation successful.");
@@ -113,33 +113,7 @@ namespace CSharpTo2600.Compiler
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Compilation failed.");
             }
-        }
-
-        internal static bool AssembleOutput(string AssemblyFilePath)
-        {
-            var DASM = new Process();
-            var FullDASMPath = Path.Combine(DASMPath, "dasm.exe");
-            DASM.StartInfo.FileName = FullDASMPath;
-            if (!File.Exists(FullDASMPath))
-            {
-                throw new FileNotFoundException($"DASM executable not found at: {FullDASMPath}");
-            }
-            var OutputDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            DASM.StartInfo.UseShellExecute = false;
-            DASM.StartInfo.RedirectStandardOutput = true;
-            DASM.StartInfo.WorkingDirectory = DASMPath;
-            DASM.StartInfo.Arguments = $"\"{AssemblyFilePath}\" -f3 -o{Path.Combine(OutputDirectory, "output.bin")} -s{Path.Combine(OutputDirectory, "output.sym")} -l{Path.Combine(OutputDirectory, "output.lst")}";
-            DASM.StartInfo.CreateNoWindow = true;
-
-            DASM.Start();
-            DASM.WaitForExit();
-            var Output = DASM.StandardOutput.ReadToEnd();
-            // DASM documentation says this returns 0 on success and 1 otherwise. This is not
-            // true since it returned 0 when the ASM was missing the 'processor' op, causing a
-            // lot of errors and spit out a 0 byte BIN. Hopefully nothing else returns 0 on failure.
-            var Success = DASM.ExitCode == 0;
-            Console.WriteLine(Output);
-            return Success;
+            return ROMInfo;
         }
 
         private Type GetGameClass()

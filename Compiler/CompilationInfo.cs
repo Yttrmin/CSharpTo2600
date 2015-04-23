@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
-    internal sealed class CompilationInfo
+    public sealed class CompilationInfo
     {
         private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
         private readonly SemanticModel Model;

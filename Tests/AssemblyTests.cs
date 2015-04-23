@@ -108,7 +108,7 @@ namespace CSharpTo2600.UnitTests
             Lines.AddRange(FragmentLines);
             Lines.Add(JMP(ProgramEnd));
 
-            CPU.LoadProgram(0xF000, ROMBuilder.BuildRawROM(Lines), 0xF000);
+            CPU.LoadProgram(0xF000, ROMCreator.CreateRawROM(Lines).ROM, 0xF000);
             while (CPU.ProgramCounter != ProgramEnd.Value.Value)
             {
                 CPU.NextStep();

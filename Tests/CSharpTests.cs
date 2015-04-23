@@ -18,51 +18,49 @@ namespace CSharpTo2600.UnitTests
         public void GameClassMustBeMarkedWithAttribute()
         {
             var Source = "static class Test { }";
-            var Compiler = new GameCompiler(Source);
-            Assert.Throws<GameClassNotFoundException>(Compiler.Compile);
+            Assert.Throws<GameClassNotFoundException>(() => GameCompiler.Compile(Source));
         }
 
         [Test]
-        public void GameClassMustBeStatic()
+        public void NonStaticGameClassThrows()
         {
             var NonStaticSource = @"
 using CSharpTo2600.Framework;
 [Atari2600Game]class Test { }";
-            var Compiler = new GameCompiler(NonStaticSource);
 
-            Assert.Throws<GameClassNotStaticException>(Compiler.Compile);
-
-            var StaticSource = @"
-using CSharpTo2600.Framework;
-[Atari2600Game]static class Test { }";
-            Compiler = new GameCompiler(StaticSource);
-
-            Assert.DoesNotThrow(Compiler.Compile);
+            Assert.Throws<GameClassNotStaticException>(() => GameCompiler.Compile(NonStaticSource));
         }
 
         [Test]
-        public void GlobalsHaveCorrectTypeSizePlacement()
+        public void StaticGameClassCompiles()
         {
-            var Info = CompileCode(@"
+            var StaticSource = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class Test { }";
+
+            Assert.DoesNotThrow(() => GameCompiler.Compile(StaticSource));
+        }
+
+        [Test]
+        public void PrimitiveGlobalsHaveCorrectTypeAndSize()
+        {
+            var ROMInfo = GameCompiler.Compile(@"
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte ByteTest;
 	static int IntTest; }");
+            var Info = ROMInfo.CompilationInfo;
 
             // Do not make assumptions about things like the order variables
             // are defined or what specific addresses they occupy. 
 
-            var ByteVar = Info.GlobalVariables.Single(v => v.Name == "ByteTest");
+            var ByteVar = Info.AllGlobals.Single(v => v.Name == "ByteTest");
             Assert.AreEqual(typeof(byte), ByteVar.Type);
-            Assert.AreEqual(sizeof(byte), ByteVar.Address.End - ByteVar.Address.Start + 1);
             Assert.AreEqual(sizeof(byte), ByteVar.Size);
 
-            var IntVar = Info.GlobalVariables.Single(v => v.Name == "IntTest");
+            var IntVar = Info.AllGlobals.Single(v => v.Name == "IntTest");
             Assert.AreEqual(typeof(int), IntVar.Type);
-            Assert.AreEqual(sizeof(int), IntVar.Address.End - IntVar.Address.Start + 1);
             Assert.AreEqual(sizeof(int), IntVar.Size);
-
-            Assert.False(ByteVar.Address.Overlaps(IntVar.Address));
         }
 
         [Test]
@@ -72,8 +70,7 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte VSYNC; }";
-            var Compiler = new GameCompiler(Source);
-            Assert.Throws<VariableNameAlreadyUsedException>(Compiler.Compile);
+            Assert.Throws<VariableNameAlreadyUsedException>(() => GameCompiler.Compile(Source));
         }
 
         [Test]
@@ -83,43 +80,65 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte VSyNC; }";
-            var Compiler = new GameCompiler(Source);
-            Assert.DoesNotThrow(Compiler.Compile);
+            Assert.DoesNotThrow(() => GameCompiler.Compile(Source));
         }
 
         [Test]
         public void ThrowsOnGlobalsOverflowingRAM()
         {
+            // You don't neccessarily need >= 128 bytes to overflow. Some amount may be
+            // reserved for stack space, etc. But this many longs will guarantee an overflow.
             var Source = @"
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static long l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17; }";
-            var Compiler = new GameCompiler(Source);
-            Assert.Throws<HeapOverflowException>(Compiler.Compile);
+            Assert.Throws<HeapOverflowException>(() => GameCompiler.Compile(Source));
         }
 
         [Test]
         public void LiteralAssignmentToGlobal()
         {
-            var Subroutine = CompileStaticMethod("static int a;", "a = 0x7EAD;");
-            var GlobalVar = new GlobalVariable("a", typeof(int), new Range(0, 0), true);
+            ROMInfo ROMInfo;
+            var Subroutine = CompileStaticMethod("static int a;", "a = 0x7EAD;", out ROMInfo);
+            var GlobalVar = ROMInfo.CompilationInfo.AllGlobals.Single(v => v.Name == "a");
             var ExpectedCode = ConcatenateFragments(PushLiteral((int)0x7EAD), StoreVariable(GlobalVar, typeof(int)));
 
             Assert.True(Subroutine.Body.SequenceEqual(ExpectedCode));
         }
 
-        private ROMBuilder.ROMInfo CompileCode(string Source)
+        [Test]
+        public void GameClassCanAccessOtherTypeStaticFields()
         {
-            var Compiler = new GameCompiler(Source, CompileOptions);
-            Compiler.Compile();
-            return Compiler.GetROMInfo();
+            var Source = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class Test { void TestMethod() { Other.Var++; } }
+static class Other { public static byte Var; }";
+
+        }
+
+        // Explicitly test this despite already testing static fields in
+        // other classes, because we could screw up parsing the syntax tree
+        // of a nested class if we use DescendentNodes() or something.
+        [Test]
+        public void GameClassCanAccessNestedTypeStaticFields()
+        {
+            var Source = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class Test {void TestMethod() { Nested.Var++; } 
+static class Nested { public static byte Var; } }";
         }
 
         private Subroutine CompileStaticMethod(string Globals, string Source)
         {
+            ROMInfo ThrowAway;
+            return CompileStaticMethod(Globals, Source, out ThrowAway);
+        }
+
+        private Subroutine CompileStaticMethod(string Globals, string Source, out ROMInfo ROMInfo)
+        {
             var Code = $"using CSharpTo2600.Framework; [Atari2600Game]static class Test {{ {Globals} static void TestMethod() {{ {Source} }} }}";
-            var Info = CompileCode(Code);
-            return Info.Subroutines.Single(s => s.Name == "TestMethod");
+            ROMInfo = GameCompiler.Compile(Code);
+            return ROMInfo.CompilationInfo.AllSubroutines.Single(s => s.Name == "TestMethod");
         }
 
         private IEnumerable<AssemblyLine> ConcatenateFragments(params IEnumerable<AssemblyLine>[] Lines)

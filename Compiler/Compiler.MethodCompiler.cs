@@ -15,6 +15,7 @@ namespace CSharpTo2600.Compiler
     {
         private sealed class MethodCompiler : CSharpSyntaxWalker
         {
+            //@TODO - We really only need the SemanticModel.
             private readonly GameCompiler Compiler;
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;

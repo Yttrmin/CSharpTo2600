@@ -79,19 +79,17 @@ namespace CSharpTo2600.UnitTests
         public void StoreVariable(
             [Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
         {
-            var VarSymbol = AssemblyFactory.DefineSymbol("TEST", 0x80);
-            var VarInfo = new GlobalVariable(VarSymbol.Name, Value.GetType(),
-                new Range(VarSymbol.Value.Value, VarSymbol.Value.Value + Marshal.SizeOf(Value.GetType()) - 1), true);
+            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", typeof(byte), 0x80);
 
             RunProgramFromFragment(
-                new[] { VarSymbol },
+                new[] { VarInfo.AssemblySymbol },
                 Fragments.PushLiteral(Value),
                 Fragments.StoreVariable(VarInfo, Value.GetType()));
             // 0x80 should contain the MSB, 0x80+Size-1 the LSB.
             var Bytes = EndianHelper.MostSignificantBytes((dynamic)Value);
             for (var i = 0; i < VarInfo.Size; i++)
             {
-                Assert.AreEqual(Bytes[i], CPU.Memory.ReadValue(VarSymbol.Value.Value + i));
+                Assert.AreEqual(Bytes[i], CPU.Memory.ReadValue(VarInfo.AssemblySymbol.Value.Value + i));
             }
         }
 
@@ -99,12 +97,10 @@ namespace CSharpTo2600.UnitTests
         public void PushVariable(
             [Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
         {
-            var VarSymbol = AssemblyFactory.DefineSymbol("TEST", 0x80);
-            var VarInfo = new GlobalVariable(VarSymbol.Name, Value.GetType(),
-                new Range(VarSymbol.Value.Value, VarSymbol.Value.Value + Marshal.SizeOf(Value.GetType()) - 1), true);
+            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", typeof(byte), 0x80);
 
             RunProgramFromFragment(
-                new[] { VarSymbol },
+                new[] { VarInfo.AssemblySymbol },
                 Fragments.PushLiteral(Value),
                 Fragments.StoreVariable(VarInfo, Value.GetType()),
                 Fragments.PushVariable(VarInfo));

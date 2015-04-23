@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
-    internal class Subroutine
+    public class Subroutine
     {
         public readonly string Name;
         // Is there any case where no body is an intended final result?
@@ -35,7 +35,7 @@ namespace CSharpTo2600.Compiler
         public int CycleCount { get { return Body.OfType<Instruction>().Sum(i => i.Cycles); } }
         //@TODO - IsInstance/IsStatic
 
-        public Subroutine(string Name, MethodInfo OriginalMethod, IMethodSymbol Symbol, 
+        internal Subroutine(string Name, MethodInfo OriginalMethod, IMethodSymbol Symbol, 
             ImmutableArray<AssemblyLine>? Body, MethodType Type)
         {
             this.Name = Name;
@@ -54,12 +54,12 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public Subroutine(string Name, MethodInfo OriginalMethod, IMethodSymbol Symbol, MethodType Type)
+        internal Subroutine(string Name, MethodInfo OriginalMethod, IMethodSymbol Symbol, MethodType Type)
             : this(Name, OriginalMethod, Symbol, ImmutableArray<AssemblyLine>.Empty, Type)
         {
         }
 
-        public Subroutine ReplaceBody(ImmutableArray<AssemblyLine> NewInstructions)
+        internal Subroutine ReplaceBody(ImmutableArray<AssemblyLine> NewInstructions)
         {
             return new Subroutine(Name, OriginalMethod, Symbol, NewInstructions, Type);
         }

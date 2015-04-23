@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace CSharpTo2600.Compiler
 {
-    internal sealed class ProcessedType
+    public sealed class ProcessedType
     {
         public readonly Type CLRType;
         public readonly INamedTypeSymbol Symbol;
@@ -17,7 +17,7 @@ namespace CSharpTo2600.Compiler
         public bool IsValueType { get { return CLRType.IsValueType; } }
         public bool IsCompiled { get { return Subroutines.Values.Any(s => !s.IsCompiled); } }
 
-        public ProcessedType(Type CLRType, INamedTypeSymbol Symbol, 
+        internal ProcessedType(Type CLRType, INamedTypeSymbol Symbol, 
             ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines,
             ImmutableDictionary<IFieldSymbol, IVariableInfo> Globals)
         {
@@ -27,7 +27,7 @@ namespace CSharpTo2600.Compiler
             this.Globals = Globals;
         }
 
-        public ProcessedType(ProcessedType Base, Type CLRType=null, INamedTypeSymbol Symbol=null,
+        internal ProcessedType(ProcessedType Base, Type CLRType=null, INamedTypeSymbol Symbol=null,
             ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines=null,
             ImmutableDictionary<IFieldSymbol, IVariableInfo> Globals=null)
         {
