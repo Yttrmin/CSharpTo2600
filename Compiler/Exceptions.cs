@@ -26,10 +26,10 @@ namespace CSharpTo2600.Compiler
         }
     }
 
-    internal class HeapOverflowException : FatalCompilationException
+    internal class GlobalMemoryOverflowException : FatalCompilationException
     {
-        public HeapOverflowException(string Cause, Type CauseType, int OldSize, int NewSize)
-            : base($"Attempted to allocate space for variable [{CauseType} {Cause}], causing heap to overflow from {OldSize.ToString("X4")} to {NewSize.ToString("X4")}")
+        public GlobalMemoryOverflowException(int MemoryUsage, int GlobalUsageLimit)
+            : base($"Too many globals, {MemoryUsage} bytes needed, but only {GlobalUsageLimit} bytes available.")
         {
 
         }

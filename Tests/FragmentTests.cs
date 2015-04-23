@@ -79,7 +79,7 @@ namespace CSharpTo2600.UnitTests
         public void StoreVariable(
             [Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
         {
-            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", typeof(byte), 0x80);
+            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", Value.GetType(), 0x80);
 
             RunProgramFromFragment(
                 new[] { VarInfo.AssemblySymbol },
@@ -97,7 +97,7 @@ namespace CSharpTo2600.UnitTests
         public void PushVariable(
             [Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
         {
-            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", typeof(byte), 0x80);
+            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", Value.GetType(), 0x80);
 
             RunProgramFromFragment(
                 new[] { VarInfo.AssemblySymbol },

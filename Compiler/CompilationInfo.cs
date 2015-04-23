@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Reflection;
+using System.Linq;
+using CSharpTo2600.Framework;
 using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
@@ -9,7 +12,7 @@ namespace CSharpTo2600.Compiler
     {
         private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
         private readonly SemanticModel Model;
-
+        
         public IEnumerable<ProcessedType> AllTypes { get { return Types.Values; } }
         public IEnumerable<IVariableInfo> AllGlobals
         {
@@ -54,6 +57,23 @@ namespace CSharpTo2600.Compiler
         private CompilationInfo(CompilationInfo OldInfo, ProcessedType NewType)
         {
             throw new NotImplementedException();
+        }
+
+        public ProcessedType GetGameClass()
+        {
+            var Class = AllTypes.SingleOrDefault(t => t.CLRType.GetTypeInfo().GetCustomAttribute<Atari2600Game>() != null);
+            if (Class == null)
+            {
+                throw new GameClassNotFoundException();
+            }
+            else if (!Class.IsStatic)
+            {
+                throw new GameClassNotStaticException(Class.CLRType);
+            }
+            else
+            {
+                return Class;
+            }
         }
 
         public ProcessedType GetTypeFromSymbol(INamedTypeSymbol TypeSymbol)

@@ -50,8 +50,8 @@ namespace CSharpTo2600.Compiler
 
         public static IVariableInfo CreateRegisterVariable(Symbol AssemblySymbol)
         {
-            var a = typeof(ReservedSymbols).GetTypeInfo().GetDeclaredField(AssemblySymbol.Name);
-            if (a == null)
+            var SymbolField = typeof(ReservedSymbols).GetTypeInfo().GetDeclaredField(AssemblySymbol.Name);
+            if (SymbolField == null)
             {
                 throw new FatalCompilationException($"Symbol must refer to a TIA/RIOT register: {AssemblySymbol}");
             }

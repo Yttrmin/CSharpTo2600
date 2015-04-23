@@ -63,6 +63,9 @@ using CSharpTo2600.Framework;
             Assert.AreEqual(sizeof(int), IntVar.Size);
         }
 
+        //
+        // This fails because we don't check for name conflicts yet.
+        //
         [Test]
         public void GlobalNamesConflictCaseSensitively()
         {
@@ -92,7 +95,7 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static long l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17; }";
-            Assert.Throws<HeapOverflowException>(() => GameCompiler.Compile(Source));
+            Assert.Throws<GlobalMemoryOverflowException>(() => GameCompiler.Compile(Source));
         }
 
         [Test]
@@ -103,7 +106,7 @@ using CSharpTo2600.Framework;
             var GlobalVar = ROMInfo.CompilationInfo.AllGlobals.Single(v => v.Name == "a");
             var ExpectedCode = ConcatenateFragments(PushLiteral((int)0x7EAD), StoreVariable(GlobalVar, typeof(int)));
 
-            Assert.True(Subroutine.Body.SequenceEqual(ExpectedCode));
+            Assert.True(Subroutine.Body.Where(l => !(l is Trivia)).SequenceEqual(ExpectedCode));
         }
 
         [Test]

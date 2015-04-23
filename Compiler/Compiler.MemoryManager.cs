@@ -39,7 +39,7 @@ namespace CSharpTo2600.Compiler
                 var MemoryUsage = Info.AllGlobals.Sum(v => v.Size);
                 if (MemoryUsage > GlobalUsageLimit)
                 {
-                    throw new FatalCompilationException($"Too many globals, {MemoryUsage} bytes needed, but only {GlobalUsageLimit} bytes available.");
+                    throw new GlobalMemoryOverflowException(MemoryUsage, GlobalUsageLimit);
                 }
 
                 foreach (var Type in Info.AllTypes)

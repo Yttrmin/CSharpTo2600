@@ -179,7 +179,7 @@ namespace CSharpTo2600.Compiler
         private static IEnumerable<Subroutine> GetSpecialSubroutines(CompilationInfo CompilationInfo, 
             MethodType MethodType)
         {
-            return CompilationInfo.AllSubroutines.Where(s => s.Type == MethodType);
+            return CompilationInfo.GetGameClass().Subroutines.Values.Where(s => s.Type == MethodType);
         }
 
         private static bool AssembleOutput()
