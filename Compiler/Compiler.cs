@@ -19,16 +19,15 @@ namespace CSharpTo2600.Compiler
         private CSharpSyntaxNode Root { get { return Tree.GetRoot(); } }
         private readonly Assembly CompiledAssembly;
         private readonly Assembly FrameworkAssembly;
+        [Obsolete("We have multiple models. Pass approriate one to who needs it.", true)]
         private readonly SemanticModel Model;
+        private readonly CompilerWorkspace Workspace;
         private CompileOptions Options = CompileOptions.Default;
         public const string DASMPath = "./Dependencies/DASM/";
 
         static void Main(string[] args)
         {
-            //@TODO - Handle more than 1 source file, workspaces.
-            var FileName = args[0];
-            var Tree = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(File.ReadAllText(FileName));
-            GameCompiler.Compile(CreateCompilation(Tree), CompileOptions.Default);
+            GameCompiler.Compile(args, CompileOptions.Default);
             Console.ReadLine();
         }
         
@@ -49,28 +48,8 @@ namespace CSharpTo2600.Compiler
                 this.Compilation.Emit(Stream);
                 CompiledAssembly = Assembly.Load(Stream.ToArray());
             }
-            Model = this.Compilation.GetSemanticModel(this.Compilation.SyntaxTrees.Single());
 
             Console.WriteLine(this.Tree.GetRoot());
-        }
-
-        private static CSharpCompilation CreateCompilation(SyntaxTree Tree)
-        {
-            var MSCorLib = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
-            var RetroLib = MetadataReference.CreateFromFile(typeof(Atari2600Game).Assembly.Location);
-            var Compilation = CSharpCompilation.Create("TestAssembly", new[] { Tree },
-                new[] { MSCorLib, RetroLib }, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-            var CompilerErrors = Compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error);
-            if (CompilerErrors.Any())
-            {
-                Console.WriteLine("!Roslyn compilation failed! Messages:");
-                foreach (var Error in CompilerErrors)
-                {
-                    Console.WriteLine(Error.ToString());
-                }
-                throw new FatalCompilationException("File must compile with Roslyn to be compiled to 6502.");
-            }
-            return Compilation;
         }
 
         public static ROMInfo Compile(string SourceText)
@@ -80,18 +59,23 @@ namespace CSharpTo2600.Compiler
 
         public static ROMInfo Compile(string SourceText, CompileOptions CompileOptions)
         {
-            return Compile(CreateCompilation(CSharpSyntaxTree.ParseText(SourceText)), CompileOptions);
+            return Compile(new CompilerWorkspace(SourceText), CompileOptions);
         }
-        
-        public static ROMInfo Compile(CSharpCompilation Compilation, CompileOptions Options)
+
+        public static ROMInfo Compile(IEnumerable<string> FilePaths, CompileOptions Options)
         {
-            var Compiler = new GameCompiler(Compilation, Options);
+            return Compile(new CompilerWorkspace(FilePaths), Options);
+        }
+
+        private static ROMInfo Compile(CompilerWorkspace Workspace, CompileOptions Options)
+        {
+            var Compiler = new GameCompiler(Workspace.Compilation, Options);
             var CompilationInfo = new CompilationInfo(Compiler.Model);
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
             {
-                CompilationInfo = CompilationInfo.WithType(TypeParser.ParseType(Type, Compilation));
+                CompilationInfo = CompilationInfo.WithType(TypeParser.ParseType(Type, Workspace.Compilation));
             }
             // All fields have been explored, so we have enough information to layout globals
             // in memory.
@@ -114,17 +98,6 @@ namespace CSharpTo2600.Compiler
                 Console.WriteLine("Compilation failed.");
             }
             return ROMInfo;
-        }
-
-        private Type GetGameClass()
-        {
-            var GameClass = CompiledAssembly.DefinedTypes
-                .SingleOrDefault(t => t.GetCustomAttribute<Atari2600Game>() != null);
-            if (GameClass == null)
-            {
-                throw new GameClassNotFoundException();
-            }
-            return GameClass;
         }
 
         private Type GetType(TypeSyntax TypeSyntax)
