@@ -8,6 +8,7 @@ using CSharpTo2600.Framework;
 using System.Diagnostics;
 using CSharpTo2600.Framework.Assembly;
 using System.Reflection;
+using System.Linq;
 
 namespace CSharpTo2600.Compiler
 {
@@ -15,37 +16,33 @@ namespace CSharpTo2600.Compiler
     {
         private sealed class MethodCompiler : CSharpSyntaxWalker
         {
-            //@TODO - We really only need the SemanticModel.
-            private readonly GameCompiler Compiler;
+            private readonly SemanticModel Model;
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
             private readonly List<AssemblyLine> MethodBody;
+            //@TODO - Use ITypeSymbol, not Type
             private readonly Stack<Type> TypeStack;
-            private readonly MethodInfo MethodInfo;
             private readonly CompilationInfo CompilationInfo;
-
-            private MethodType MethodType
-            {
-                get { return MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined; }
-            }
+            private readonly MethodType MethodType;
 
             private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
-                INamedTypeSymbol ContainingType, CompilationInfo CompilationInfo, GameCompiler Compiler)
+                INamedTypeSymbol ContainingType, CompilationInfo CompilationInfo, SemanticModel Model)
             {
-                this.MethodInfo = MethodInfo;
+                MethodType = MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined;
                 this.CompilationInfo = CompilationInfo;
-                this.Compiler = Compiler;
+                this.Model = Model;
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
                 MethodBody = new List<AssemblyLine>();
                 TypeStack = new Stack<Type>();
             }
 
-            public static Subroutine CompileMethod(MethodDeclarationSyntax MethodDeclaration, 
-                MethodInfo MethodInfo, IMethodSymbol Symbol, CompilationInfo CompilationInfo, 
-                GameCompiler GCompiler)
+            public static Subroutine CompileMethod(MethodInfo MethodInfo, IMethodSymbol Symbol, 
+                CompilationInfo CompilationInfo, SemanticModel Model)
             {
-                var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, Symbol.ContainingType, CompilationInfo, GCompiler);
+                var MethodDeclaration = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
+                var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, 
+                    Symbol.ContainingType, CompilationInfo, Model);
                 Compiler.Visit(MethodDeclaration);
                 return new Subroutine(Compiler.Name, MethodInfo, Symbol, Compiler.MethodBody.ToImmutableArray(), 
                     Compiler.MethodType);
@@ -90,7 +87,7 @@ namespace CSharpTo2600.Compiler
                 // At the point of assignment there should only be one thing on the TypeStack, the
                 // type of the result of the right-side expression.
                 Debug.Assert(TypeStack.Count == 0);
-                var Symbol = Compiler.Model.GetSymbolInfo(node.Left).Symbol;
+                var Symbol = Model.GetSymbolInfo(node.Left).Symbol;
                 var Variable = GetVariable(Symbol);
                 MethodBody.AddRange(Fragments.StoreVariable(Variable, Type));
             }
@@ -99,7 +96,7 @@ namespace CSharpTo2600.Compiler
             {
                 base.VisitCastExpression(node);
                 var FromType = TypeStack.Pop();
-                var ToType = Compiler.GetType(node.Type);
+                var ToType = GetType(Model.GetTypeInfo(node).Type);
                 MethodBody.AddRange(Fragments.Cast(FromType, ToType));
                 TypeStack.Push(ToType);
             }
@@ -108,7 +105,7 @@ namespace CSharpTo2600.Compiler
             {
                 base.VisitPostfixUnaryExpression(node);
                 var Type = TypeStack.Pop();
-                var Symbol = Compiler.Model.GetSymbolInfo(node.Operand).Symbol;
+                var Symbol = Model.GetSymbolInfo(node.Operand).Symbol;
                 var Variable = GetVariable(Symbol);
                 switch (node.Kind())
                 {
@@ -163,8 +160,8 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
             {
-                var LiteralTypeSymbol = Compiler.Model.GetTypeInfo(node).ConvertedType;
-                var LiteralType = Compiler.GetType(LiteralTypeSymbol);
+                var LiteralTypeSymbol = Model.GetTypeInfo(node).ConvertedType;
+                var LiteralType = GetType(LiteralTypeSymbol);
                 var ParseMethod = LiteralType.GetMethod("Parse", new[] { typeof(string) });
                 var Value = ParseMethod.Invoke(null, new[] { node.Token.ValueText });
                 TypeStack.Push(LiteralType);
@@ -191,7 +188,7 @@ namespace CSharpTo2600.Compiler
                     base.VisitIdentifierName(node);
                     return;
                 }
-                var Symbol = Compiler.Model.GetSymbolInfo(node).Symbol;
+                var Symbol = Model.GetSymbolInfo(node).Symbol;
                 var Variable = GetVariable(Symbol);
                 TypeStack.Push(Variable.Type);
                 MethodBody.AddRange(Fragments.PushVariable(Variable));
@@ -200,7 +197,7 @@ namespace CSharpTo2600.Compiler
 
             private IVariableInfo GetVariable(MemberAccessExpressionSyntax Node)
             {
-                var FieldSymbol = (IFieldSymbol)Compiler.Model.GetSymbolInfo(Node.Name).Symbol;
+                var FieldSymbol = (IFieldSymbol)Model.GetSymbolInfo(Node.Name).Symbol;
                 return GetVariable(FieldSymbol);
             }
 
@@ -223,6 +220,20 @@ namespace CSharpTo2600.Compiler
                 {
                     throw new FatalCompilationException($"Attempted to access something other than a static field: {Symbol.Name}");
                 }
+            }
+
+            [Obsolete("Use only Symbols.")]
+            private Type GetType(ITypeSymbol TypeSymbol)
+            {
+                var FullyQualifiedNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+                var FullyQualifiedName = TypeSymbol.ToDisplayString(FullyQualifiedNameFormat);
+                //@TODO - Won't find types outside of mscorlib.
+                var TrueType = Type.GetType(FullyQualifiedName);
+                if (TrueType == null)
+                {
+                    throw new ArgumentException("TypeSyntaxes must correspond to an mscorlib type for now.", nameof(TypeSymbol));
+                }
+                return TrueType;
             }
 
             private void DebugPrintNode(SyntaxNode node)

@@ -1,27 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Symbols;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.IO;
 using CSharpTo2600.Framework;
 using System.Reflection;
-using System.Diagnostics;
 
 namespace CSharpTo2600.Compiler
 {
     public sealed partial class GameCompiler
     {
         private readonly CSharpCompilation Compilation;
-        private CSharpSyntaxTree Tree { get { return (CSharpSyntaxTree)Compilation.SyntaxTrees.Single(); } }
-        private CSharpSyntaxNode Root { get { return Tree.GetRoot(); } }
         private readonly Assembly CompiledAssembly;
         private readonly Assembly FrameworkAssembly;
-        [Obsolete("We have multiple models. Pass approriate one to who needs it.", true)]
-        private readonly SemanticModel Model;
-        private readonly CompilerWorkspace Workspace;
         private CompileOptions Options = CompileOptions.Default;
         public const string DASMPath = "./Dependencies/DASM/";
 
@@ -48,8 +38,6 @@ namespace CSharpTo2600.Compiler
                 this.Compilation.Emit(Stream);
                 CompiledAssembly = Assembly.Load(Stream.ToArray());
             }
-
-            Console.WriteLine(this.Tree.GetRoot());
         }
 
         public static ROMInfo Compile(string SourceText)
@@ -70,7 +58,7 @@ namespace CSharpTo2600.Compiler
         private static ROMInfo Compile(CompilerWorkspace Workspace, CompileOptions Options)
         {
             var Compiler = new GameCompiler(Workspace.Compilation, Options);
-            var CompilationInfo = new CompilationInfo(Compiler.Model);
+            var CompilationInfo = new CompilationInfo();
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
@@ -98,33 +86,6 @@ namespace CSharpTo2600.Compiler
                 Console.WriteLine("Compilation failed.");
             }
             return ROMInfo;
-        }
-
-        private Type GetType(TypeSyntax TypeSyntax)
-        {
-            var Info = Model.GetTypeInfo(TypeSyntax);
-            var FullyQualifiedNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-            var FullyQualifiedName = Info.Type.ToDisplayString(FullyQualifiedNameFormat);
-            //@TODO - Won't find types outside of mscorlib.
-            var TrueType = Type.GetType(FullyQualifiedName);
-            if (TrueType == null)
-            {
-                throw new ArgumentException("TypeSyntaxes must correspond to an mscorlib type for now.", nameof(TypeSyntax));
-            }
-            return TrueType;
-        }
-
-        private Type GetType(ITypeSymbol TypeSymbol)
-        {
-            var FullyQualifiedNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-            var FullyQualifiedName = TypeSymbol.ToMinimalDisplayString(Model, 0, FullyQualifiedNameFormat);
-            //@TODO - Won't find types outside of mscorlib.
-            var TrueType = Type.GetType(FullyQualifiedName);
-            if (TrueType == null)
-            {
-                throw new ArgumentException("TypeSyntaxes must correspond to an mscorlib type for now.", nameof(TypeSymbol));
-            }
-            return TrueType;
         }
     }
 

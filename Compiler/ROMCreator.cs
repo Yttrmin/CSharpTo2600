@@ -35,8 +35,7 @@ namespace CSharpTo2600.Compiler
             Lines.AddRange(CreateSymbolDefinitions(Info));
             Lines.AddRange(CreateEntryPoint(Info));
             Lines.AddRange(CreateMainLoop(Info));
-            //@TODO - Other kernels
-            Lines.AddRange(CreateEmptyKernel());
+            Lines.AddRange(CreateKernel(Info));
             Lines.AddRange(CreateOverscan(Info));
             Lines.AddRange(CreateInterruptVectors());
 
@@ -123,6 +122,17 @@ namespace CSharpTo2600.Compiler
         private static IEnumerable<AssemblyLine> CreateMainLoop(CompilationInfo CompilationInfo)
         {
             yield return Subroutine(MainLoopLabel);
+            yield return LDA(2);
+            yield return STA(VSYNC);
+            yield return STA(WSYNC);
+            yield return STA(WSYNC);
+            yield return STA(WSYNC);
+            // If there was no branching in the user code we could trivially count
+            // the cycles and not need a timer. That's pretty unlikely though.
+            yield return LDA(43);
+            yield return STA(TIM64T);
+            yield return LDA(0);
+            yield return STA(VSYNC);
             var UserLoop = GetSpecialSubroutines(CompilationInfo, MethodType.MainLoop).SingleOrDefault();
             if (UserLoop != null)
             {
@@ -133,13 +143,58 @@ namespace CSharpTo2600.Compiler
                 }
                 yield return Comment("End of user code.");
             }
+            var WaitLabel = Label(".WaitForVBlankEnd");
+            yield return WaitLabel;
+            yield return LDA(INTIM);
+            yield return BNE(WaitLabel);
+            yield return STA(WSYNC);
+            yield return STA(VBLANK);
+        }
+
+        private static IEnumerable<AssemblyLine> CreateKernel(CompilationInfo Info)
+        {
+            var Kernel = Info.GetGameClass().Subroutines.Values
+                .Where(s => s.OriginalMethod.GetCustomAttribute<KernelAttribute>() != null).SingleOrDefault();
+            if (Kernel != null)
+            {
+                var KernelTechnique = Kernel.OriginalMethod.GetCustomAttribute<KernelAttribute>().Technique;
+                switch (KernelTechnique)
+                {
+                    case KernelTechnique.CallEveryScanline:
+                        return CreateKernelEveryScanline(Kernel);
+                    default:
+                        throw new FatalCompilationException($"Kernel technique not supported: {KernelTechnique}");
+                }
+            }
+            else
+            {
+                return CreateEmptyKernel();
+            }
         }
 
         private static IEnumerable<AssemblyLine> CreateEmptyKernel()
         {
+            yield return Comment("Beginning of kernel code generation.");
             yield return Comment("No kernel method found in user code. Just emitting 192 WSYNCs.", 0);
             yield return Repeat(192);
             yield return STA(WSYNC);
+            yield return Repend();
+        }
+
+        private static IEnumerable<AssemblyLine> CreateKernelEveryScanline(Subroutine UserCode)
+        {
+            //@TODO - Check UserCode for too many cycles.
+            //@TODO - Pick REPEAT vs loop dependent on cycles.
+            //@TODO - Check cycle count to see if we can skip WSYNC or use faster instruction.
+            yield return Comment("Beginning of kernel code generation.");
+            yield return Repeat(192);
+            yield return Comment("Begin user code.");
+            foreach (var Line in UserCode.Body)
+            {
+                yield return Line;
+            }
+            yield return STA(WSYNC).WithComment("Compiler-generated");
+            yield return Comment("End user code.");
             yield return Repend();
         }
 

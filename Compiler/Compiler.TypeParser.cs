@@ -14,6 +14,7 @@ namespace CSharpTo2600.Compiler
         private sealed class TypeParser
         {
             private readonly INamedTypeSymbol Symbol;
+            //@TODO - Use only Symbol.
             private readonly Type CLRType;
             private TypeInfo TypeInfo { get { return CLRType.GetTypeInfo(); } }
 
@@ -32,8 +33,8 @@ namespace CSharpTo2600.Compiler
                 // We've determined the type's fields and methods (although not the method bodies).
                 // That's enough for any other class to deal with us (other types' know our fields, don't
                 // need to know our method bodies).
-                // So method compilation should go fine even if we have to compile another type (e.g.
-                // we try to access another un-processed type's fields).
+                // So method compilation should go fine so long as all types involved have been
+                // at least parsed.
                 return FirstStageType;
             }
 
@@ -55,6 +56,9 @@ namespace CSharpTo2600.Compiler
                 {
                     //@TODO - Handle overloaded methods
                     var MethodSymbol = (IMethodSymbol)Symbol.GetMembers(Method.Name).Single();
+                    // If we're a partial method, make sure we're a symbol for the implementation.
+                    // Otherwise we'll end up compiling an empty method.
+                    MethodSymbol = MethodSymbol.PartialImplementationPart ?? MethodSymbol;
                     var MethodType = Method.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
                     var Subroutine = new Subroutine(Method.Name, Method, MethodSymbol, MethodType);
                     Result.Add(MethodSymbol, Subroutine);

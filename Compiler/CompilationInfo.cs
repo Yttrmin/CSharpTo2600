@@ -11,7 +11,6 @@ namespace CSharpTo2600.Compiler
     public sealed class CompilationInfo
     {
         private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
-        private readonly SemanticModel Model;
         
         public IEnumerable<ProcessedType> AllTypes { get { return Types.Values; } }
         public IEnumerable<IVariableInfo> AllGlobals
@@ -41,17 +40,15 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public CompilationInfo(SemanticModel Model)
+        public CompilationInfo()
         {
             Types = ImmutableDictionary<INamedTypeSymbol, ProcessedType>.Empty;
-            this.Model = Model;
         }
 
         private CompilationInfo(CompilationInfo OldInfo, INamedTypeSymbol Symbol, ProcessedType Type)
         {
             // Either adding a key/value that didn't exist before or overwriting an existing value.
             Types = OldInfo.Types.SetItem(Symbol, Type);
-            Model = OldInfo.Model;
         }
 
         private CompilationInfo(CompilationInfo OldInfo, ProcessedType NewType)

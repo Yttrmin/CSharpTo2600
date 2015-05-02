@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Immutable;
-using System.Reflection;
 using System.Linq;
 using Microsoft.CodeAnalysis;
-using System.Collections.Generic;
 
 namespace CSharpTo2600.Compiler
 {
     public sealed class ProcessedType
     {
+        //@TODO - Use only Symbol.
         public readonly Type CLRType;
         public readonly INamedTypeSymbol Symbol;
         public readonly ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines;

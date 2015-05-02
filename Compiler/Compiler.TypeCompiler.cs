@@ -34,10 +34,13 @@ namespace CSharpTo2600.Compiler
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
                 foreach (var SymbolSubPair in ParsedType.Subroutines)
                 {
+                    // Pretty sure methods can only have one declaration. Even implemented partial methods
+                    // only have one declaration.
                     var MethodNode = (MethodDeclarationSyntax)SymbolSubPair.Key.DeclaringSyntaxReferences.Single().GetSyntax();
                     var MethodInfo = SymbolSubPair.Value.OriginalMethod;
-                    var CompiledSubroutine = MethodCompiler.CompileMethod(MethodNode, MethodInfo, 
-                        SymbolSubPair.Key, CompilationInfo, GCompiler);
+                    var Model = GCompiler.Compilation.GetSemanticModel(MethodNode.SyntaxTree);
+                    var CompiledSubroutine = MethodCompiler.CompileMethod(MethodInfo, 
+                        SymbolSubPair.Key, CompilationInfo, Model);
                     Result.Add(SymbolSubPair.Key, CompiledSubroutine);
                 }
                 return Result.ToImmutableDictionary();

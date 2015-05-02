@@ -16,8 +16,7 @@ namespace CSharpTo2600.Compiler
         private static readonly MetadataReference MSCorLibReference = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
         private static readonly CompilationOptions Options =
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
-
-        public Solution Solution { get { return Workspace.CurrentSolution; } }
+        
         public CSharpCompilation Compilation { get; }
 
         private struct FileInfo
