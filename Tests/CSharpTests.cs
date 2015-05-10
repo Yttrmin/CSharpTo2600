@@ -18,7 +18,7 @@ namespace CSharpTo2600.UnitTests
         public void GameClassMustBeMarkedWithAttribute()
         {
             var Source = "static class Test { }";
-            Assert.Throws<GameClassNotFoundException>(() => GameCompiler.Compile(Source));
+            Assert.Throws<GameClassNotFoundException>(() => GameCompiler.CompileFromTexts(Source));
         }
 
         [Test]
@@ -28,7 +28,7 @@ namespace CSharpTo2600.UnitTests
 using CSharpTo2600.Framework;
 [Atari2600Game]class Test { }";
 
-            Assert.Throws<GameClassNotStaticException>(() => GameCompiler.Compile(NonStaticSource));
+            Assert.Throws<GameClassNotStaticException>(() => GameCompiler.CompileFromTexts(NonStaticSource));
         }
 
         [Test]
@@ -38,13 +38,13 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test { }";
 
-            Assert.DoesNotThrow(() => GameCompiler.Compile(StaticSource));
+            Assert.DoesNotThrow(() => GameCompiler.CompileFromTexts(StaticSource));
         }
 
         [Test]
         public void PrimitiveGlobalsHaveCorrectTypeAndSize()
         {
-            var ROMInfo = GameCompiler.Compile(@"
+            var ROMInfo = GameCompiler.CompileFromTexts(@"
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte ByteTest;
@@ -62,10 +62,7 @@ using CSharpTo2600.Framework;
             Assert.AreEqual(typeof(int), IntVar.Type);
             Assert.AreEqual(sizeof(int), IntVar.Size);
         }
-
-        //
-        // This fails because we don't check for name conflicts yet.
-        //
+        
         [Test]
         public void GlobalNamesConflictCaseSensitively()
         {
@@ -73,7 +70,7 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte VSYNC; }";
-            Assert.Throws<VariableNameAlreadyUsedException>(() => GameCompiler.Compile(Source));
+            Assert.Throws<VariableNameReservedException>(() => GameCompiler.CompileFromTexts(Source));
         }
 
         [Test]
@@ -83,7 +80,7 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte VSyNC; }";
-            Assert.DoesNotThrow(() => GameCompiler.Compile(Source));
+            Assert.DoesNotThrow(() => GameCompiler.CompileFromTexts(Source));
         }
 
         [Test]
@@ -95,7 +92,7 @@ using CSharpTo2600.Framework;
 using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static long l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17; }";
-            Assert.Throws<GlobalMemoryOverflowException>(() => GameCompiler.Compile(Source));
+            Assert.Throws<GlobalMemoryOverflowException>(() => GameCompiler.CompileFromTexts(Source));
         }
 
         [Test]
@@ -114,9 +111,9 @@ using CSharpTo2600.Framework;
         {
             var Source = @"
 using CSharpTo2600.Framework;
-[Atari2600Game]static class Test { void TestMethod() { Other.Var++; } }
+[Atari2600Game]static class Test { static void TestMethod() { Other.Var++; } }
 static class Other { public static byte Var; }";
-
+            Assert.DoesNotThrow(() => GameCompiler.CompileFromTexts(Source));
         }
 
         // Explicitly test this despite already testing static fields in
@@ -127,8 +124,39 @@ static class Other { public static byte Var; }";
         {
             var Source = @"
 using CSharpTo2600.Framework;
-[Atari2600Game]static class Test {void TestMethod() { Nested.Var++; } 
+[Atari2600Game]static class Test { static void TestMethod() { Nested.Var++; } 
 static class Nested { public static byte Var; } }";
+            Assert.DoesNotThrow(() => GameCompiler.CompileFromTexts(Source));
+        }
+
+        // Partial methods result in 2 symbols: One with the body, and one without.
+        // If the one without a body is picked, we end up with a subroutine with no code.
+        [Test]
+        public void CompileImplementedPartialMethods()
+        {
+            var Source = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static partial class Test { static byte Var;
+static partial void TestMethod();
+static partial void TestMethod() {Var++;Var++;Var++;}}";
+            var Info = GameCompiler.CompileFromTexts(Source);
+            var Subroutine = Info.CompilationInfo.AllSubroutines.Single(s => s.Name == "TestMethod");
+            Assert.Greater(Subroutine.InstructionCount, 0);
+        }
+
+        [Test]
+        public void SupportMultipleFileCompilation()
+        {
+            var Source1 = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class GameClass { static void TestMethod() { DataClass.Var++; } }";
+            var Source2 = @"
+static class DataClass { public static byte Var; }";
+
+            CompilationInfo Info = null;
+            Assert.DoesNotThrow(() => Info = GameCompiler.CompileFromTexts(Source1, Source2).CompilationInfo);
+            Assert.IsTrue(Info.AllTypes.Any(t => t.Name == "GameClass"));
+            Assert.IsTrue(Info.AllTypes.Any(t => t.Name == "DataClass"));
         }
 
         private Subroutine CompileStaticMethod(string Globals, string Source)
@@ -140,7 +168,7 @@ static class Nested { public static byte Var; } }";
         private Subroutine CompileStaticMethod(string Globals, string Source, out ROMInfo ROMInfo)
         {
             var Code = $"using CSharpTo2600.Framework; [Atari2600Game]static class Test {{ {Globals} static void TestMethod() {{ {Source} }} }}";
-            ROMInfo = GameCompiler.Compile(Code);
+            ROMInfo = GameCompiler.CompileFromTexts(Code);
             return ROMInfo.CompilationInfo.AllSubroutines.Single(s => s.Name == "TestMethod");
         }
 

@@ -17,10 +17,10 @@ namespace CSharpTo2600.Compiler
         }
     }
 
-    internal class VariableNameAlreadyUsedException : FatalCompilationException
+    internal class VariableNameReservedException : FatalCompilationException
     {
-        public VariableNameAlreadyUsedException(IVariableInfo AlreadyExists, IVariableInfo NewVariable)
-            : base($"Attempted to create variable [{NewVariable.Name}] that conflicts with the name of an existing variable [{AlreadyExists.Name}].")
+        public VariableNameReservedException(IFieldSymbol Symbol)
+            : base($"Attempted to create variable [{Symbol.ToDisplayString()}] that uses a reserved name (see ReservedSymbols).")
         {
 
         }

@@ -15,6 +15,7 @@ namespace CSharpTo2600.Compiler
         public bool IsStatic { get { return CLRType.IsAbstract && CLRType.IsSealed; } }
         public bool IsValueType { get { return CLRType.IsValueType; } }
         public bool IsCompiled { get { return Subroutines.Values.Any(s => !s.IsCompiled); } }
+        public string Name { get { return Symbol.Name; } }
 
         internal ProcessedType(Type CLRType, INamedTypeSymbol Symbol, 
             ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines,

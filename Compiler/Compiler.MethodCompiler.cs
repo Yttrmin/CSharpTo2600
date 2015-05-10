@@ -20,7 +20,7 @@ namespace CSharpTo2600.Compiler
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
             private readonly List<AssemblyLine> MethodBody;
-            //@TODO - Use ITypeSymbol, not Type
+            //@TODO - Use ProcessedType, not Type
             private readonly Stack<Type> TypeStack;
             private readonly CompilationInfo CompilationInfo;
             private readonly MethodType MethodType;

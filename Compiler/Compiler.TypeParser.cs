@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using CSharpTo2600.Framework.Assembly;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using TypeInfo = System.Reflection.TypeInfo;
@@ -44,6 +45,11 @@ namespace CSharpTo2600.Compiler
                 foreach (var Field in TypeInfo.DeclaredFields)
                 {
                     var FieldSymbol = (IFieldSymbol)Symbol.GetMembers(Field.Name).Single();
+                    // Check for name conflicts with reserved symbols.
+                    if (typeof(ReservedSymbols).GetTypeInfo().DeclaredFields.Any(f => f.Name == Field.Name))
+                    {
+                        throw new VariableNameReservedException(FieldSymbol);
+                    }
                     Result.Add(FieldSymbol, VariableInfo.CreatePlaceholderVariable(FieldSymbol, Field.FieldType));
                 }
                 return Result.ToImmutableDictionary();

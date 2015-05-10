@@ -31,25 +31,35 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public CompilerWorkspace(IEnumerable<string> FilePaths)
+        private CompilerWorkspace(ProjectInfo UserProjectInfo)
         {
             Workspace = new AdhocWorkspace();
-
-            UserProject = CreateUserProject(ReadFiles(FilePaths));
-
+            if (!Workspace.Services.IsSupported(UserProjectInfo.Language))
+            {
+                throw new InvalidOperationException($"Not supported: {UserProjectInfo.Language}. Make sure to include Microsoft.CodeAnalysis.CSharp.Workspaces or else no languages are supported.");
+            }
+            UserProject = Workspace.AddProject(UserProjectInfo);
             Compilation = Compile();
         }
 
-        public CompilerWorkspace(string FileText)
+        public static CompilerWorkspace FromFilePaths(IEnumerable<string> FilePaths)
         {
-            Workspace = new AdhocWorkspace();
-
-            UserProject = CreateUserProject(new[] { new FileInfo("NoFile", FileText) });
-
-            Compilation = Compile();
+            var UserProject = CreateUserProjectInfo(ReadFiles(FilePaths));
+            return new CompilerWorkspace(UserProject);
         }
 
-        private IEnumerable<FileInfo> ReadFiles(IEnumerable<string> FilePaths)
+        public static CompilerWorkspace FromSourceTexts(IEnumerable<string> SourceTexts)
+        {
+            var Sources = new List<FileInfo>();
+            foreach (var Source in SourceTexts)
+            {
+                Sources.Add(new FileInfo($"NoFile_{Sources.Count}", Source));
+            }
+            var UserProject = CreateUserProjectInfo(Sources);
+            return new CompilerWorkspace(UserProject);
+        }
+
+        private static IEnumerable<FileInfo> ReadFiles(IEnumerable<string> FilePaths)
         {
             foreach (var FilePath in FilePaths)
             {
@@ -59,7 +69,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private Project CreateUserProject(IEnumerable<FileInfo> Files)
+        private static ProjectInfo CreateUserProjectInfo(IEnumerable<FileInfo> Files)
         {
             var ProjectID = ProjectId.CreateNewId();
             var Documents = new List<DocumentInfo>();
@@ -75,9 +85,9 @@ namespace CSharpTo2600.Compiler
                 metadataReferences: new[] { MSCorLibReference, FrameworkReference },
                 compilationOptions: Options,
                 documents: Documents);
-                // projectReferences when we get multiple projects
+            // projectReferences when we get multiple projects
 
-            return Workspace.AddProject(Info);
+            return Info;
         }
 
         private TextLoader GetTextLoaderFromReader(StreamReader Reader, string Path)

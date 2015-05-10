@@ -17,7 +17,7 @@ namespace CSharpTo2600.Compiler
 
         static void Main(string[] args)
         {
-            GameCompiler.Compile(args, CompileOptions.Default);
+            GameCompiler.CompileFromFilePaths(args, CompileOptions.Default);
             Console.ReadLine();
         }
         
@@ -40,19 +40,19 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public static ROMInfo Compile(string SourceText)
+        public static ROMInfo CompileFromTexts(params string[] SourceTexts)
         {
-            return Compile(SourceText, CompileOptions.Default);
+            return CompileFromTexts(CompileOptions.Default, SourceTexts);
         }
 
-        public static ROMInfo Compile(string SourceText, CompileOptions CompileOptions)
+        public static ROMInfo CompileFromTexts(CompileOptions CompileOptions, params string[] SourceTexts)
         {
-            return Compile(new CompilerWorkspace(SourceText), CompileOptions);
+            return Compile(CompilerWorkspace.FromSourceTexts(SourceTexts), CompileOptions);
         }
 
-        public static ROMInfo Compile(IEnumerable<string> FilePaths, CompileOptions Options)
+        public static ROMInfo CompileFromFilePaths(IEnumerable<string> FilePaths, CompileOptions Options)
         {
-            return Compile(new CompilerWorkspace(FilePaths), Options);
+            return Compile(CompilerWorkspace.FromFilePaths(FilePaths), Options);
         }
 
         private static ROMInfo Compile(CompilerWorkspace Workspace, CompileOptions Options)
