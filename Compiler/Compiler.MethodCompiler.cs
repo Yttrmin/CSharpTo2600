@@ -14,6 +14,9 @@ namespace CSharpTo2600.Compiler
 {
     partial class GameCompiler
     {
+        /// <summary>
+        /// Responsible for turning a C# method into a 6502-compatibile Subroutine.
+        /// </summary>
         private sealed class MethodCompiler : CSharpSyntaxWalker
         {
             private readonly SemanticModel Model;
@@ -22,14 +25,14 @@ namespace CSharpTo2600.Compiler
             private readonly List<AssemblyLine> MethodBody;
             //@TODO - Use ProcessedType, not Type
             private readonly Stack<Type> TypeStack;
-            private readonly CompilationInfo CompilationInfo;
+            private readonly CompilationState CompilationState;
             private readonly MethodType MethodType;
 
             private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
-                INamedTypeSymbol ContainingType, CompilationInfo CompilationInfo, SemanticModel Model)
+                INamedTypeSymbol ContainingType, CompilationState CompilationState, SemanticModel Model)
             {
                 MethodType = MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined;
-                this.CompilationInfo = CompilationInfo;
+                this.CompilationState = CompilationState;
                 this.Model = Model;
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
@@ -37,12 +40,17 @@ namespace CSharpTo2600.Compiler
                 TypeStack = new Stack<Type>();
             }
 
+            /// <summary>
+            /// Compiles a C# method into a Subroutine.
+            /// Any types, fields, methods, etc that this method relies must have
+            /// already been parsed (not compiled) previously.
+            /// </summary>
             public static Subroutine CompileMethod(MethodInfo MethodInfo, IMethodSymbol Symbol, 
-                CompilationInfo CompilationInfo, SemanticModel Model)
+                CompilationState CompilationState, SemanticModel Model)
             {
                 var MethodDeclaration = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
                 var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, 
-                    Symbol.ContainingType, CompilationInfo, Model);
+                    Symbol.ContainingType, CompilationState, Model);
                 Compiler.Visit(MethodDeclaration);
                 return new Subroutine(Compiler.Name, MethodInfo, Symbol, Compiler.MethodBody.ToImmutableArray(), 
                     Compiler.MethodType);
@@ -206,7 +214,7 @@ namespace CSharpTo2600.Compiler
                 var FieldSymbol = Symbol as IFieldSymbol;
                 if (FieldSymbol != null)
                 {
-                    return CompilationInfo.GetVariableFromField(FieldSymbol);
+                    return CompilationState.GetVariableFromField(FieldSymbol);
                 }
                 //@TODO @DELETEME - Support properties in general, no special case.
                 else if (Symbol is IPropertySymbol && Symbol.ContainingType.Name == nameof(TIARegisters))

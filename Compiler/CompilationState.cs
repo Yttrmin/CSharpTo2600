@@ -8,7 +8,10 @@ using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
-    public sealed class CompilationInfo
+    /// <summary>
+    /// Immutable representation of the state of compilation.
+    /// </summary>
+    public sealed class CompilationState
     {
         private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
         
@@ -40,18 +43,18 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public CompilationInfo()
+        public CompilationState()
         {
             Types = ImmutableDictionary<INamedTypeSymbol, ProcessedType>.Empty;
         }
 
-        private CompilationInfo(CompilationInfo OldInfo, INamedTypeSymbol Symbol, ProcessedType Type)
+        private CompilationState(CompilationState OldState, INamedTypeSymbol Symbol, ProcessedType Type)
         {
             // Either adding a key/value that didn't exist before or overwriting an existing value.
-            Types = OldInfo.Types.SetItem(Symbol, Type);
+            Types = OldState.Types.SetItem(Symbol, Type);
         }
 
-        private CompilationInfo(CompilationInfo OldInfo, ProcessedType NewType)
+        private CompilationState(CompilationState OldState, ProcessedType NewType)
         {
             throw new NotImplementedException();
         }
@@ -89,18 +92,18 @@ namespace CSharpTo2600.Compiler
             return Type.Globals[FieldSymbol];
         }
 
-        public CompilationInfo WithType(ProcessedType Type)
+        public CompilationState WithType(ProcessedType Type)
         {
-            return new CompilationInfo(this, Type.Symbol, Type);
+            return new CompilationState(this, Type.Symbol, Type);
         }
 
-        public CompilationInfo WithReplacedType(ProcessedType Type)
+        public CompilationState WithReplacedType(ProcessedType Type)
         {
             if (!Types.ContainsKey(Type.Symbol))
             {
                 throw new ArgumentException($"Type was not previously parsed: {Type}", nameof(Type));
             }
-            return new CompilationInfo(this, Type.Symbol, Type);
+            return new CompilationState(this, Type.Symbol, Type);
         }
     }
 }

@@ -49,7 +49,7 @@ using CSharpTo2600.Framework;
 [Atari2600Game]static class Test {
 	static byte ByteTest;
 	static int IntTest; }");
-            var Info = ROMInfo.CompilationInfo;
+            var Info = ROMInfo.CompilationState;
 
             // Do not make assumptions about things like the order variables
             // are defined or what specific addresses they occupy. 
@@ -98,9 +98,9 @@ using CSharpTo2600.Framework;
         [Test]
         public void LiteralAssignmentToGlobal()
         {
-            ROMInfo ROMInfo;
+            CompilationResult ROMInfo;
             var Subroutine = CompileStaticMethod("static int a;", "a = 0x7EAD;", out ROMInfo);
-            var GlobalVar = ROMInfo.CompilationInfo.AllGlobals.Single(v => v.Name == "a");
+            var GlobalVar = ROMInfo.CompilationState.AllGlobals.Single(v => v.Name == "a");
             var ExpectedCode = ConcatenateFragments(PushLiteral((int)0x7EAD), StoreVariable(GlobalVar, typeof(int)));
 
             Assert.True(Subroutine.Body.Where(l => !(l is Trivia)).SequenceEqual(ExpectedCode));
@@ -140,7 +140,7 @@ using CSharpTo2600.Framework;
 static partial void TestMethod();
 static partial void TestMethod() {Var++;Var++;Var++;}}";
             var Info = GameCompiler.CompileFromTexts(Source);
-            var Subroutine = Info.CompilationInfo.AllSubroutines.Single(s => s.Name == "TestMethod");
+            var Subroutine = Info.CompilationState.AllSubroutines.Single(s => s.Name == "TestMethod");
             Assert.Greater(Subroutine.InstructionCount, 0);
         }
 
@@ -153,23 +153,23 @@ using CSharpTo2600.Framework;
             var Source2 = @"
 static class DataClass { public static byte Var; }";
 
-            CompilationInfo Info = null;
-            Assert.DoesNotThrow(() => Info = GameCompiler.CompileFromTexts(Source1, Source2).CompilationInfo);
-            Assert.IsTrue(Info.AllTypes.Any(t => t.Name == "GameClass"));
-            Assert.IsTrue(Info.AllTypes.Any(t => t.Name == "DataClass"));
+            CompilationState State = null;
+            Assert.DoesNotThrow(() => State = GameCompiler.CompileFromTexts(Source1, Source2).CompilationState);
+            Assert.IsTrue(State.AllTypes.Any(t => t.Name == "GameClass"));
+            Assert.IsTrue(State.AllTypes.Any(t => t.Name == "DataClass"));
         }
 
         private Subroutine CompileStaticMethod(string Globals, string Source)
         {
-            ROMInfo ThrowAway;
+            CompilationResult ThrowAway;
             return CompileStaticMethod(Globals, Source, out ThrowAway);
         }
 
-        private Subroutine CompileStaticMethod(string Globals, string Source, out ROMInfo ROMInfo)
+        private Subroutine CompileStaticMethod(string Globals, string Source, out CompilationResult ROMInfo)
         {
             var Code = $"using CSharpTo2600.Framework; [Atari2600Game]static class Test {{ {Globals} static void TestMethod() {{ {Source} }} }}";
             ROMInfo = GameCompiler.CompileFromTexts(Code);
-            return ROMInfo.CompilationInfo.AllSubroutines.Single(s => s.Name == "TestMethod");
+            return ROMInfo.CompilationState.AllSubroutines.Single(s => s.Name == "TestMethod");
         }
 
         private IEnumerable<AssemblyLine> ConcatenateFragments(params IEnumerable<AssemblyLine>[] Lines)

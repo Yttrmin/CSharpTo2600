@@ -22,14 +22,14 @@ namespace CSharpTo2600.Compiler
                 this.ParsedType = ParsedType;
             }
 
-            public static ProcessedType CompileType(ProcessedType ParsedType, CompilationInfo Info, GameCompiler GCompiler)
+            public static ProcessedType CompileType(ProcessedType ParsedType, CompilationState State, GameCompiler GCompiler)
             {
                 var Compiler = new TypeCompiler(ParsedType);
-                var CompiledMethods = Compiler.CompileMethods(Info, GCompiler);
+                var CompiledMethods = Compiler.CompileMethods(State, GCompiler);
                 return new ProcessedType(ParsedType.CLRType, ParsedType.Symbol, CompiledMethods, ParsedType.Globals);
             }
 
-            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationInfo CompilationInfo, GameCompiler GCompiler)
+            private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationState CompilationState, GameCompiler GCompiler)
             {
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
                 foreach (var SymbolSubPair in ParsedType.Subroutines)
@@ -40,7 +40,7 @@ namespace CSharpTo2600.Compiler
                     var MethodInfo = SymbolSubPair.Value.OriginalMethod;
                     var Model = GCompiler.Compilation.GetSemanticModel(MethodNode.SyntaxTree);
                     var CompiledSubroutine = MethodCompiler.CompileMethod(MethodInfo, 
-                        SymbolSubPair.Key, CompilationInfo, Model);
+                        SymbolSubPair.Key, CompilationState, Model);
                     Result.Add(SymbolSubPair.Key, CompiledSubroutine);
                 }
                 return Result.ToImmutableDictionary();

@@ -7,9 +7,12 @@ using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
+    /// <summary>
+    /// Immutable representation of a 6502-compatible subroutine.
+    /// </summary>
     public class Subroutine
     {
-        public readonly string Name;
+        public string Name { get; }
         // Is there any case where no body is an intended final result?
         private readonly ImmutableArray<AssemblyLine> _Body;
         public ImmutableArray<AssemblyLine> Body
@@ -22,14 +25,16 @@ namespace CSharpTo2600.Compiler
                 }
                 else
                 {
+                    // You normally shouldn't throw in a getter, but something is terribly
+                    // wrong if this is reached.
                     throw new FatalCompilationException($"Attempted to access the body of a non-compiled subroutine: {Name}");
                 }
             }
         }
         // Could just make Body nullable, but meaning might be unclear.
-        public readonly bool IsCompiled;
-        public readonly MethodType Type;
-        private readonly IMethodSymbol Symbol;
+        public bool IsCompiled { get; }
+        public MethodType Type { get; }
+        private IMethodSymbol Symbol { get; }
         public MethodInfo OriginalMethod { get; }
         public int InstructionCount { get { return Body.OfType<Instruction>().Count(); } }
         public int CycleCount { get { return Body.OfType<Instruction>().Sum(i => i.Cycles); } }

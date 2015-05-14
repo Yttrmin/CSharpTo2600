@@ -9,7 +9,7 @@ namespace CSharpTo2600.Compiler
     {
         private class MemoryManager
         {
-            private readonly CompilationInfo Info;
+            private readonly CompilationState State;
             private int NextAddress = GlobalsStart;
             private const int RAMAmount = 128;
             private const int GlobalsStart = 0x80;
@@ -18,31 +18,31 @@ namespace CSharpTo2600.Compiler
             // Reserve a completely arbitrary amount of memory for globals.
             private const int GlobalUsageLimit = 100;
 
-            private MemoryManager(CompilationInfo Info)
+            private MemoryManager(CompilationState State)
             {
-                this.Info = Info;
+                this.State = State;
             }
 
-            public static CompilationInfo Analyze(CompilationInfo Info)
+            public static CompilationState Analyze(CompilationState State)
             {
                 // Note types won't be compiled at this point.
-                var Manager = new MemoryManager(Info);
+                var Manager = new MemoryManager(State);
                 foreach (var NewType in Manager.LayoutGlobals())
                 {
-                    Info = Info.WithReplacedType(NewType);
+                    State = State.WithReplacedType(NewType);
                 }
-                return Info;
+                return State;
             }
 
             private IEnumerable<ProcessedType> LayoutGlobals()
             {
-                var MemoryUsage = Info.AllGlobals.Sum(v => v.Size);
+                var MemoryUsage = State.AllGlobals.Sum(v => v.Size);
                 if (MemoryUsage > GlobalUsageLimit)
                 {
                     throw new GlobalMemoryOverflowException(MemoryUsage, GlobalUsageLimit);
                 }
 
-                foreach (var Type in Info.AllTypes)
+                foreach (var Type in State.AllTypes)
                 {
                     if (Type.Globals.Any())
                     {

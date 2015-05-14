@@ -7,7 +7,9 @@ Not much, the project is very early in development. This will be updated as feat
 ### Building
 Load the solution into [Visual Studio 2015 CTP 6](https://www.visualstudio.com/en-us/downloads/visual-studio-2015-ctp-vs) and it should build and run fine.
 ### Usage
-`Compiler SourceFilePath`
+The command line must be passed at least one file path. The order of the paths does not matter.
+
+`Compiler <file>...`
 
 for example:
 

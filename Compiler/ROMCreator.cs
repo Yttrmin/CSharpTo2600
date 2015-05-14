@@ -28,15 +28,15 @@ namespace CSharpTo2600.Compiler
         private static readonly string SymbolsFilePath = Path.Combine(OutputDirectory, SymbolsFileName);
         private static readonly string ListFilePath = Path.Combine(OutputDirectory, ListFileName);
 
-        public static ROMInfo CreateROM(CompilationInfo Info)
+        public static CompilationResult CreateROM(CompilationState State)
         {
             var Lines = new List<AssemblyLine>();
             Lines.AddRange(CreateHeader());
-            Lines.AddRange(CreateSymbolDefinitions(Info));
-            Lines.AddRange(CreateEntryPoint(Info));
-            Lines.AddRange(CreateMainLoop(Info));
-            Lines.AddRange(CreateKernel(Info));
-            Lines.AddRange(CreateOverscan(Info));
+            Lines.AddRange(CreateSymbolDefinitions(State));
+            Lines.AddRange(CreateEntryPoint(State));
+            Lines.AddRange(CreateMainLoop(State));
+            Lines.AddRange(CreateKernel(State));
+            Lines.AddRange(CreateOverscan(State));
             Lines.AddRange(CreateInterruptVectors());
 
             using (var Writer = new StreamWriter(AssemblyFileName))
@@ -49,11 +49,11 @@ namespace CSharpTo2600.Compiler
 
             var DASMSuccess = AssembleOutput();
 
-            return new ROMInfo(Path.GetFullPath(BinaryFilePath), Path.GetFullPath(AssemblyFileName), 
-                Path.GetFullPath(SymbolsFilePath), Path.GetFullPath(ListFilePath), Info, Lines, DASMSuccess);
+            return new CompilationResult(Path.GetFullPath(BinaryFilePath), Path.GetFullPath(AssemblyFileName), 
+                Path.GetFullPath(SymbolsFilePath), Path.GetFullPath(ListFilePath), State, Lines, DASMSuccess);
         }
 
-        public static ROMInfo CreateRawROM(IEnumerable<AssemblyLine> Lines)
+        public static CompilationResult CreateRawROM(IEnumerable<AssemblyLine> Lines)
         {
             using (var Writer = new StreamWriter(AssemblyFileName))
             {
@@ -65,7 +65,7 @@ namespace CSharpTo2600.Compiler
 
             var DASMSuccess = AssembleOutput();
 
-            return new ROMInfo(Path.GetFullPath(BinaryFilePath), Path.GetFullPath(AssemblyFileName),
+            return new CompilationResult(Path.GetFullPath(BinaryFilePath), Path.GetFullPath(AssemblyFileName),
                 Path.GetFullPath(SymbolsFilePath), Path.GetFullPath(ListFilePath), null, Lines, DASMSuccess);
         }
 
@@ -86,11 +86,11 @@ namespace CSharpTo2600.Compiler
             yield return BlankLine();
         }
 
-        private static IEnumerable<AssemblyLine> CreateSymbolDefinitions(CompilationInfo CompilationInfo)
+        private static IEnumerable<AssemblyLine> CreateSymbolDefinitions(CompilationState CompilationState)
         {
-            foreach (var Global in CompilationInfo.AllGlobals)
+            foreach (var Global in CompilationState.AllGlobals)
             {
-                if (CompilationInfo.AllGlobals.Any(v => v != Global && v.Name == Global.Name))
+                if (CompilationState.AllGlobals.Any(v => v != Global && v.Name == Global.Name))
                 {
                     //@TODO - Prepend class name? Namespace and class name? Arbitrary text?
                     throw new NotImplementedException("Same name globals in different types not supported yet.");
@@ -100,14 +100,14 @@ namespace CSharpTo2600.Compiler
             yield return BlankLine();
         }
 
-        private static IEnumerable<AssemblyLine> CreateEntryPoint(CompilationInfo CompilationInfo)
+        private static IEnumerable<AssemblyLine> CreateEntryPoint(CompilationState CompilationState)
         {
             yield return Subroutine(StartLabel);
             foreach (var Line in Fragments.ClearSystem())
             {
                 yield return Line;
             }
-            var UserInitializer = GetSpecialSubroutines(CompilationInfo, MethodType.Initialize).SingleOrDefault();
+            var UserInitializer = GetSpecialSubroutines(CompilationState, MethodType.Initialize).SingleOrDefault();
             if (UserInitializer != null)
             {
                 yield return Comment("Beginning of user initialization code.");
@@ -119,7 +119,7 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private static IEnumerable<AssemblyLine> CreateMainLoop(CompilationInfo CompilationInfo)
+        private static IEnumerable<AssemblyLine> CreateMainLoop(CompilationState CompilationState)
         {
             yield return Subroutine(MainLoopLabel);
             yield return LDA(2);
@@ -133,7 +133,7 @@ namespace CSharpTo2600.Compiler
             yield return STA(TIM64T);
             yield return LDA(0);
             yield return STA(VSYNC);
-            var UserLoop = GetSpecialSubroutines(CompilationInfo, MethodType.MainLoop).SingleOrDefault();
+            var UserLoop = GetSpecialSubroutines(CompilationState, MethodType.MainLoop).SingleOrDefault();
             if (UserLoop != null)
             {
                 yield return Comment("Beginning of user main loop code.");
@@ -151,9 +151,9 @@ namespace CSharpTo2600.Compiler
             yield return STA(VBLANK);
         }
 
-        private static IEnumerable<AssemblyLine> CreateKernel(CompilationInfo Info)
+        private static IEnumerable<AssemblyLine> CreateKernel(CompilationState State)
         {
-            var Kernel = Info.GetGameClass().Subroutines.Values
+            var Kernel = State.GetGameClass().Subroutines.Values
                 .Where(s => s.OriginalMethod.GetCustomAttribute<KernelAttribute>() != null).SingleOrDefault();
             if (Kernel != null)
             {
@@ -198,14 +198,14 @@ namespace CSharpTo2600.Compiler
             yield return Repend();
         }
 
-        private static IEnumerable<AssemblyLine> CreateOverscan(CompilationInfo CompilationInfo)
+        private static IEnumerable<AssemblyLine> CreateOverscan(CompilationState CompilationState)
         {
             yield return Subroutine(OverscanLabel);
             yield return LDA(35);
             yield return STA(TIM64T);
             yield return LDA(2);
             yield return STA(VBLANK);
-            var UserSubroutine = GetSpecialSubroutines(CompilationInfo, MethodType.Overscan).SingleOrDefault();
+            var UserSubroutine = GetSpecialSubroutines(CompilationState, MethodType.Overscan).SingleOrDefault();
             if (UserSubroutine != null)
             {
                 yield return Comment("Beginning of user code.");
@@ -231,10 +231,10 @@ namespace CSharpTo2600.Compiler
             // BRK vector remains if we want to use it.
         }
 
-        private static IEnumerable<Subroutine> GetSpecialSubroutines(CompilationInfo CompilationInfo, 
+        private static IEnumerable<Subroutine> GetSpecialSubroutines(CompilationState CompilationState, 
             MethodType MethodType)
         {
-            return CompilationInfo.GetGameClass().Subroutines.Values.Where(s => s.Type == MethodType);
+            return CompilationState.GetGameClass().Subroutines.Values.Where(s => s.Type == MethodType);
         }
 
         private static bool AssembleOutput()

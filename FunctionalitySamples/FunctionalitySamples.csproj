@@ -42,7 +42,6 @@
     <Compile Include="Empty.cs" />
     <Compile Include="KernelChangeBkColor.cs" />
     <Compile Include="MainLoopChangeBkColor.cs" />
-    <Compile Include="MainLoopChangeBkColor_MultiType.cs" />
     <Compile Include="KernelChangeBkColor_MultiType_File1.cs" />
     <Compile Include="KernelChangeBkColor_MultiType_File2.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

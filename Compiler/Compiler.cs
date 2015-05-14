@@ -40,42 +40,43 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public static ROMInfo CompileFromTexts(params string[] SourceTexts)
+        public static CompilationResult CompileFromTexts(params string[] SourceTexts)
         {
             return CompileFromTexts(CompileOptions.Default, SourceTexts);
         }
 
-        public static ROMInfo CompileFromTexts(CompileOptions CompileOptions, params string[] SourceTexts)
+        public static CompilationResult CompileFromTexts(CompileOptions CompileOptions, params string[] SourceTexts)
         {
             return Compile(CompilerWorkspace.FromSourceTexts(SourceTexts), CompileOptions);
         }
 
-        public static ROMInfo CompileFromFilePaths(IEnumerable<string> FilePaths, CompileOptions Options)
+        public static CompilationResult CompileFromFilePaths(IEnumerable<string> FilePaths, CompileOptions Options)
         {
+            //@TODO - What if the same file is passed multiple times?
             return Compile(CompilerWorkspace.FromFilePaths(FilePaths), Options);
         }
 
-        private static ROMInfo Compile(CompilerWorkspace Workspace, CompileOptions Options)
+        private static CompilationResult Compile(CompilerWorkspace Workspace, CompileOptions Options)
         {
             var Compiler = new GameCompiler(Workspace.Compilation, Options);
-            var CompilationInfo = new CompilationInfo();
+            var CompilationState = new CompilationState();
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
             {
-                CompilationInfo = CompilationInfo.WithType(TypeParser.ParseType(Type, Workspace.Compilation));
+                CompilationState = CompilationState.WithType(TypeParser.ParseType(Type, Workspace.Compilation));
             }
             // All fields have been explored, so we have enough information to layout globals
             // in memory.
-            CompilationInfo = MemoryManager.Analyze(CompilationInfo);
+            CompilationState = MemoryManager.Analyze(CompilationState);
             // Now we can compile methods, knowing any field accesses or method calls should work
             // since we explored them in the parsing stage.
-            foreach (var Type in CompilationInfo.AllTypes)
+            foreach (var Type in CompilationState.AllTypes)
             {
-                CompilationInfo = CompilationInfo.WithReplacedType(TypeCompiler.CompileType(Type, CompilationInfo, Compiler));
+                CompilationState = CompilationState.WithReplacedType(TypeCompiler.CompileType(Type, CompilationState, Compiler));
             }
-            var ROMInfo = ROMCreator.CreateROM(CompilationInfo);
-            if (ROMInfo.Success)
+            var ROMInfo = ROMCreator.CreateROM(CompilationState);
+            if (ROMInfo.DASMSuccess)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Compilation successful.");
