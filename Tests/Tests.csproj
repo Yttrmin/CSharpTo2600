@@ -146,8 +146,17 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>(robocopy $(SolutionDir)\Dependencies\ $(TargetDir)Dependencies\ * /e /xo) ^&amp; IF %25ERRORLEVEL%25 LEQ 1 exit 0</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
+  <Target Name="AfterBuild">
+    <ItemGroup>
+      <DASMFiles Include="$(SolutionDir)Dependencies\DASM\*.*" />
+      <_6502NetFiles Include="$(SolutionDir)Dependencies\6502Net\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DASMFiles)" DestinationFolder="$(TargetDir)Dependencies\DASM" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_6502NetFiles)" DestinationFolder="$(TargetDir)Dependencies\6502Net" SkipUnchangedFiles="true" />
+  </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
