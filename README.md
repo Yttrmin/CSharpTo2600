@@ -4,8 +4,14 @@ A compiler and framework for creating Atari 2600 games using C#. It uses the .NE
 When it comes to making Atari 2600 games there are only a couple languages to choose from. I want to add another option by supporting a subset of the C# language. My hope is to attract more people to try their hand at Atari 2600 development.
 ### What's Supported?
 Not much, the project is very early in development. This will be updated as features are added.
+
+* Static classes
+ * Static byte fields
+ * Special-purpose static methods (recognized by the compiler, can't be invoked)
+* Multiple user-defined types and multiple source files
+
 ### Building
-Load the solution into [Visual Studio 2015 CTP 6](https://www.visualstudio.com/en-us/downloads/visual-studio-2015-ctp-vs) and it should build and run fine.
+Load the solution into [Visual Studio 2015 RC](https://www.visualstudio.com/en-us/news/vs2015-vs) and it should build and run fine.
 ### Usage
 The command line must be passed at least one file path. The order of the paths does not matter.
 
