@@ -66,6 +66,17 @@ namespace CSharpTo2600.Compiler
                     // Otherwise we'll end up compiling an empty method.
                     MethodSymbol = MethodSymbol.PartialImplementationPart ?? MethodSymbol;
                     var MethodType = Method.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
+
+                    // Only supporting void return and 0 parameters for now.
+                    if (Method.ReturnType != typeof(void))
+                    {
+                        throw new FatalCompilationException($"Method must have void return: {Method.Name}");
+                    }
+                    if(Method.GetParameters().Length != 0)
+                    {
+                        throw new FatalCompilationException($"Method must have 0 parameters: {Method.Name}");
+                    }
+
                     var Subroutine = new Subroutine(Method.Name, Method, MethodSymbol, MethodType);
                     Result.Add(MethodSymbol, Subroutine);
                 }

@@ -103,7 +103,7 @@ using CSharpTo2600.Framework;
             var GlobalVar = ROMInfo.CompilationState.AllGlobals.Single(v => v.Name == "a");
             var ExpectedCode = ConcatenateFragments(PushLiteral((int)0x7EAD), StoreVariable(GlobalVar, typeof(int)));
 
-            Assert.True(Subroutine.Body.Where(l => !(l is Trivia)).SequenceEqual(ExpectedCode));
+            Assert.True(Subroutine.Body.StripForInlining().StripTrivia().SequenceEqual(ExpectedCode));
         }
 
         [Test]
@@ -127,6 +127,42 @@ using CSharpTo2600.Framework;
 [Atari2600Game]static class Test { static void TestMethod() { Nested.Var++; } 
 static class Nested { public static byte Var; } }";
             Assert.DoesNotThrow(() => GameCompiler.CompileFromTexts(Source));
+        }
+
+        [Test]
+        public void SupportMethodInvocation()
+        {
+            var Source = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class Test { static byte Var;
+[SpecialMethod(MethodType.Initialize)]static void Initializer() { TestMethod(); } 
+[SpecialMethod(MethodType.UserDefined)]static void TestMethod() { Var++; } }";
+            Assert.DoesNotThrow(() => GameCompiler.CompileFromTexts(Source));
+        }
+
+        [Test]
+        public void NonAttributedMethodsAreImplicitlyUserDefined()
+        {
+            var Source = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class Test { static byte Var;
+[SpecialMethod(MethodType.Initialize)]static void Initializer() { TestMethod(); } 
+static void TestMethod() { Var++; } }";
+            CompilationState State = null;
+            Assert.DoesNotThrow(() => State = GameCompiler.CompileFromTexts(Source).CompilationState);
+            var TestSubroutine = State.AllSubroutines.Where(n => n.Name == "TestMethod").Single();
+            Assert.AreEqual(Framework.MethodType.UserDefined, TestSubroutine.Type);
+        }
+
+        [Test]
+        public void NonUserDefinedMethodsCanNotBeInvoked()
+        {
+            var Source = @"
+using CSharpTo2600.Framework;
+[Atari2600Game]static class Test { static byte Var;
+[SpecialMethod(MethodType.Initialize)]static void Initializer() { TestMethod(); } 
+[SpecialMethod(MethodType.MainLoop)]static void TestMethod() { Var++; } }";
+            Assert.Throws<AttemptedToInvokeSpecialMethodException>(() => GameCompiler.CompileFromTexts(Source));
         }
 
         // Partial methods result in 2 symbols: One with the body, and one without.

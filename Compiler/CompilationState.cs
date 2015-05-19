@@ -83,7 +83,8 @@ namespace CSharpTo2600.Compiler
 
         public Subroutine GetSubroutineFromSymbol(IMethodSymbol MethodSymbol)
         {
-            throw new NotImplementedException();
+            var Type = Types[MethodSymbol.ContainingType];
+            return Type.Subroutines[MethodSymbol];
         }
 
         public IVariableInfo GetVariableFromField(IFieldSymbol FieldSymbol)

@@ -102,6 +102,86 @@ namespace CSharpTo2600.UnitTests
         }
 
         [Test]
+        public void JSR()
+        {
+            /* The test:
+
+            PreJump = TestValue;
+            GOTO JumpTarget;
+            PostJump = TestValue; // Should NOT be reached. PostJump should remain = 0.
+            GOTO ProgramEnd; // Also should not be reached.
+
+            JumpTarget:
+                InJump = TestValue;
+                GOTO ProgramEnd;
+            */
+            const byte PreJumpAddress = 0xA0;
+            const byte InJumpAddress = 0xA1;
+            const byte PostJumpAddress = 0xA2;
+            const ushort JumpPointAddress = 0xFA12;
+            var JumpTarget = AssemblyFactory.Label("JumpTarget");
+            RunProgramFromFragment(true,
+                AssemblyFactory.LDA(TestValue), AssemblyFactory.STA(PreJumpAddress),
+                AssemblyFactory.JSR(JumpTarget),
+                AssemblyFactory.STA(PostJumpAddress),
+                AssemblyFactory.JMP(ProgramEnd),
+                AssemblyFactory.Org(JumpPointAddress),
+                JumpTarget,
+                AssemblyFactory.STA(InJumpAddress),
+                AssemblyFactory.JMP(ProgramEnd));
+
+            // JSR should decrement stack by 2.
+            Assert.AreEqual(0xFD, CPU.StackPointer);
+            // We don't really have the means to easily verify the return address on the stack.
+            // But it's safe to assume that if everything else passes, JSR worked properly.
+            // Putting the proper return address on the stack is also the responsibility of
+            // the emulator/hardware, we have no control over it.
+
+            // PreJump = InJump = TestValue
+            // PostJump = 0 since it should not be reached.
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(PreJumpAddress));
+            Assert.AreEqual(0, CPU.Memory.ReadValue(PostJumpAddress));
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(InJumpAddress));
+        }
+
+        [Test]
+        public void JSRAndRTS()
+        {
+            /* The test:
+
+            PreJump = TestValue;
+            JSR JumpTarget;
+            PostJump = TestValue;
+            GOTO ProgramEnd;
+
+            JumpTarget:
+                InJump = TestValue;
+                return;
+            */
+            const byte PreJumpAddress = 0xA0;
+            const byte InJumpAddress = 0xA1;
+            const byte PostJumpAddress = 0xA2;
+            const ushort JumpPointAddress = 0xFA12;
+            var JumpTarget = AssemblyFactory.Label("JumpTarget");
+            RunProgramFromFragment(true,
+                AssemblyFactory.LDA(TestValue), AssemblyFactory.STA(PreJumpAddress),
+                AssemblyFactory.JSR(JumpTarget),
+                AssemblyFactory.STA(PostJumpAddress),
+                AssemblyFactory.JMP(ProgramEnd),
+                AssemblyFactory.Org(JumpPointAddress),
+                JumpTarget,
+                AssemblyFactory.STA(InJumpAddress),
+                AssemblyFactory.RTS());
+
+            // RTS after JSR should put stack back to 0xFF.
+            Assert.AreEqual(0xFF, CPU.StackPointer);
+            // All STAs should be reached.
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(PreJumpAddress));
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(PostJumpAddress));
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(InJumpAddress));
+        }
+
+        [Test]
         public void LDAImmediate(
             // Always make sure some nibbles >=A are included to ensure DASM is
             // treating it all as hex and not decimal.
@@ -152,6 +232,56 @@ namespace CSharpTo2600.UnitTests
                 AssemblyFactory.LDA(0), AssemblyFactory.PLA());
             Assert.AreEqual(TestValue, CPU.Accumulator);
             Assert.AreEqual(0xFF, CPU.StackPointer);
+        }
+
+        [Test]
+        public void RTS()
+        {
+            // We're avoiding JSR in this test since it would add a dependency and there
+            // are valid uses of RTS not involving JSR.
+            // So instead we're treating RTS as a branch instruction that reads the target
+            // address-1 off the stack, increments the address, jumps to it, and increments the 
+            // stack pointer by 2.
+
+            /* The test:
+
+            PreJump = TestValue;
+            GOTO JumpTarget;
+            PostJump = TestValue; // Should NOT be reached. PostJump should remain = 0.
+            GOTO ProgramEnd; // Also should not be reached.
+
+            JumpTarget:
+                InJump = TestValue;
+                GOTO ProgramEnd;
+            */
+            const byte PreJumpAddress = 0xA0;
+            const byte InJumpAddress = 0xA1;
+            const byte PostJumpAddress = 0xA2;
+            const ushort JumpPointAddress = 0xFA12;
+            var JumpTarget = AssemblyFactory.Label("JumpTarget");
+            RunProgramFromFragment(true,
+                AssemblyFactory.LDA(TestValue), AssemblyFactory.STA(PreJumpAddress),
+                // RTS reads low-byte first from stack, then high-byte.
+                // Must subtract one from low byte because RTS adds one.
+                AssemblyFactory.LDA(0xFA), AssemblyFactory.PHA(), AssemblyFactory.LDA(0x12-1), AssemblyFactory.PHA(),
+                AssemblyFactory.RTS(),
+                // This code should not be reached if we correctly jump to JumpTarget.
+                AssemblyFactory.LDA(TestValue), AssemblyFactory.STA(PostJumpAddress),
+                AssemblyFactory.JMP(ProgramEnd),
+                AssemblyFactory.Org(JumpPointAddress),
+                JumpTarget,
+                AssemblyFactory.LDA(TestValue), AssemblyFactory.STA(InJumpAddress),
+                AssemblyFactory.JMP(ProgramEnd));
+            // RTS should increment the stack pointer back to 0xFF.
+            Assert.AreEqual(0xFF, CPU.StackPointer);
+            // Make sure address was placed on the stack in the right order.
+            Assert.AreEqual(0xFA, CPU.Memory.ReadValue(CPU.StackPointer));
+            Assert.AreEqual(0x12-1, CPU.Memory.ReadValue(CPU.StackPointer-1));
+            // PreJump = InJump = TestValue
+            // PostJump = 0 since it should not be reached.
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(PreJumpAddress));
+            Assert.AreEqual(0, CPU.Memory.ReadValue(PostJumpAddress));
+            Assert.AreEqual(TestValue, CPU.Memory.ReadValue(InJumpAddress));
         }
 
         [Test]

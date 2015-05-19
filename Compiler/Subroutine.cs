@@ -34,6 +34,7 @@ namespace CSharpTo2600.Compiler
         // Could just make Body nullable, but meaning might be unclear.
         public bool IsCompiled { get; }
         public MethodType Type { get; }
+        public Symbol Label { get; }
         private IMethodSymbol Symbol { get; }
         public MethodInfo OriginalMethod { get; }
         public int InstructionCount { get { return Body.OfType<Instruction>().Count(); } }
@@ -47,6 +48,8 @@ namespace CSharpTo2600.Compiler
             this.OriginalMethod = OriginalMethod;
             this.Type = Type;
             this.Symbol = Symbol;
+            //@TODO - Make unique even for overloaded methods
+            Label = AssemblyFactory.Label($"{Symbol.ContainingType.Name}_{Symbol.Name}");
             if (Body.HasValue)
             {
                 IsCompiled = true;

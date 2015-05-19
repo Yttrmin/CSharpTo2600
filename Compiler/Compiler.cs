@@ -52,6 +52,7 @@ namespace CSharpTo2600.Compiler
 
         public static CompilationResult CompileFromFilePaths(IEnumerable<string> FilePaths, CompileOptions Options)
         {
+            //@TODO - What if no paths were passed?
             //@TODO - What if the same file is passed multiple times?
             return Compile(CompilerWorkspace.FromFilePaths(FilePaths), Options);
         }

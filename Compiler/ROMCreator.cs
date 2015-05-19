@@ -37,6 +37,7 @@ namespace CSharpTo2600.Compiler
             Lines.AddRange(CreateMainLoop(State));
             Lines.AddRange(CreateKernel(State));
             Lines.AddRange(CreateOverscan(State));
+            Lines.AddRange(CreateTypeData(State));
             Lines.AddRange(CreateInterruptVectors());
 
             using (var Writer = new StreamWriter(AssemblyFileName))
@@ -111,7 +112,7 @@ namespace CSharpTo2600.Compiler
             if (UserInitializer != null)
             {
                 yield return Comment("Beginning of user initialization code.");
-                foreach (var Line in UserInitializer.Body)
+                foreach (var Line in Fragments.InlineInvoke(UserInitializer))
                 {
                     yield return Line;
                 }
@@ -137,7 +138,7 @@ namespace CSharpTo2600.Compiler
             if (UserLoop != null)
             {
                 yield return Comment("Beginning of user main loop code.");
-                foreach (var Line in UserLoop.Body)
+                foreach (var Line in Fragments.InlineInvoke(UserLoop))
                 {
                     yield return Line;
                 }
@@ -189,7 +190,7 @@ namespace CSharpTo2600.Compiler
             yield return Comment("Beginning of kernel code generation.");
             yield return Repeat(192);
             yield return Comment("Begin user code.");
-            foreach (var Line in UserCode.Body)
+            foreach (var Line in Fragments.InlineInvoke(UserCode))
             {
                 yield return Line;
             }
@@ -209,7 +210,7 @@ namespace CSharpTo2600.Compiler
             if (UserSubroutine != null)
             {
                 yield return Comment("Beginning of user code.");
-                foreach (var Line in UserSubroutine.Body)
+                foreach (var Line in Fragments.InlineInvoke(UserSubroutine))
                 {
                     yield return Line;
                 }
@@ -221,6 +222,37 @@ namespace CSharpTo2600.Compiler
             yield return BNE(LoopLabel);
             yield return JMP(MainLoopLabel);
             yield return BlankLine();
+        }
+        
+        private static IEnumerable<AssemblyLine> CreateTypeData(CompilationState CompilationState)
+        {
+            //@TODO - Include static fields here as well so all type information is in one place?
+
+            // Emits all of a type's user-defined methods.
+            foreach(var Type in CompilationState.AllTypes)
+            {
+                var UserSubroutines = Type.Subroutines.Values.Where(s => s.Type == MethodType.UserDefined);
+                if(UserSubroutines.Count() != 0)
+                {
+                    yield return Comment($"Begin Type: {Type.Name}", 0);
+                    foreach(var UserSubroutine in UserSubroutines)
+                    {
+                        yield return Comment($"Begin: {UserSubroutine.OriginalMethod.ToString()}", 0);
+                        yield return UserSubroutine.Label;
+                        foreach(var Line in UserSubroutine.Body)
+                        {
+                            yield return Line;
+                        }
+                        yield return Comment($"End: {UserSubroutine.OriginalMethod.ToString()}", 0);
+                        if (UserSubroutine != UserSubroutines.Last())
+                        {
+                            yield return BlankLine();
+                        }
+                    }
+                    yield return Comment($"End Type: {Type.Name}", 0);
+                    yield return BlankLine();
+                }
+            }
         }
 
         private static IEnumerable<AssemblyLine> CreateInterruptVectors()

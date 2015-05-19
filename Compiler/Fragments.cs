@@ -244,6 +244,17 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+        public static IEnumerable<AssemblyLine> Invoke(Subroutine Subroutine)
+        {
+            // We can assume void return, 0 arguments.
+            yield return JSR(Subroutine.Label);
+        }
+
+        public static IEnumerable<AssemblyLine> InlineInvoke(Subroutine Subroutine)
+        {
+            return Subroutine.Body.StripForInlining();
+        }
+
         private static bool IsCastable(Type From, Type To)
         {
             //@TODO - Not complete.

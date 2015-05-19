@@ -113,6 +113,7 @@
     <Compile Include="ROMCreator.cs" />
     <Compile Include="CompilationResult.cs" />
     <Compile Include="Subroutine.cs" />
+    <Compile Include="SubroutineBodyExtensions.cs" />
     <Compile Include="VariableInfo.cs" />
   </ItemGroup>
   <ItemGroup>

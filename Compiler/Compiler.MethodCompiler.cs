@@ -27,6 +27,7 @@ namespace CSharpTo2600.Compiler
             private readonly Stack<Type> TypeStack;
             private readonly CompilationState CompilationState;
             private readonly MethodType MethodType;
+            private bool IsPerformanceCritical { get { return MethodType == MethodType.Kernel; } }
 
             private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
                 INamedTypeSymbol ContainingType, CompilationState CompilationState, SemanticModel Model)
@@ -52,6 +53,8 @@ namespace CSharpTo2600.Compiler
                 var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, 
                     Symbol.ContainingType, CompilationState, Model);
                 Compiler.Visit(MethodDeclaration);
+                // Assume a void return.
+                Compiler.MethodBody.Add(AssemblyFactory.RTS());
                 return new Subroutine(Compiler.Name, MethodInfo, Symbol, Compiler.MethodBody.ToImmutableArray(), 
                     Compiler.MethodType);
             }
@@ -59,9 +62,15 @@ namespace CSharpTo2600.Compiler
             public override void Visit(SyntaxNode node)
             {
                 DebugPrintNode(node);
+                // Emit the C# code as a comment so there's a frame of reference
+                // among all the assembly code.
                 if (node.Parent is BlockSyntax && !(node is BlockSyntax))
                 {
-                    MethodBody.Add(AssemblyFactory.Comment(node.GetText().ToString().Trim(), 0));
+                    // If we don't trim trivia then source comments will get included.
+                    // This can mess up the assembly comment due to newlines, and is
+                    // also just useless clutter.
+                    var Text = node.WithoutTrivia().GetText().ToString().Trim();
+                    MethodBody.Add(AssemblyFactory.Comment(Text, 0));
                 }
                 base.Visit(node);
             }
@@ -184,6 +193,18 @@ namespace CSharpTo2600.Compiler
                 MethodBody.AddRange(Fragments.PushVariable(Variable));
                 // Return so we don't trigger IdentifierName handling.
                 return;
+            }
+
+            public override void VisitInvocationExpression(InvocationExpressionSyntax node)
+            {
+                // We can assume void return, 0 parameters, since it is checked during parsing.
+                var MethodSymbol = (IMethodSymbol)Model.GetSymbolInfo(node).Symbol;
+                var Subroutine = CompilationState.GetSubroutineFromSymbol(MethodSymbol);
+                if (Subroutine.Type != MethodType.UserDefined)
+                {
+                    throw new AttemptedToInvokeSpecialMethodException(Subroutine, Name);
+                }
+                MethodBody.AddRange(Fragments.Invoke(Subroutine));
             }
 
             public override void VisitIdentifierName(IdentifierNameSyntax node)

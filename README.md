@@ -8,6 +8,7 @@ Not much, the project is very early in development. This will be updated as feat
 * Static classes
  * Static byte fields
  * Special-purpose static methods (recognized by the compiler, can't be invoked)
+ * Static methods with 0 parameters and void return type (can be invoked)
 * Multiple user-defined types and multiple source files
 
 ### Building

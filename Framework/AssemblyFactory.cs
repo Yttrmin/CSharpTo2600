@@ -153,6 +153,14 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         /// <summary>
+        /// Jump to Subroutine [Absolute] (6 cycles)
+        /// </summary>
+        public static Instruction JSR(Symbol Label)
+        {
+            return new Instruction("JSR", Label.Name, 6);
+        }
+
+        /// <summary>
         /// Load Accumulator with Memory [Immediate] (2 cycles)
         /// </summary>
         public static Instruction LDA(byte Value)
@@ -212,9 +220,17 @@ namespace CSharpTo2600.Framework.Assembly
         }
 
         /// <summary>
+        /// Return from Subroutine [Implied] (6 cycles)
+        /// </summary>
+        /// <returns></returns>
+        public static Instruction RTS()
+        {
+            return new Instruction("RTS", 6);
+        }
+
+        /// <summary>
         /// Subtract with Carry [Zero-page indexed] (4 cycles)
         /// </summary>
-
         //@TODO - Can only be zp-indexed with X register. But if we remove that
         // parameter it'll conflict with the future immediate mode one.
         public static Instruction SBC(byte Offset, Index IndexRegister)
