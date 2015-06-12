@@ -22,6 +22,7 @@ namespace CSharpTo2600.Compiler
         private const string BinaryFileName = "out.bin";
         private const string SymbolsFileName = "out.sym";
         private const string ListFileName = "out.lst";
+        private const string DASMPath = "./Dependencies/DASM/";
         // OutputDirectory has to come first since static variables are initialized in the order they appear.
         private static readonly string OutputDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         private static readonly string BinaryFilePath = Path.Combine(OutputDirectory, BinaryFileName);
@@ -89,6 +90,10 @@ namespace CSharpTo2600.Compiler
 
         private static IEnumerable<AssemblyLine> CreateSymbolDefinitions(CompilationState CompilationState)
         {
+            // Special globals
+            // See Compiler.MethodCompiler.ReturnValue;
+            yield return DefineSymbol("_ReturnValue", 0x80);
+
             foreach (var Global in CompilationState.AllGlobals)
             {
                 if (CompilationState.AllGlobals.Any(v => v != Global && v.Name == Global.Name))
@@ -272,7 +277,7 @@ namespace CSharpTo2600.Compiler
         private static bool AssembleOutput()
         {
             var DASM = new Process();
-            var FullDASMPath = Path.Combine(GameCompiler.DASMPath, "dasm.exe");
+            var FullDASMPath = Path.Combine(DASMPath, "dasm.exe");
             DASM.StartInfo.FileName = FullDASMPath;
             if (!File.Exists(FullDASMPath))
             {
@@ -280,7 +285,7 @@ namespace CSharpTo2600.Compiler
             }
             DASM.StartInfo.UseShellExecute = false;
             DASM.StartInfo.RedirectStandardOutput = true;
-            DASM.StartInfo.WorkingDirectory = GameCompiler.DASMPath;
+            DASM.StartInfo.WorkingDirectory = DASMPath;
             DASM.StartInfo.Arguments = $"\"{Path.GetFullPath(AssemblyFileName)}\" -f3 -o{BinaryFilePath} -s{SymbolsFilePath} -l{ListFilePath}";
             DASM.StartInfo.CreateNoWindow = true;
 

@@ -67,10 +67,10 @@ namespace CSharpTo2600.Compiler
                     MethodSymbol = MethodSymbol.PartialImplementationPart ?? MethodSymbol;
                     var MethodType = Method.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
 
-                    // Only supporting void return and 0 parameters for now.
-                    if (Method.ReturnType != typeof(void))
+                    // Only supporting void/byte return and 0 parameters for now.
+                    if (Method.ReturnType != typeof(void) && Method.ReturnType != typeof(byte))
                     {
-                        throw new FatalCompilationException($"Method must have void return: {Method.Name}");
+                        throw new FatalCompilationException($"Method must have void or byte return type: {Method.Name}");
                     }
                     if(Method.GetParameters().Length != 0)
                     {

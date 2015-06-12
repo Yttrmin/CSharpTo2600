@@ -14,17 +14,19 @@ namespace CSharpTo2600.Compiler
         private sealed class TypeCompiler
         {
             private readonly ProcessedType ParsedType;
+            private readonly CompileOptions CompileOptions;
             private Type CLRType { get { return ParsedType.CLRType; } }
             private TypeInfo TypeInfo { get { return CLRType.GetTypeInfo(); } }
 
-            private TypeCompiler(ProcessedType ParsedType)
+            private TypeCompiler(ProcessedType ParsedType, CompileOptions CompileOptions)
             {
                 this.ParsedType = ParsedType;
+                this.CompileOptions = CompileOptions;
             }
 
             public static ProcessedType CompileType(ProcessedType ParsedType, CompilationState State, GameCompiler GCompiler)
             {
-                var Compiler = new TypeCompiler(ParsedType);
+                var Compiler = new TypeCompiler(ParsedType, GCompiler.Options);
                 var CompiledMethods = Compiler.CompileMethods(State, GCompiler);
                 return new ProcessedType(ParsedType.CLRType, ParsedType.Symbol, CompiledMethods, ParsedType.Globals);
             }
@@ -40,7 +42,7 @@ namespace CSharpTo2600.Compiler
                     var MethodInfo = SymbolSubPair.Value.OriginalMethod;
                     var Model = GCompiler.Compilation.GetSemanticModel(MethodNode.SyntaxTree);
                     var CompiledSubroutine = MethodCompiler.CompileMethod(MethodInfo, 
-                        SymbolSubPair.Key, CompilationState, Model);
+                        SymbolSubPair.Key, CompilationState, Model, CompileOptions.Optimize);
                     Result.Add(SymbolSubPair.Key, CompiledSubroutine);
                 }
                 return Result.ToImmutableDictionary();

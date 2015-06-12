@@ -12,7 +12,9 @@ namespace CSharpTo2600.Compiler
             private readonly CompilationState State;
             private int NextAddress = GlobalsStart;
             private const int RAMAmount = 128;
-            private const int GlobalsStart = 0x80;
+            // 0x80 reserved for return value.
+            // See Compiler.MethodCompiler.ReturnValue;
+            private const int GlobalsStart = 0x81;
             private const int StackStart = 0xFF;
             //@TODO
             // Reserve a completely arbitrary amount of memory for globals.

@@ -4,6 +4,7 @@ using System.Reflection;
 using CSharpTo2600.Framework;
 using CSharpTo2600.Framework.Assembly;
 using Microsoft.CodeAnalysis;
+using System;
 
 namespace CSharpTo2600.Compiler
 {
@@ -39,13 +40,15 @@ namespace CSharpTo2600.Compiler
         public MethodInfo OriginalMethod { get; }
         public int InstructionCount { get { return Body.OfType<Instruction>().Count(); } }
         public int CycleCount { get { return Body.OfType<Instruction>().Sum(i => i.Cycles); } }
-        //@TODO - IsInstance/IsStatic
+        //@TODO - Replace with ProcessedType.
+        public Type ReturnType { get; }
 
         internal Subroutine(string Name, MethodInfo OriginalMethod, IMethodSymbol Symbol, 
             ImmutableArray<AssemblyLine>? Body, MethodType Type)
         {
             this.Name = Name;
             this.OriginalMethod = OriginalMethod;
+            ReturnType = OriginalMethod.ReturnType;
             this.Type = Type;
             this.Symbol = Symbol;
             //@TODO - Make unique even for overloaded methods

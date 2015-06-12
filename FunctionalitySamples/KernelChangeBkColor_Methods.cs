@@ -19,23 +19,25 @@ namespace CSharpTo2600.FunctionalitySamples
         [Kernel(KernelTechnique.CallEveryScanline)]
         static void Kernel()
         {
-            UpdateBackgroundColor();
-            IncrementColor();
+            BackgroundColor = NextBackgroundColor();
         }
 
         static void ResetColor()
         {
             Color = 0;
+            return;
         }
 
-        static void UpdateBackgroundColor()
+        static byte NextBackgroundColor()
         {
-            BackgroundColor = Color;
+            IncrementColor();
+            return Color;
         }
 
         static void IncrementColor()
         {
             Color++;
+            return;
         }
     }
 }

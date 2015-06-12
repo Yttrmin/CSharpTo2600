@@ -13,7 +13,6 @@ namespace CSharpTo2600.Compiler
         private readonly Assembly CompiledAssembly;
         private readonly Assembly FrameworkAssembly;
         private CompileOptions Options = CompileOptions.Default;
-        public const string DASMPath = "./Dependencies/DASM/";
 
         static void Main(string[] args)
         {

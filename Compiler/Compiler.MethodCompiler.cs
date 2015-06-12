@@ -19,6 +19,10 @@ namespace CSharpTo2600.Compiler
         /// </summary>
         private sealed class MethodCompiler : CSharpSyntaxWalker
         {
+            private static readonly IVariableInfo ReturnValue;
+
+            //@TODO - Test compiler Optimize setting affecting this.
+            private readonly IOptimizer Optimizer;
             private readonly SemanticModel Model;
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
@@ -29,14 +33,28 @@ namespace CSharpTo2600.Compiler
             private readonly MethodType MethodType;
             private bool IsPerformanceCritical { get { return MethodType == MethodType.Kernel; } }
 
+            static MethodCompiler()
+            {
+                ReturnValue = VariableInfo.CreateDirectlyAddressableCustomVariable("_ReturnValue", typeof(byte), 0x80);
+            }
+
             private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
-                INamedTypeSymbol ContainingType, CompilationState CompilationState, SemanticModel Model)
+                INamedTypeSymbol ContainingType, CompilationState CompilationState, SemanticModel Model,
+                bool Optimize)
             {
                 MethodType = MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined;
                 this.CompilationState = CompilationState;
                 this.Model = Model;
                 Name = MethodDeclaration.Identifier.Text;
                 this.MethodDeclaration = MethodDeclaration;
+                if (Optimize)
+                {
+                    Optimizer = new Optimizer();
+                }
+                else
+                {
+                    Optimizer = new NullOptimizer();
+                }
                 MethodBody = new List<AssemblyLine>();
                 TypeStack = new Stack<Type>();
             }
@@ -47,16 +65,18 @@ namespace CSharpTo2600.Compiler
             /// already been parsed (not compiled) previously.
             /// </summary>
             public static Subroutine CompileMethod(MethodInfo MethodInfo, IMethodSymbol Symbol, 
-                CompilationState CompilationState, SemanticModel Model)
+                CompilationState CompilationState, SemanticModel Model, bool Optimize)
             {
                 var MethodDeclaration = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
                 var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, 
-                    Symbol.ContainingType, CompilationState, Model);
+                    Symbol.ContainingType, CompilationState, Model, Optimize);
                 Compiler.Visit(MethodDeclaration);
                 // Assume a void return.
                 Compiler.MethodBody.Add(AssemblyFactory.RTS());
-                return new Subroutine(Compiler.Name, MethodInfo, Symbol, Compiler.MethodBody.ToImmutableArray(), 
-                    Compiler.MethodType);
+                var Subroutine = new Subroutine(Compiler.Name, MethodInfo, Symbol, 
+                    Compiler.MethodBody.ToImmutableArray(), Compiler.MethodType);
+                Subroutine = Compiler.Optimizer.PerformAllOptimizations(Subroutine);
+                return Subroutine;
             }
 
             public override void Visit(SyntaxNode node)
@@ -64,7 +84,8 @@ namespace CSharpTo2600.Compiler
                 DebugPrintNode(node);
                 // Emit the C# code as a comment so there's a frame of reference
                 // among all the assembly code.
-                if (node.Parent is BlockSyntax && !(node is BlockSyntax))
+                var ReturnNode = node as ReturnStatementSyntax;
+                if (node.Parent is BlockSyntax && !(node is BlockSyntax)) // Don't emit whole blocks of code
                 {
                     // If we don't trim trivia then source comments will get included.
                     // This can mess up the assembly comment due to newlines, and is
@@ -205,6 +226,13 @@ namespace CSharpTo2600.Compiler
                     throw new AttemptedToInvokeSpecialMethodException(Subroutine, Name);
                 }
                 MethodBody.AddRange(Fragments.Invoke(Subroutine));
+
+                if (!MethodSymbol.ReturnsVoid)
+                {
+                    MethodBody.AddRange(Fragments.PushVariable(ReturnValue));
+                    // Can only be a byte if we're assigning it to a variable.
+                    TypeStack.Push(typeof(byte));
+                }
             }
 
             public override void VisitIdentifierName(IdentifierNameSyntax node)
@@ -222,6 +250,27 @@ namespace CSharpTo2600.Compiler
                 TypeStack.Push(Variable.Type);
                 MethodBody.AddRange(Fragments.PushVariable(Variable));
                 base.VisitIdentifierName(node);
+            }
+
+            /// How do return values work?
+            /// There's a special byte variable called _ReturnValue.
+            /// "return [expression];" is logically just "_ReturnValue = [expression]; return;"
+            /// In terms of performance it's actually superior to messing with the stack like in
+            /// a conventional call stack. The downside is that (when we support more types), 
+            /// _ReturnValue will have to be sized to the largest type returned by a method,
+            /// instead of just allocating stack space as needed.
+            public override void VisitReturnStatement(ReturnStatementSyntax node)
+            {
+                // If it's a void return, nothing to do.
+                if(node.Expression == null)
+                {
+                    return;
+                }
+
+                base.VisitReturnStatement(node);
+                // Only non-void type we return is a byte.
+                MethodBody.AddRange(Fragments.StoreVariable(ReturnValue, typeof(byte)));
+                // Don't emit RTS since that's always appended to the end of a subroutine in CompileMethod().
             }
 
             private IVariableInfo GetVariable(MemberAccessExpressionSyntax Node)

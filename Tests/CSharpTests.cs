@@ -11,7 +11,7 @@ namespace CSharpTo2600.UnitTests
     {
         // Make sure optimizations are turned off, otherwise our expected fragments won't
         // match up with the subroutine's body.
-        private static readonly CompileOptions CompileOptions =
+        private static readonly CompileOptions CompileOptionsNoOptimize =
             new CompileOptions(Optimize: false, Endianness: Endianness.Big);
 
         [Test]
@@ -99,7 +99,7 @@ using CSharpTo2600.Framework;
         public void LiteralAssignmentToGlobal()
         {
             CompilationResult ROMInfo;
-            var Subroutine = CompileStaticMethod("static int a;", "a = 0x7EAD;", out ROMInfo);
+            var Subroutine = CompileStaticMethod("static int a;", "void", "a = 0x7EAD;", out ROMInfo, CompileOptionsNoOptimize);
             var GlobalVar = ROMInfo.CompilationState.AllGlobals.Single(v => v.Name == "a");
             var ExpectedCode = ConcatenateFragments(PushLiteral((int)0x7EAD), StoreVariable(GlobalVar, typeof(int)));
 
@@ -195,17 +195,33 @@ static class DataClass { public static byte Var; }";
             Assert.IsTrue(State.AllTypes.Any(t => t.Name == "DataClass"));
         }
 
-        private Subroutine CompileStaticMethod(string Globals, string Source)
+        //@TODO I would test more about non-void returns but it would largely require 
+        // examining the emulator's memory, which we aren't currently capable of doing at this level.
+        [Test]
+        public void ByteReturnCompiles()
         {
-            CompilationResult ThrowAway;
-            return CompileStaticMethod(Globals, Source, out ThrowAway);
+            Subroutine TestSubroutine = null;
+            Assert.DoesNotThrow(() => TestSubroutine = CompileStaticMethod(null, "byte", "return 21;"));
+            Assert.AreEqual(TestSubroutine.ReturnType, typeof(byte));
         }
 
-        private Subroutine CompileStaticMethod(string Globals, string Source, out CompilationResult ROMInfo)
+        private Subroutine CompileStaticMethod(string Globals, string ReturnType, string Source)
         {
-            var Code = $"using CSharpTo2600.Framework; [Atari2600Game]static class Test {{ {Globals} static void TestMethod() {{ {Source} }} }}";
-            ROMInfo = GameCompiler.CompileFromTexts(Code);
+            CompilationResult ThrowAway;
+            return CompileStaticMethod(Globals, ReturnType, Source, out ThrowAway);
+        }
+
+        private Subroutine CompileStaticMethod(string Globals, string ReturnType, string Source, 
+            out CompilationResult ROMInfo, CompileOptions CompileOptions)
+        {
+            var Code = $"using CSharpTo2600.Framework; [Atari2600Game]static class Test {{ {Globals} static {ReturnType} TestMethod() {{ {Source} }} }}";
+            ROMInfo = GameCompiler.CompileFromTexts(CompileOptions, Code);
             return ROMInfo.CompilationState.AllSubroutines.Single(s => s.Name == "TestMethod");
+        }
+
+        private Subroutine CompileStaticMethod(string Globals, string ReturnType, string Source, out CompilationResult ROMInfo)
+        {
+            return CompileStaticMethod(Globals, ReturnType, Source, out ROMInfo, CompileOptions.Default);
         }
 
         private IEnumerable<AssemblyLine> ConcatenateFragments(params IEnumerable<AssemblyLine>[] Lines)
