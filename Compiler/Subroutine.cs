@@ -11,7 +11,7 @@ namespace CSharpTo2600.Compiler
     /// <summary>
     /// Immutable representation of a 6502-compatible subroutine.
     /// </summary>
-    public class Subroutine
+    public sealed class Subroutine
     {
         public string Name { get; }
         // Is there any case where no body is an intended final result?
@@ -36,7 +36,7 @@ namespace CSharpTo2600.Compiler
         public bool IsCompiled { get; }
         public MethodType Type { get; }
         public Symbol Label { get; }
-        private IMethodSymbol Symbol { get; }
+        internal IMethodSymbol Symbol { get; }
         public MethodInfo OriginalMethod { get; }
         public int InstructionCount { get { return Body.OfType<Instruction>().Count(); } }
         public int CycleCount { get { return Body.OfType<Instruction>().Sum(i => i.Cycles); } }

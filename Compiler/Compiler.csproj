@@ -119,6 +119,7 @@
   <ItemGroup>
     <Compile Include="Compiler.MethodCompiler.cs" />
     <Compile Include="Fragments.Math.cs" />
+    <Compile Include="Compiler.MethodCallHierarchy.cs" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>

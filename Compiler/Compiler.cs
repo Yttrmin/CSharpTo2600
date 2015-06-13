@@ -4,6 +4,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using CSharpTo2600.Framework;
 using System.Reflection;
+using System.Linq;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CSharpTo2600.Compiler
 {
@@ -66,6 +68,8 @@ namespace CSharpTo2600.Compiler
             {
                 CompilationState = CompilationState.WithType(TypeParser.ParseType(Type, Workspace.Compilation));
             }
+            // All methods have been detected, so now we can build a call hierarchy.
+            var Hierarchy = ConstructMethodCallHierarchy(Compiler, CompilationState);
             // All fields have been explored, so we have enough information to layout globals
             // in memory.
             CompilationState = MemoryManager.Analyze(CompilationState);
@@ -87,6 +91,19 @@ namespace CSharpTo2600.Compiler
                 Console.WriteLine("Compilation failed.");
             }
             return ROMInfo;
+        }
+
+        private static MethodCallHierarchy ConstructMethodCallHierarchy(GameCompiler Compiler, CompilationState State)
+        {
+            var Roots = State.AllSubroutines.Where(s => s.Type != MethodType.UserDefined);
+            var Hierarchy = MethodCallHierarchy.Empty;
+            foreach(var Subroutine in Roots)
+            {
+                var MethodDeclaration = (MethodDeclarationSyntax)Subroutine.Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
+                var Model = Compiler.Compilation.GetSemanticModel(MethodDeclaration.SyntaxTree);
+                Hierarchy = HierarchyBuilder.RecursiveBuilder(Subroutine.Symbol, Hierarchy, Model);
+            }
+            return Hierarchy;
         }
     }
 
