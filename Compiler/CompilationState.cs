@@ -14,7 +14,8 @@ namespace CSharpTo2600.Compiler
     public sealed class CompilationState
     {
         private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
-        
+        public MethodCallHierarchy MethodCallHierarchy { get; }
+
         public IEnumerable<ProcessedType> AllTypes { get { return Types.Values; } }
         public IEnumerable<IVariableInfo> AllGlobals
         {
@@ -44,19 +45,15 @@ namespace CSharpTo2600.Compiler
         }
 
         public CompilationState()
+            : this(ImmutableDictionary<INamedTypeSymbol, ProcessedType>.Empty, MethodCallHierarchy.Empty)
         {
-            Types = ImmutableDictionary<INamedTypeSymbol, ProcessedType>.Empty;
         }
 
-        private CompilationState(CompilationState OldState, INamedTypeSymbol Symbol, ProcessedType Type)
+        private CompilationState(ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types,
+            MethodCallHierarchy MethodCallHierarchy)
         {
-            // Either adding a key/value that didn't exist before or overwriting an existing value.
-            Types = OldState.Types.SetItem(Symbol, Type);
-        }
-
-        private CompilationState(CompilationState OldState, ProcessedType NewType)
-        {
-            throw new NotImplementedException();
+            this.Types = Types;
+            this.MethodCallHierarchy = MethodCallHierarchy;
         }
 
         public ProcessedType GetGameClass()
@@ -93,18 +90,29 @@ namespace CSharpTo2600.Compiler
             return Type.Globals[FieldSymbol];
         }
 
-        public CompilationState WithType(ProcessedType Type)
+        internal CompilationState WithType(ProcessedType Type)
         {
-            return new CompilationState(this, Type.Symbol, Type);
+            var NewDictionary = Types.Add(Type.Symbol, Type);
+            return new CompilationState(NewDictionary, MethodCallHierarchy);
         }
 
-        public CompilationState WithReplacedType(ProcessedType Type)
+        internal CompilationState WithReplacedType(ProcessedType Type)
         {
-            if (!Types.ContainsKey(Type.Symbol))
+            if(!Types.ContainsKey(Type.Symbol))
             {
                 throw new ArgumentException($"Type was not previously parsed: {Type}", nameof(Type));
             }
-            return new CompilationState(this, Type.Symbol, Type);
+            var NewDictionary = Types.SetItem(Type.Symbol, Type);
+            return new CompilationState(NewDictionary, MethodCallHierarchy);
+        }
+
+        internal CompilationState WithMethodCallHierarchy(MethodCallHierarchy NewHierarchy)
+        {
+            if(MethodCallHierarchy != null)
+            {
+                throw new InvalidOperationException("Attempted to set the state's MethodCallHierarchy more than once.");
+            }
+            return new CompilationState(Types, NewHierarchy);
         }
     }
 }

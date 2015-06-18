@@ -218,7 +218,7 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitInvocationExpression(InvocationExpressionSyntax node)
             {
-                // We can assume void return, 0 parameters, since it is checked during parsing.
+                // We can assume void/byte return, 0 parameters, since it is checked during parsing.
                 var MethodSymbol = (IMethodSymbol)Model.GetSymbolInfo(node).Symbol;
                 var Subroutine = CompilationState.GetSubroutineFromSymbol(MethodSymbol);
                 if (Subroutine.Type != MethodType.UserDefined)

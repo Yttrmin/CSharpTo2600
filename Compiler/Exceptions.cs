@@ -61,4 +61,13 @@ namespace CSharpTo2600.Compiler
 
         }
     }
+
+    internal class RecursionException : FatalCompilationException
+    {
+        public RecursionException(IMethodSymbol RecursiveMethod)
+            : base($"{RecursiveMethod.Name} is possibly recursive. Recursion is not allowed.")
+        {
+
+        }
+    }
 }
