@@ -9,7 +9,6 @@ using System.Collections.Generic;
 
 namespace CSharpTo2600.Compiler
 {
-
     // The hierarchy only tells you if a method may call another method ever.
     // It may call a method 0 times (e.g. if(SomeConditionFalseAtRuntime){Call();} )
     // It may call a method 1 time.
@@ -26,6 +25,17 @@ namespace CSharpTo2600.Compiler
         private readonly ImmutableDictionary<IMethodSymbol, HierarchyNode> SymbolToNode;
         public static readonly MethodCallHierarchy Empty
             = new MethodCallHierarchy(ImmutableDictionary<IMethodSymbol, HierarchyNode>.Empty);
+        //@TODO - Limit to methods with special types. No point considering user-defined methods with no callers.
+        /// <summary>
+        /// Returns all nodes representing methods with no callers.
+        /// </summary>
+        public IEnumerable<HierarchyNode> AllRoots { get { return SymbolToNode.Values.Where(n => n.Callers.Count() == 0); } }
+        /// <summary>
+        /// Returns the maximum possible method call depth (e.g. A() calls B() calls C() has a depth of 3).
+        /// There is no guarantee that the returned depth will be reached (or if its even possible to reach)
+        /// at runtime.
+        /// </summary>
+        public int MaxMethodDepth { get { return CalculateMaxMethodDepth(); } }
 
         private MethodCallHierarchy(ImmutableDictionary<IMethodSymbol, HierarchyNode> SymbolToNode)
         {
@@ -61,22 +71,45 @@ namespace CSharpTo2600.Compiler
         /// </summary>
         public string PrintHierarchyForRoots()
         {
-            var Builder = new StringBuilder();
-            var Roots = SymbolToNode.Values.Where(n => n.Callers.Count() == 0);
-            foreach (var Root in Roots)
+            Action<HierarchyNode, StringBuilder, int> PrintHierarchy = null;
+            PrintHierarchy =
+                (Root, Builder, IndentationCount) =>
+                {
+                    Builder.AppendLine($"{new string(' ', IndentationCount)}{Root.Method.Name.ToString()}");
+                    foreach (var Call in Root.Calls)
+                    {
+                        PrintHierarchy(Call, Builder, IndentationCount + 1);
+                    }
+                };
+
+            var StringBuilder = new StringBuilder();
+            foreach (var Root in AllRoots)
             {
-                PrintHierarchy(Root, Builder, 0);
+                PrintHierarchy(Root, StringBuilder, 0);
             }
-            return Builder.ToString();
+            return StringBuilder.ToString();
         }
 
-        private void PrintHierarchy(HierarchyNode Root, StringBuilder Builder, int IndentationCount)
+        private int CalculateMaxMethodDepth()
         {
-            Builder.AppendLine($"{new string(' ', IndentationCount)}{Root.Method.Name.ToString()}");
-            foreach (var Call in Root.Calls)
+            Func<HierarchyNode, int, int> RecursiveMaxDepth = null;
+            RecursiveMaxDepth =
+                (Node, Depth) =>
+                {
+                    int MaxDepthFromHere = Depth + 1;
+                    foreach (var Call in Node.Calls)
+                    {
+                        MaxDepthFromHere = Math.Max(MaxDepthFromHere, RecursiveMaxDepth(Call, Depth + 1));
+                    }
+                    return MaxDepthFromHere;
+                };
+
+            var MaxDepth = 0;
+            foreach (var Root in AllRoots)
             {
-                PrintHierarchy(Call, Builder, IndentationCount + 1);
+                MaxDepth = Math.Max(MaxDepth, RecursiveMaxDepth(Root, 0));
             }
+            return MaxDepth;
         }
     }
 
@@ -132,13 +165,7 @@ namespace CSharpTo2600.Compiler
             return Method.Name;
         }
     }
-
-    public sealed class CallInfo
-    {
-
-    }
-
-    //@TODO - This is probably broken with recursive C# methods.
+    
     internal sealed class HierarchyBuilder : CSharpSyntaxWalker
     {
         private readonly SemanticModel Model;

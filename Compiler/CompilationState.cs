@@ -23,7 +23,7 @@ namespace CSharpTo2600.Compiler
             {
                 foreach (var Type in AllTypes)
                 {
-                    foreach (var Global in Type.Globals.Values)
+                    foreach (var Global in Type.StaticFields.Values)
                     {
                         yield return Global;
                     }
@@ -58,7 +58,7 @@ namespace CSharpTo2600.Compiler
 
         public ProcessedType GetGameClass()
         {
-            var Class = AllTypes.SingleOrDefault(t => t.CLRType.GetTypeInfo().GetCustomAttribute<Atari2600Game>() != null);
+            var Class = AllTypes.SingleOrDefault(t => t.CLRType?.GetTypeInfo().GetCustomAttribute<Atari2600Game>() != null);
             if (Class == null)
             {
                 throw new GameClassNotFoundException();
@@ -78,6 +78,11 @@ namespace CSharpTo2600.Compiler
             return Types[TypeSymbol];
         }
 
+        public ProcessedType GetTypeFromName(string Name)
+        {
+            return AllTypes.Single(t => t.Name == Name);
+        }
+
         public Subroutine GetSubroutineFromSymbol(IMethodSymbol MethodSymbol)
         {
             var Type = Types[MethodSymbol.ContainingType];
@@ -87,7 +92,7 @@ namespace CSharpTo2600.Compiler
         public IVariableInfo GetVariableFromField(IFieldSymbol FieldSymbol)
         {
             var Type = Types[FieldSymbol.ContainingType];
-            return Type.Globals[FieldSymbol];
+            return Type.StaticFields[FieldSymbol];
         }
 
         internal CompilationState WithType(ProcessedType Type)

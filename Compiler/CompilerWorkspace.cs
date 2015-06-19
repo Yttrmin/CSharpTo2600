@@ -13,7 +13,7 @@ namespace CSharpTo2600.Compiler
         private readonly AdhocWorkspace Workspace;
         private readonly Project UserProject;
         private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(CSharpTo2600.Framework.TIARegisters).Assembly.Location);
-        private static readonly MetadataReference MSCorLibReference = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
+        internal static readonly MetadataReference MSCorLibReference = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
         private static readonly CompilationOptions Options =
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
         

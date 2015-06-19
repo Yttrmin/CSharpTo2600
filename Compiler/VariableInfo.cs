@@ -9,7 +9,7 @@ namespace CSharpTo2600.Compiler
     public interface IVariableInfo
     {
         string Name { get; }
-        Type Type { get; }
+        ProcessedType Type { get; }
         int Size { get; }
         Symbol AssemblySymbol { get; }
         bool IsDirectlyAddressable { get; }
@@ -20,25 +20,25 @@ namespace CSharpTo2600.Compiler
     {
         private readonly ISymbol CompilerSymbol;
         public Symbol AssemblySymbol { get; }
-        public Type Type { get; }
+        public ProcessedType Type { get; }
         public string Name { get { return CompilerSymbol.Name; } }
-        public int Size { get { return Marshal.SizeOf(Type); } }
+        public int Size { get { return Type.InstanceSize; } }
         public abstract bool IsDirectlyAddressable { get; }
         public abstract bool IsStackRelative { get; }
 
-        private VariableInfo(ISymbol CompilerSymbol, Symbol AssemblySymbol, Type Type)
+        private VariableInfo(ISymbol CompilerSymbol, Symbol AssemblySymbol, ProcessedType Type)
         {
             this.CompilerSymbol = CompilerSymbol;
             this.AssemblySymbol = AssemblySymbol;
             this.Type = Type;
         }
 
-        public static IVariableInfo CreateDirectlyAddressableVariable(ISymbol Symbol, Type Type, int StartAddress)
+        public static IVariableInfo CreateDirectlyAddressableVariable(ISymbol Symbol, ProcessedType Type, int StartAddress)
         {
-            return new DirectlyAddressableVariable(Symbol, Type, new Range(StartAddress, StartAddress + Marshal.SizeOf(Type)));
+            return new DirectlyAddressableVariable(Symbol, Type, new Range(StartAddress, StartAddress + Type.InstanceSize));
         }
 
-        public static IVariableInfo CreateDirectlyAddressableCustomVariable(string Name, Type Type, int StartAddress)
+        public static IVariableInfo CreateDirectlyAddressableCustomVariable(string Name, ProcessedType Type, int StartAddress)
         {
             return new DirectlyAddressableCustomVariable(Name, Type, StartAddress);
         }
@@ -48,17 +48,18 @@ namespace CSharpTo2600.Compiler
             throw new NotImplementedException();
         }
 
-        public static IVariableInfo CreateRegisterVariable(Symbol AssemblySymbol)
+        public static IVariableInfo CreateRegisterVariable(Symbol AssemblySymbol, CompilationState State)
         {
             var SymbolField = typeof(ReservedSymbols).GetTypeInfo().GetDeclaredField(AssemblySymbol.Name);
             if (SymbolField == null)
             {
                 throw new FatalCompilationException($"Symbol must refer to a TIA/RIOT register: {AssemblySymbol}");
             }
-            return new RegisterVariable(AssemblySymbol);
+            var ByteType = State.GetTypeFromName("Byte");
+            return new RegisterVariable(AssemblySymbol, ByteType);
         }
 
-        public static IVariableInfo CreatePlaceholderVariable(ISymbol Symbol, Type Type)
+        public static IVariableInfo CreatePlaceholderVariable(ISymbol Symbol, ProcessedType Type)
         {
             return new UnknownVariable(Symbol, Type);
         }
@@ -73,7 +74,7 @@ namespace CSharpTo2600.Compiler
             public override bool IsDirectlyAddressable { get { return true; } }
             public override bool IsStackRelative { get { return false; } }
 
-            public DirectlyAddressableVariable(ISymbol CompilerSymbol, Type Type, Range Address)
+            public DirectlyAddressableVariable(ISymbol CompilerSymbol, ProcessedType Type, Range Address)
                 : base(CompilerSymbol, AssemblyFactory.DefineSymbol(CompilerSymbol.Name, Address.Start), Type)
             {
                 this.Address = Address;
@@ -88,7 +89,7 @@ namespace CSharpTo2600.Compiler
             public override bool IsDirectlyAddressable { get { return false; } }
             public override bool IsStackRelative { get { return true; } }
 
-            public StackRelativeVariable(ISymbol CompilerSymbol, Type Type, Range Offset)
+            public StackRelativeVariable(ISymbol CompilerSymbol, ProcessedType Type, Range Offset)
                 : base(CompilerSymbol, AssemblyFactory.DefineSymbol($".{CompilerSymbol.Name}", Offset.Start), Type)
             {
 
@@ -102,15 +103,16 @@ namespace CSharpTo2600.Compiler
         private sealed class RegisterVariable : IVariableInfo
         {
             public string Name { get { return AssemblySymbol.Name; } }
-            public Type Type { get { return typeof(byte); } }
+            public ProcessedType Type { get; }
             public int Size { get { return sizeof(byte); } }
             public Symbol AssemblySymbol { get; }
             public bool IsDirectlyAddressable { get { return true; } }
             public bool IsStackRelative { get { return false; } }
 
-            public RegisterVariable(Symbol AssemblySymbol)
+            public RegisterVariable(Symbol AssemblySymbol, ProcessedType ByteType)
             {
                 this.AssemblySymbol = AssemblySymbol;
+                Type = ByteType;
             }
         }
 
@@ -120,10 +122,10 @@ namespace CSharpTo2600.Compiler
             public bool IsDirectlyAddressable { get { return true; } }
             public bool IsStackRelative { get { return false; } }
             public string Name { get; }
-            public int Size { get { return Marshal.SizeOf(Type); } }
-            public Type Type { get; }
+            public int Size { get { return Type.InstanceSize; } }
+            public ProcessedType Type { get; }
 
-            public DirectlyAddressableCustomVariable(string Name, Type Type, int StartAddress)
+            public DirectlyAddressableCustomVariable(string Name, ProcessedType Type, int StartAddress)
             {
                 AssemblySymbol = AssemblyFactory.DefineSymbol(Name, StartAddress);
                 this.Name = Name;
@@ -141,7 +143,7 @@ namespace CSharpTo2600.Compiler
             public override bool IsDirectlyAddressable { get { return false; } }
             public override bool IsStackRelative { get { return false; } }
 
-            public UnknownVariable(ISymbol CompilerSymbol, Type Type)
+            public UnknownVariable(ISymbol CompilerSymbol, ProcessedType Type)
                 : base(CompilerSymbol, null, Type)
             {
 

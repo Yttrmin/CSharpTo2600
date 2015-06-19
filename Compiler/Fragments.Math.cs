@@ -16,11 +16,9 @@ namespace CSharpTo2600.Compiler
     // that can be optimized? Or add some special cases?
     partial class Fragments
     {
-        public static IEnumerable<AssemblyLine> Add(Type Type)
+        public static IEnumerable<AssemblyLine> Add(ProcessedType Type)
         {
-            VerifyType(Type);
-            var Size = Marshal.SizeOf(Type);
-            if (Size > 1)
+            if (Type.InstanceSize > 1)
             {
                 throw new NotImplementedException(">8-bit math not supported yet.");
             }
@@ -46,11 +44,9 @@ namespace CSharpTo2600.Compiler
             yield return PHA();
         }
 
-        public static IEnumerable<AssemblyLine> Subtract(Type Type)
+        public static IEnumerable<AssemblyLine> Subtract(ProcessedType Type)
         {
-            VerifyType(Type);
-            var Size = Marshal.SizeOf(Type);
-            if (Size > 1)
+            if (Type.InstanceSize > 1)
             {
                 throw new NotImplementedException(">8-bit math not supported yet.");
             }
@@ -59,15 +55,6 @@ namespace CSharpTo2600.Compiler
             yield return SEC();
             yield return SBC(0, Index.X);
             yield return STA(0, Index.X);
-        }
-
-        public static IEnumerable<AssemblyLine> BitwiseOr(Type Type)
-        {
-            VerifyType(Type);
-            var Size = Marshal.SizeOf(Type);
-            yield return PLA();
-            yield return TSX();
-            throw new NotImplementedException();
         }
     }
 }

@@ -46,7 +46,7 @@ namespace CSharpTo2600.Compiler
 
                 foreach (var Type in State.AllTypes)
                 {
-                    if (Type.Globals.Any())
+                    if (Type.StaticFields.Any())
                     {
                         yield return AssignGlobalsAddresses(Type);
                     }
@@ -60,7 +60,7 @@ namespace CSharpTo2600.Compiler
             private ProcessedType AssignGlobalsAddresses(ProcessedType Type)
             {
                 var NewGlobals = new Dictionary<IFieldSymbol, IVariableInfo>();
-                foreach (var Global in Type.Globals)
+                foreach (var Global in Type.StaticFields)
                 {
                     var Symbol = Global.Key;
                     var NewVariable = VariableInfo.CreateDirectlyAddressableVariable(Global.Key,

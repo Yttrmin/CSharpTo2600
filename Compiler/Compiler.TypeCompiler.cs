@@ -28,7 +28,7 @@ namespace CSharpTo2600.Compiler
             {
                 var Compiler = new TypeCompiler(ParsedType, GCompiler.Options);
                 var CompiledMethods = Compiler.CompileMethods(State, GCompiler);
-                return new ProcessedType(ParsedType.CLRType, ParsedType.Symbol, CompiledMethods, ParsedType.Globals);
+                return new ProcessedType(ParsedType.CLRType, ParsedType.Symbol, CompiledMethods, ParsedType.StaticFields);
             }
 
             private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationState CompilationState, GameCompiler GCompiler)

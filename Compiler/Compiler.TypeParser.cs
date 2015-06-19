@@ -25,10 +25,10 @@ namespace CSharpTo2600.Compiler
                 Symbol = Compilation.GetSymbolsWithName(s => s == CLRType.Name).Cast<INamedTypeSymbol>().Single();
             }
 
-            public static ProcessedType ParseType(Type CLRType, CSharpCompilation Compilation)
+            public static ProcessedType ParseType(Type CLRType, CSharpCompilation Compilation, CompilationState State)
             {
                 var Parser = new TypeParser(CLRType, Compilation);
-                var Globals = Parser.ParseFields();
+                var Globals = Parser.ParseFields(State);
                 var ParsedSubroutines = Parser.ParseMethods();
                 var FirstStageType = new ProcessedType(CLRType, Parser.Symbol, ParsedSubroutines, Globals);
                 // We've determined the type's fields and methods (although not the method bodies).
@@ -39,7 +39,7 @@ namespace CSharpTo2600.Compiler
                 return FirstStageType;
             }
 
-            private ImmutableDictionary<IFieldSymbol, IVariableInfo> ParseFields()
+            private ImmutableDictionary<IFieldSymbol, IVariableInfo> ParseFields(CompilationState State)
             {
                 var Result = new Dictionary<IFieldSymbol, IVariableInfo>();
                 foreach (var Field in TypeInfo.DeclaredFields)
@@ -50,7 +50,8 @@ namespace CSharpTo2600.Compiler
                     {
                         throw new VariableNameReservedException(FieldSymbol);
                     }
-                    Result.Add(FieldSymbol, VariableInfo.CreatePlaceholderVariable(FieldSymbol, Field.FieldType));
+                    Result.Add(FieldSymbol, VariableInfo.CreatePlaceholderVariable(FieldSymbol, 
+                        State.GetTypeFromName(Field.FieldType.Name)));
                 }
                 return Result.ToImmutableDictionary();
             }

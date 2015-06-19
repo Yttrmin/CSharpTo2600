@@ -6,6 +6,7 @@ using CSharpTo2600.Framework;
 using System.Reflection;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
@@ -62,11 +63,12 @@ namespace CSharpTo2600.Compiler
         {
             var Compiler = new GameCompiler(Workspace.Compilation, Options);
             var CompilationState = new CompilationState();
+            CompilationState = CompilationState.WithType(ConstructBuiltInTypes(Compiler).Single());
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
             {
-                CompilationState = CompilationState.WithType(TypeParser.ParseType(Type, Workspace.Compilation));
+                CompilationState = CompilationState.WithType(TypeParser.ParseType(Type, Workspace.Compilation, CompilationState));
             }
             // All methods have been detected, so now we can build a call hierarchy.
             var Hierarchy = ConstructMethodCallHierarchy(Compiler, CompilationState);
@@ -91,6 +93,16 @@ namespace CSharpTo2600.Compiler
                 Console.WriteLine("Compilation failed.");
             }
             return ROMInfo;
+        }
+
+        private static IEnumerable<ProcessedType> ConstructBuiltInTypes(GameCompiler Compiler)
+        {
+            var AssemblySymbol = (IAssemblySymbol)Compiler.Compilation.GetAssemblyOrModuleSymbol(CompilerWorkspace.MSCorLibReference);
+
+            // Byte
+            var ByteSymbol = AssemblySymbol.GetTypeByMetadataName("System.Byte");
+            var ProcessedByte = ProcessedType.FromBuiltInType(ByteSymbol, 1);
+            yield return ProcessedByte;
         }
 
         private static MethodCallHierarchy ConstructMethodCallHierarchy(GameCompiler Compiler, CompilationState State)

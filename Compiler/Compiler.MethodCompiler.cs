@@ -19,7 +19,7 @@ namespace CSharpTo2600.Compiler
         /// </summary>
         private sealed class MethodCompiler : CSharpSyntaxWalker
         {
-            private static readonly IVariableInfo ReturnValue;
+            private readonly IVariableInfo ReturnValue;
 
             //@TODO - Test compiler Optimize setting affecting this.
             private readonly IOptimizer Optimizer;
@@ -27,21 +27,17 @@ namespace CSharpTo2600.Compiler
             private readonly MethodDeclarationSyntax MethodDeclaration;
             private readonly string Name;
             private readonly List<AssemblyLine> MethodBody;
-            //@TODO - Use ProcessedType, not Type
-            private readonly Stack<Type> TypeStack;
+            private readonly Stack<ProcessedType> TypeStack;
             private readonly CompilationState CompilationState;
             private readonly MethodType MethodType;
             private bool IsPerformanceCritical { get { return MethodType == MethodType.Kernel; } }
-
-            static MethodCompiler()
-            {
-                ReturnValue = VariableInfo.CreateDirectlyAddressableCustomVariable("_ReturnValue", typeof(byte), 0x80);
-            }
 
             private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
                 INamedTypeSymbol ContainingType, CompilationState CompilationState, SemanticModel Model,
                 bool Optimize)
             {
+                ReturnValue = VariableInfo.CreateDirectlyAddressableCustomVariable("_ReturnValue", 
+                    CompilationState.GetTypeFromName("Byte"), 0x80);
                 MethodType = MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined;
                 this.CompilationState = CompilationState;
                 this.Model = Model;
@@ -56,7 +52,7 @@ namespace CSharpTo2600.Compiler
                     Optimizer = new NullOptimizer();
                 }
                 MethodBody = new List<AssemblyLine>();
-                TypeStack = new Stack<Type>();
+                TypeStack = new Stack<ProcessedType>();
             }
 
             /// <summary>
@@ -130,15 +126,6 @@ namespace CSharpTo2600.Compiler
                 MethodBody.AddRange(Fragments.StoreVariable(Variable, Type));
             }
 
-            public override void VisitCastExpression(CastExpressionSyntax node)
-            {
-                base.VisitCastExpression(node);
-                var FromType = TypeStack.Pop();
-                var ToType = GetType(Model.GetTypeInfo(node).Type);
-                MethodBody.AddRange(Fragments.Cast(FromType, ToType));
-                TypeStack.Push(ToType);
-            }
-
             public override void VisitPostfixUnaryExpression(PostfixUnaryExpressionSyntax node)
             {
                 base.VisitPostfixUnaryExpression(node);
@@ -202,7 +189,7 @@ namespace CSharpTo2600.Compiler
                 var LiteralType = GetType(LiteralTypeSymbol);
                 var ParseMethod = LiteralType.GetMethod("Parse", new[] { typeof(string) });
                 var Value = ParseMethod.Invoke(null, new[] { node.Token.ValueText });
-                TypeStack.Push(LiteralType);
+                TypeStack.Push(CompilationState.GetTypeFromSymbol((INamedTypeSymbol)LiteralTypeSymbol));
                 MethodBody.AddRange(Fragments.PushLiteral(Value));
                 base.VisitLiteralExpression(node);
             }
@@ -231,7 +218,7 @@ namespace CSharpTo2600.Compiler
                 {
                     MethodBody.AddRange(Fragments.PushVariable(ReturnValue));
                     // Can only be a byte if we're assigning it to a variable.
-                    TypeStack.Push(typeof(byte));
+                    TypeStack.Push(CompilationState.GetTypeFromName("Byte"));
                 }
             }
 
@@ -269,7 +256,7 @@ namespace CSharpTo2600.Compiler
 
                 base.VisitReturnStatement(node);
                 // Only non-void type we return is a byte.
-                MethodBody.AddRange(Fragments.StoreVariable(ReturnValue, typeof(byte)));
+                MethodBody.AddRange(Fragments.StoreVariable(ReturnValue, CompilationState.GetTypeFromName("Byte")));
                 // Don't emit RTS since that's always appended to the end of a subroutine in CompileMethod().
             }
 
@@ -292,7 +279,7 @@ namespace CSharpTo2600.Compiler
                     var Type = typeof(TIARegisters);
                     var Property = Type.GetTypeInfo().GetDeclaredProperty(Symbol.Name);
                     var IntrinsicAttribte = Property.GetCustomAttribute<CompilerIntrinsicGlobalAttribute>();
-                    return VariableInfo.CreateRegisterVariable(IntrinsicAttribte.GlobalSymbol);
+                    return VariableInfo.CreateRegisterVariable(IntrinsicAttribte.GlobalSymbol, CompilationState);
                 }
                 else
                 {

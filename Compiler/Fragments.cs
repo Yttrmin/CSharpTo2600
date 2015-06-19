@@ -142,7 +142,7 @@ namespace CSharpTo2600.Compiler
         /// <param name="StackType">The type of the value on the stack.</param>
         /// Precondition: Big-endian value is on the 6502 stack.
         /// Postcondition: Value is removed from 6502 stack. Variable holds value.
-        public static IEnumerable<AssemblyLine> StoreVariable(IVariableInfo Variable, Type StackType)
+        public static IEnumerable<AssemblyLine> StoreVariable(IVariableInfo Variable, ProcessedType StackType)
         {
             // We should never have to perform casts here.
             if (StackType != Variable.Type)
