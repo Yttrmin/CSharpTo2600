@@ -46,7 +46,7 @@ namespace CSharpTo2600.Compiler
 
     internal class GameClassNotStaticException : FatalCompilationException
     {
-        public GameClassNotStaticException(Type GameClass)
+        public GameClassNotStaticException(INamedTypeSymbol GameClass)
             : base($"Marked game class \"{GameClass}\" must be static.")
         {
 

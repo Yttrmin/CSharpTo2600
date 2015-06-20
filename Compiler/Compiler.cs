@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis;
+using System.Collections.Immutable;
 
 namespace CSharpTo2600.Compiler
 {
@@ -63,7 +64,11 @@ namespace CSharpTo2600.Compiler
         {
             var Compiler = new GameCompiler(Workspace.Compilation, Options);
             var CompilationState = new CompilationState();
-            CompilationState = CompilationState.WithType(ConstructBuiltInTypes(Compiler).Single());
+            var BuiltInTypes = ConstructBuiltInTypes(Compiler).ToImmutableArray();
+            foreach (var BuiltInType in BuiltInTypes)
+            {
+                CompilationState = CompilationState.WithType(BuiltInType);
+            }
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
@@ -79,6 +84,10 @@ namespace CSharpTo2600.Compiler
             // since we explored them in the parsing stage.
             foreach (var Type in CompilationState.AllTypes)
             {
+                if(BuiltInTypes.Contains(Type))
+                {
+                    continue;
+                }
                 CompilationState = CompilationState.WithReplacedType(TypeCompiler.CompileType(Type, CompilationState, Compiler));
             }
             var ROMInfo = ROMCreator.CreateROM(CompilationState);
@@ -103,6 +112,11 @@ namespace CSharpTo2600.Compiler
             var ByteSymbol = AssemblySymbol.GetTypeByMetadataName("System.Byte");
             var ProcessedByte = ProcessedType.FromBuiltInType(ByteSymbol, 1);
             yield return ProcessedByte;
+
+            // Void
+            var VoidSymbol = AssemblySymbol.GetTypeByMetadataName("System.Void");
+            var ProcessedVoid = ProcessedType.FromBuiltInType(VoidSymbol, 0);
+            yield return ProcessedVoid;
         }
 
         private static MethodCallHierarchy ConstructMethodCallHierarchy(GameCompiler Compiler, CompilationState State)

@@ -159,11 +159,11 @@ namespace CSharpTo2600.Compiler
 
         private static IEnumerable<AssemblyLine> CreateKernel(CompilationState State)
         {
-            var Kernel = State.GetGameClass().Subroutines.Values
-                .Where(s => s.OriginalMethod.GetCustomAttribute<KernelAttribute>() != null).SingleOrDefault();
+            var GameClassSubs = State.GetGameClass().Subroutines.Values;
+            var Kernel = GameClassSubs.SingleOrDefault(s => s.Type == MethodType.Kernel);
             if (Kernel != null)
             {
-                var KernelTechnique = Kernel.OriginalMethod.GetCustomAttribute<KernelAttribute>().Technique;
+                var KernelTechnique = Kernel.KernelTechnique;
                 switch (KernelTechnique)
                 {
                     case KernelTechnique.CallEveryScanline:
@@ -176,6 +176,7 @@ namespace CSharpTo2600.Compiler
             {
                 return CreateEmptyKernel();
             }
+            
         }
 
         private static IEnumerable<AssemblyLine> CreateEmptyKernel()
@@ -242,13 +243,13 @@ namespace CSharpTo2600.Compiler
                     yield return Comment($"Begin Type: {Type.Name}", 0);
                     foreach(var UserSubroutine in UserSubroutines)
                     {
-                        yield return Comment($"Begin: {UserSubroutine.OriginalMethod.ToString()}", 0);
+                        yield return Comment($"Begin: {UserSubroutine.ToString()}", 0);
                         yield return UserSubroutine.Label;
                         foreach(var Line in UserSubroutine.Body)
                         {
                             yield return Line;
                         }
-                        yield return Comment($"End: {UserSubroutine.OriginalMethod.ToString()}", 0);
+                        yield return Comment($"End: {UserSubroutine.ToString()}", 0);
                         if (UserSubroutine != UserSubroutines.Last())
                         {
                             yield return BlankLine();

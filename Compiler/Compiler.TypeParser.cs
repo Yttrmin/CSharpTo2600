@@ -16,7 +16,9 @@ namespace CSharpTo2600.Compiler
         {
             private readonly INamedTypeSymbol Symbol;
             //@TODO - Use only Symbol.
+            [Obsolete("No reflection", false)]
             private readonly Type CLRType;
+            [Obsolete("No reflection", false)]
             private TypeInfo TypeInfo { get { return CLRType.GetTypeInfo(); } }
 
             private TypeParser(Type CLRType, CSharpCompilation Compilation)
@@ -29,8 +31,8 @@ namespace CSharpTo2600.Compiler
             {
                 var Parser = new TypeParser(CLRType, Compilation);
                 var Globals = Parser.ParseFields(State);
-                var ParsedSubroutines = Parser.ParseMethods();
-                var FirstStageType = new ProcessedType(CLRType, Parser.Symbol, ParsedSubroutines, Globals);
+                var ParsedSubroutines = Parser.ParseMethods(State);
+                var FirstStageType = new ProcessedType(Parser.Symbol, ParsedSubroutines, Globals);
                 // We've determined the type's fields and methods (although not the method bodies).
                 // That's enough for any other class to deal with us (other types' know our fields, don't
                 // need to know our method bodies).
@@ -56,7 +58,7 @@ namespace CSharpTo2600.Compiler
                 return Result.ToImmutableDictionary();
             }
 
-            private ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods()
+            private ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(CompilationState State)
             {
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
                 foreach (var Method in TypeInfo.DeclaredMethods)
@@ -78,7 +80,8 @@ namespace CSharpTo2600.Compiler
                         throw new FatalCompilationException($"Method must have 0 parameters: {Method.Name}");
                     }
 
-                    var Subroutine = new Subroutine(Method.Name, Method, MethodSymbol, MethodType);
+                    var ReturnType = State.GetTypeFromSymbol((INamedTypeSymbol)MethodSymbol.ReturnType);
+                    var Subroutine = new Subroutine(Method.Name, ReturnType, MethodSymbol, MethodType);
                     Result.Add(MethodSymbol, Subroutine);
                 }
                 return Result.ToImmutableDictionary();

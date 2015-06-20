@@ -29,16 +29,13 @@ namespace CSharpTo2600.Compiler
             private readonly List<AssemblyLine> MethodBody;
             private readonly Stack<ProcessedType> TypeStack;
             private readonly CompilationState CompilationState;
-            private readonly MethodType MethodType;
-            private bool IsPerformanceCritical { get { return MethodType == MethodType.Kernel; } }
 
-            private MethodCompiler(MethodDeclarationSyntax MethodDeclaration, MethodInfo MethodInfo, 
+            private MethodCompiler(MethodDeclarationSyntax MethodDeclaration,
                 INamedTypeSymbol ContainingType, CompilationState CompilationState, SemanticModel Model,
                 bool Optimize)
             {
                 ReturnValue = VariableInfo.CreateDirectlyAddressableCustomVariable("_ReturnValue", 
                     CompilationState.GetTypeFromName("Byte"), 0x80);
-                MethodType = MethodInfo.GetCustomAttribute<SpecialMethodAttribute>()?.GameMethod ?? MethodType.UserDefined;
                 this.CompilationState = CompilationState;
                 this.Model = Model;
                 Name = MethodDeclaration.Identifier.Text;
@@ -60,17 +57,19 @@ namespace CSharpTo2600.Compiler
             /// Any types, fields, methods, etc that this method relies must have
             /// already been parsed (not compiled) previously.
             /// </summary>
-            public static Subroutine CompileMethod(MethodInfo MethodInfo, IMethodSymbol Symbol, 
-                CompilationState CompilationState, SemanticModel Model, bool Optimize)
+            public static Subroutine CompileMethod(IMethodSymbol Symbol, CompilationState CompilationState, 
+                SemanticModel Model, bool Optimize)
             {
                 var MethodDeclaration = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
-                var Compiler = new MethodCompiler(MethodDeclaration, MethodInfo, 
-                    Symbol.ContainingType, CompilationState, Model, Optimize);
+                var Attrs = Symbol.GetAttributes();
+                var Compiler = new MethodCompiler(MethodDeclaration, Symbol.ContainingType, CompilationState,
+                    Model, Optimize);
                 Compiler.Visit(MethodDeclaration);
-                // Assume a void return.
+                // The return statement code will handle the return value. We just need to RTS.
                 Compiler.MethodBody.Add(AssemblyFactory.RTS());
-                var Subroutine = new Subroutine(Compiler.Name, MethodInfo, Symbol, 
-                    Compiler.MethodBody.ToImmutableArray(), Compiler.MethodType);
+                var ReturnType = CompilationState.GetTypeFromSymbol((INamedTypeSymbol)Symbol.ReturnType);
+                var Subroutine = new Subroutine(Compiler.Name, ReturnType, Symbol, 
+                    Compiler.MethodBody.ToImmutableArray());
                 Subroutine = Compiler.Optimizer.PerformAllOptimizations(Subroutine);
                 return Subroutine;
             }
@@ -186,6 +185,7 @@ namespace CSharpTo2600.Compiler
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
             {
                 var LiteralTypeSymbol = Model.GetTypeInfo(node).ConvertedType;
+                //@TODO - No GetType()
                 var LiteralType = GetType(LiteralTypeSymbol);
                 var ParseMethod = LiteralType.GetMethod("Parse", new[] { typeof(string) });
                 var Value = ParseMethod.Invoke(null, new[] { node.Token.ValueText });

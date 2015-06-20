@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using System.Reflection;
 using CSharpTo2600.Framework.Assembly;
 using Microsoft.CodeAnalysis;
@@ -78,6 +77,11 @@ namespace CSharpTo2600.Compiler
                 : base(CompilerSymbol, AssemblyFactory.DefineSymbol(CompilerSymbol.Name, Address.Start), Type)
             {
                 this.Address = Address;
+            }
+
+            public override string ToString()
+            {
+                return CompilerSymbol.Name;
             }
         }
 

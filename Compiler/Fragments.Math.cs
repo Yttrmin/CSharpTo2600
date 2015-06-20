@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
 using CSharpTo2600.Framework.Assembly;
+using static CSharpTo2600.Framework.Assembly.AssemblyFactory;
 
 namespace CSharpTo2600.Compiler
 {

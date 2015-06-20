@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Reflection;
 using System.Linq;
 using CSharpTo2600.Framework;
 using Microsoft.CodeAnalysis;
@@ -58,14 +57,15 @@ namespace CSharpTo2600.Compiler
 
         public ProcessedType GetGameClass()
         {
-            var Class = AllTypes.SingleOrDefault(t => t.CLRType?.GetTypeInfo().GetCustomAttribute<Atari2600Game>() != null);
+            //@TODO - Compare with symbol instead of string.
+            var Class = AllTypes.SingleOrDefault(t => t.Symbol.GetAttributes().SingleOrDefault(a => a.AttributeClass.Name == nameof(Atari2600Game)) != null);
             if (Class == null)
             {
                 throw new GameClassNotFoundException();
             }
             else if (!Class.IsStatic)
             {
-                throw new GameClassNotStaticException(Class.CLRType);
+                throw new GameClassNotStaticException(Class.Symbol);
             }
             else
             {
