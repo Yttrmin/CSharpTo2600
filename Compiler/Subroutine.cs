@@ -60,12 +60,6 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        internal Subroutine(string Name, ProcessedType ReturnType, IMethodSymbol Symbol, 
-            MethodType Type)
-            : this(Name, ReturnType, Symbol, ImmutableArray<AssemblyLine>.Empty)
-        {
-        }
-
         private MethodType GetMethodType()
         {
             var MethodTypeAttribute = Symbol.GetAttributes().SingleOrDefault(a => a.AttributeClass.Name == nameof(SpecialMethodAttribute));

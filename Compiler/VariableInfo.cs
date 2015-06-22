@@ -54,8 +54,7 @@ namespace CSharpTo2600.Compiler
             {
                 throw new FatalCompilationException($"Symbol must refer to a TIA/RIOT register: {AssemblySymbol}");
             }
-            var ByteType = State.GetTypeFromName("Byte");
-            return new RegisterVariable(AssemblySymbol, ByteType);
+            return new RegisterVariable(AssemblySymbol, State.BuiltIn.Byte);
         }
 
         public static IVariableInfo CreatePlaceholderVariable(ISymbol Symbol, ProcessedType Type)

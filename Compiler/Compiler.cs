@@ -64,11 +64,9 @@ namespace CSharpTo2600.Compiler
         {
             var Compiler = new GameCompiler(Workspace.Compilation, Options);
             var CompilationState = new CompilationState();
+            // Immediately put this in an array so it isn't enumerated multiple times and make duplicates.
             var BuiltInTypes = ConstructBuiltInTypes(Compiler).ToImmutableArray();
-            foreach (var BuiltInType in BuiltInTypes)
-            {
-                CompilationState = CompilationState.WithType(BuiltInType);
-            }
+            CompilationState = CompilationState.WithBuiltInTypes(BuiltInTypes);
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
@@ -79,12 +77,12 @@ namespace CSharpTo2600.Compiler
             var Hierarchy = ConstructMethodCallHierarchy(Compiler, CompilationState);
             // All fields have been explored, so we have enough information to layout globals
             // in memory.
-            CompilationState = MemoryManager.Analyze(CompilationState);
+            CompilationState = CompilationState.WithMemoryMap(MemoryManager.Analyze(CompilationState));
             // Now we can compile methods, knowing any field accesses or method calls should work
             // since we explored them in the parsing stage.
             foreach (var Type in CompilationState.AllTypes)
             {
-                if(BuiltInTypes.Contains(Type))
+                if(CompilationState.BuiltIn.IsBuiltIn(Type))
                 {
                     continue;
                 }
@@ -104,19 +102,19 @@ namespace CSharpTo2600.Compiler
             return ROMInfo;
         }
 
-        private static IEnumerable<ProcessedType> ConstructBuiltInTypes(GameCompiler Compiler)
+        private static IEnumerable<Tuple<Type, ProcessedType>> ConstructBuiltInTypes(GameCompiler Compiler)
         {
             var AssemblySymbol = (IAssemblySymbol)Compiler.Compilation.GetAssemblyOrModuleSymbol(CompilerWorkspace.MSCorLibReference);
 
             // Byte
             var ByteSymbol = AssemblySymbol.GetTypeByMetadataName("System.Byte");
             var ProcessedByte = ProcessedType.FromBuiltInType(ByteSymbol, 1);
-            yield return ProcessedByte;
+            yield return Tuple.Create(typeof(byte), ProcessedByte);
 
             // Void
             var VoidSymbol = AssemblySymbol.GetTypeByMetadataName("System.Void");
             var ProcessedVoid = ProcessedType.FromBuiltInType(VoidSymbol, 0);
-            yield return ProcessedVoid;
+            yield return Tuple.Create(typeof(void), ProcessedVoid);
         }
 
         private static MethodCallHierarchy ConstructMethodCallHierarchy(GameCompiler Compiler, CompilationState State)

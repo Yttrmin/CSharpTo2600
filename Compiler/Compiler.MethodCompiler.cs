@@ -35,7 +35,7 @@ namespace CSharpTo2600.Compiler
                 bool Optimize)
             {
                 ReturnValue = VariableInfo.CreateDirectlyAddressableCustomVariable("_ReturnValue", 
-                    CompilationState.GetTypeFromName("Byte"), 0x80);
+                    CompilationState.BuiltIn.Byte, 0x80);
                 this.CompilationState = CompilationState;
                 this.Model = Model;
                 Name = MethodDeclaration.Identifier.Text;
@@ -184,13 +184,14 @@ namespace CSharpTo2600.Compiler
 
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
             {
-                var LiteralTypeSymbol = Model.GetTypeInfo(node).ConvertedType;
-                //@TODO - No GetType()
-                var LiteralType = GetType(LiteralTypeSymbol);
-                var ParseMethod = LiteralType.GetMethod("Parse", new[] { typeof(string) });
-                var Value = ParseMethod.Invoke(null, new[] { node.Token.ValueText });
-                TypeStack.Push(CompilationState.GetTypeFromSymbol((INamedTypeSymbol)LiteralTypeSymbol));
-                MethodBody.AddRange(Fragments.PushLiteral(Value));
+                var LiteralTypeSymbol = (INamedTypeSymbol)Model.GetTypeInfo(node).ConvertedType;
+                var LiteralType = CompilationState.GetTypeFromSymbol(LiteralTypeSymbol);
+                var LiteralNodeValue = node.Token.Value;
+                var LiteralCLRType = CompilationState.BuiltIn.CLRTypeFromType(LiteralType);
+                var ConvertedLiteralValue = Convert.ChangeType(LiteralNodeValue, LiteralCLRType);
+
+                TypeStack.Push(LiteralType);
+                MethodBody.AddRange(Fragments.PushLiteral(ConvertedLiteralValue));
                 base.VisitLiteralExpression(node);
             }
 
@@ -218,7 +219,7 @@ namespace CSharpTo2600.Compiler
                 {
                     MethodBody.AddRange(Fragments.PushVariable(ReturnValue));
                     // Can only be a byte if we're assigning it to a variable.
-                    TypeStack.Push(CompilationState.GetTypeFromName("Byte"));
+                    TypeStack.Push(CompilationState.BuiltIn.Byte);
                 }
             }
 
@@ -256,7 +257,7 @@ namespace CSharpTo2600.Compiler
 
                 base.VisitReturnStatement(node);
                 // Only non-void type we return is a byte.
-                MethodBody.AddRange(Fragments.StoreVariable(ReturnValue, CompilationState.GetTypeFromName("Byte")));
+                MethodBody.AddRange(Fragments.StoreVariable(ReturnValue, CompilationState.BuiltIn.Byte));
                 // Don't emit RTS since that's always appended to the end of a subroutine in CompileMethod().
             }
 
@@ -285,20 +286,6 @@ namespace CSharpTo2600.Compiler
                 {
                     throw new FatalCompilationException($"Attempted to access something other than a static field: {Symbol.Name}");
                 }
-            }
-
-            [Obsolete("Use only Symbols.")]
-            private Type GetType(ITypeSymbol TypeSymbol)
-            {
-                var FullyQualifiedNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-                var FullyQualifiedName = TypeSymbol.ToDisplayString(FullyQualifiedNameFormat);
-                //@TODO - Won't find types outside of mscorlib.
-                var TrueType = Type.GetType(FullyQualifiedName);
-                if (TrueType == null)
-                {
-                    throw new ArgumentException("TypeSyntaxes must correspond to an mscorlib type for now.", nameof(TypeSymbol));
-                }
-                return TrueType;
             }
 
             private void DebugPrintNode(SyntaxNode node)

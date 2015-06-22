@@ -6,7 +6,6 @@ using System.Reflection;
 using CSharpTo2600.Framework.Assembly;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using TypeInfo = System.Reflection.TypeInfo;
 
 namespace CSharpTo2600.Compiler
 {
@@ -15,24 +14,18 @@ namespace CSharpTo2600.Compiler
         private sealed class TypeParser
         {
             private readonly INamedTypeSymbol Symbol;
-            //@TODO - Use only Symbol.
-            [Obsolete("No reflection", false)]
-            private readonly Type CLRType;
-            [Obsolete("No reflection", false)]
-            private TypeInfo TypeInfo { get { return CLRType.GetTypeInfo(); } }
 
             private TypeParser(Type CLRType, CSharpCompilation Compilation)
             {
-                this.CLRType = CLRType;
                 Symbol = Compilation.GetSymbolsWithName(s => s == CLRType.Name).Cast<INamedTypeSymbol>().Single();
             }
 
             public static ProcessedType ParseType(Type CLRType, CSharpCompilation Compilation, CompilationState State)
             {
                 var Parser = new TypeParser(CLRType, Compilation);
-                var Globals = Parser.ParseFields(State);
+                Parser.ParseFields(State);
                 var ParsedSubroutines = Parser.ParseMethods(State);
-                var FirstStageType = new ProcessedType(Parser.Symbol, ParsedSubroutines, Globals);
+                var FirstStageType = new ProcessedType(Parser.Symbol, ParsedSubroutines);
                 // We've determined the type's fields and methods (although not the method bodies).
                 // That's enough for any other class to deal with us (other types' know our fields, don't
                 // need to know our method bodies).
@@ -41,47 +34,40 @@ namespace CSharpTo2600.Compiler
                 return FirstStageType;
             }
 
-            private ImmutableDictionary<IFieldSymbol, IVariableInfo> ParseFields(CompilationState State)
+            private void ParseFields(CompilationState State)
             {
-                var Result = new Dictionary<IFieldSymbol, IVariableInfo>();
-                foreach (var Field in TypeInfo.DeclaredFields)
+                foreach (var FieldSymbol in Symbol.GetMembers().OfType<IFieldSymbol>())
                 {
-                    var FieldSymbol = (IFieldSymbol)Symbol.GetMembers(Field.Name).Single();
                     // Check for name conflicts with reserved symbols.
-                    if (typeof(ReservedSymbols).GetTypeInfo().DeclaredFields.Any(f => f.Name == Field.Name))
+                    if (typeof(ReservedSymbols).GetTypeInfo().DeclaredFields.Any(f => f.Name == FieldSymbol.Name))
                     {
                         throw new VariableNameReservedException(FieldSymbol);
                     }
-                    Result.Add(FieldSymbol, VariableInfo.CreatePlaceholderVariable(FieldSymbol, 
-                        State.GetTypeFromName(Field.FieldType.Name)));
                 }
-                return Result.ToImmutableDictionary();
             }
 
             private ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(CompilationState State)
             {
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
-                foreach (var Method in TypeInfo.DeclaredMethods)
+                foreach (var MethodSymbol in Symbol.GetMembers().OfType<IMethodSymbol>())
                 {
                     //@TODO - Handle overloaded methods
-                    var MethodSymbol = (IMethodSymbol)Symbol.GetMembers(Method.Name).Single();
                     // If we're a partial method, make sure we're a symbol for the implementation.
                     // Otherwise we'll end up compiling an empty method.
-                    MethodSymbol = MethodSymbol.PartialImplementationPart ?? MethodSymbol;
-                    var MethodType = Method.GetCustomAttribute<Framework.SpecialMethodAttribute>()?.GameMethod ?? Framework.MethodType.UserDefined;
+                    var TrueMethodSymbol = MethodSymbol.PartialImplementationPart ?? MethodSymbol;
 
                     // Only supporting void/byte return and 0 parameters for now.
-                    if (Method.ReturnType != typeof(void) && Method.ReturnType != typeof(byte))
+                    var ReturnType = State.GetTypeFromSymbol((INamedTypeSymbol)TrueMethodSymbol.ReturnType);
+                    if (ReturnType != State.BuiltIn.Void && ReturnType != State.BuiltIn.Byte)
                     {
-                        throw new FatalCompilationException($"Method must have void or byte return type: {Method.Name}");
+                        throw new FatalCompilationException($"Method must have void or byte return type: {TrueMethodSymbol.Name}");
                     }
-                    if(Method.GetParameters().Length != 0)
+                    if(TrueMethodSymbol.Parameters.Length != 0)
                     {
-                        throw new FatalCompilationException($"Method must have 0 parameters: {Method.Name}");
+                        throw new FatalCompilationException($"Method must have 0 parameters: {TrueMethodSymbol.Name}");
                     }
-
-                    var ReturnType = State.GetTypeFromSymbol((INamedTypeSymbol)MethodSymbol.ReturnType);
-                    var Subroutine = new Subroutine(Method.Name, ReturnType, MethodSymbol, MethodType);
+                    
+                    var Subroutine = new Subroutine(TrueMethodSymbol.Name, ReturnType, MethodSymbol, null);
                     Result.Add(MethodSymbol, Subroutine);
                 }
                 return Result.ToImmutableDictionary();
