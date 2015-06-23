@@ -76,40 +76,31 @@ namespace CSharpTo2600.UnitTests
         }
 
         [Test]
-        public void StoreVariable(
-            [Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
+        public void StoreVariable()
         {
-            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", Value.GetType(), 0x80);
-
-            RunProgramFromFragment(
-                new[] { VarInfo.AssemblySymbol },
-                Fragments.PushLiteral(Value),
-                Fragments.StoreVariable(VarInfo, Value.GetType()));
-            // 0x80 should contain the MSB, 0x80+Size-1 the LSB.
-            var Bytes = EndianHelper.MostSignificantBytes((dynamic)Value);
-            for (var i = 0; i < VarInfo.Size; i++)
+            var ByteType = ProcessedType.FromBuiltInType(null, sizeof(byte));
+            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("Test", ByteType, 0xA0);
+            var Instructions = Fragments.StoreVariable(VarInfo, ByteType);
+            var Expected = new[]
             {
-                Assert.AreEqual(Bytes[i], CPU.Memory.ReadValue(VarInfo.AssemblySymbol.Value.Value + i));
-            }
+                AssemblyFactory.PLA(),
+                AssemblyFactory.STA(VarInfo.AssemblySymbol)
+            };
+            Assert.IsTrue(Instructions.SequenceEqual(Expected));
         }
 
         [Test]
-        public void PushVariable(
-            [Values((byte)0xEF, (int)0x7FABCDEF, (ulong)0xDEADBEEFBAADF00D)] object Value)
+        public void PushVariable()
         {
-            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("TEST", Value.GetType(), 0x80);
-
-            RunProgramFromFragment(
-                new[] { VarInfo.AssemblySymbol },
-                Fragments.PushLiteral(Value),
-                Fragments.StoreVariable(VarInfo, Value.GetType()),
-                Fragments.PushVariable(VarInfo));
-            // SP+1 should contain the MSB, 0xFF the LSB.
-            var Bytes = EndianHelper.MostSignificantBytes((dynamic)Value);
-            for (var i = 0; i < VarInfo.Size; i++)
+            var ByteType = ProcessedType.FromBuiltInType(null, sizeof(byte));
+            var VarInfo = VariableInfo.CreateDirectlyAddressableCustomVariable("Test", ByteType, 0xA0);
+            var Instructions = Fragments.PushVariable(VarInfo);
+            var Expected = new[]
             {
-                Assert.AreEqual(Bytes[i], CPU.Memory.ReadValue(CPU.StackPointer + 1 + i));
-            }
+                AssemblyFactory.LDA(VarInfo.AssemblySymbol),
+                AssemblyFactory.PHA()
+            };
+            Assert.IsTrue(Instructions.SequenceEqual(Expected));
         }
     }
 }

@@ -10,6 +10,8 @@ namespace CSharpTo2600.Compiler
     public sealed class ProcessedType
     {
         public INamedTypeSymbol Symbol { get; }
+        //@TODO - This will result in a circular reference if Subroutine's return type is 
+        // its containing type. Resolve this similar to how StaticFields was.
         public ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines { get; }
         public ImmutableArray<IFieldSymbol> StaticFields { get { return Symbol.GetMembers().OfType<IFieldSymbol>().ToImmutableArray(); } }
         public bool IsStatic { get { return Symbol.IsStatic; } }

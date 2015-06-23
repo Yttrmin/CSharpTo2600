@@ -66,6 +66,11 @@ namespace CSharpTo2600.Compiler
                     {
                         throw new FatalCompilationException($"Method must have 0 parameters: {TrueMethodSymbol.Name}");
                     }
+                    // e.g. default constructor (.ctor)
+                    if(TrueMethodSymbol.IsImplicitlyDeclared)
+                    {
+                        continue;
+                    }
                     
                     var Subroutine = new Subroutine(TrueMethodSymbol.Name, ReturnType, MethodSymbol, null);
                     Result.Add(MethodSymbol, Subroutine);

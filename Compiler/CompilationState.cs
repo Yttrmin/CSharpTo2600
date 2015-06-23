@@ -132,6 +132,9 @@ namespace CSharpTo2600.Compiler
             return new CompilationState(Types, NewMap, BuiltIn, MethodCallHierarchy);
         }
 
+        /// <summary>
+        /// Provides a convenient way to access the builtin ProcessedTypes.
+        /// </summary>
         public class BuiltInTypes
         {
             private ImmutableDictionary<Type, ProcessedType> TypeMap;
@@ -160,11 +163,6 @@ namespace CSharpTo2600.Compiler
                     [typeof(void)] = Void,
                     [typeof(byte)] = Byte
                 }.ToImmutableDictionary();
-            }
-
-            public ProcessedType TypeFromCLRType(Type Type)
-            {
-                return TypeMap[Type];
             }
 
             public Type CLRTypeFromType(ProcessedType Type)

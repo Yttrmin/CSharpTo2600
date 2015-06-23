@@ -108,7 +108,7 @@ namespace CSharpTo2600.Compiler
 
             // Byte
             var ByteSymbol = AssemblySymbol.GetTypeByMetadataName("System.Byte");
-            var ProcessedByte = ProcessedType.FromBuiltInType(ByteSymbol, 1);
+            var ProcessedByte = ProcessedType.FromBuiltInType(ByteSymbol, sizeof(byte));
             yield return Tuple.Create(typeof(byte), ProcessedByte);
 
             // Void
@@ -123,6 +123,13 @@ namespace CSharpTo2600.Compiler
             var Hierarchy = MethodCallHierarchy.Empty;
             foreach(var Subroutine in Roots)
             {
+                if(Hierarchy.Contains(Subroutine.Symbol))
+                {
+                    // The root must've already been explored if it's in the hierarchy.
+                    // If it's already been explored, there must be a path from another root leading to it.
+                    // Roots can't call roots.
+                    throw new AttemptedToInvokeSpecialMethodException(Subroutine, "UNKNOWN");
+                }
                 var MethodDeclaration = (MethodDeclarationSyntax)Subroutine.Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
                 var Model = Compiler.Compilation.GetSemanticModel(MethodDeclaration.SyntaxTree);
                 Hierarchy = HierarchyBuilder.RecursiveBuilder(Subroutine.Symbol, Hierarchy, Model);
