@@ -81,24 +81,28 @@ namespace CSharpTo2600.Framework.Assembly
         public string OpCode { get; }
         public string Argument { get; }
         public int Cycles { get; }
+        // http://homepage.ntlworld.com/cyborgsystems/CS_Main/6502/6502.htm
+        // is a good resource for getting size (I-Len)
+        public int Size { get; }
 
-        internal Instruction(string OpCode, string Argument, int Cycles, string Comment = null)
+        internal Instruction(string OpCode, string Argument, int Cycles, int Size, string Comment = null)
             : base($"\t{OpCode} {Argument}", Comment)
         {
             this.OpCode = OpCode;
             this.Argument = Argument;
             this.Cycles = Cycles;
+            this.Size = Size;
         }
 
-        internal Instruction(string OpCode, int Cycles)
-            : this(OpCode, null, Cycles)
+        internal Instruction(string OpCode, int Cycles, int Size)
+            : this(OpCode, null, Cycles, Size)
         {
 
         }
 
         protected override AssemblyLine WithCommentInternal(string Comment)
         {
-            return new Instruction(OpCode, Argument, Cycles, MergeComment(Comment));
+            return new Instruction(OpCode, Argument, Cycles, Size, MergeComment(Comment));
         }
 
         public new Instruction WithComment(string Comment)

@@ -30,6 +30,10 @@ namespace CSharpTo2600.Compiler
                 }
             }
         }
+        /// <summary>
+        /// Number of bytes the 6502 instructions use in memory.
+        /// </summary>
+        public int Size { get { return Body.OfType<Instruction>().Sum(i => i.Size); } }
         // Could just make Body nullable, but meaning might be unclear.
         public bool IsCompiled { get; }
         public MethodType Type { get { return GetMethodType(); } }

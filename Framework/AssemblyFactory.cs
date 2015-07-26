@@ -84,7 +84,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction ADC(byte Constant)
         {
-            return new Instruction("ADC", $"#${Constant.ToString("X2")}", 2);
+            return new Instruction("ADC", $"#${Constant.ToString("X2")}", 2, 2);
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace CSharpTo2600.Framework.Assembly
             {
                 throw new ArgumentException("Invalid index register.", nameof(IndexRegister));
             }
-            return new Instruction("ADC", $"${Offset.ToString("X2")},{IndexRegister}", 4);
+            return new Instruction("ADC", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
         }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace CSharpTo2600.Framework.Assembly
             {
                 throw new ArgumentException("Can only branch to label.");
             }
-            return new Instruction("BNE", Label.Name, 4);
+            return new Instruction("BNE", Label.Name, 4, 2);
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction CLC()
         {
-            return new Instruction("CLC", 2);
+            return new Instruction("CLC", 2, 1);
         }
 
         /// <summary>
@@ -125,7 +125,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction CLD()
         {
-            return new Instruction("CLD", 2);
+            return new Instruction("CLD", 2, 1);
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction CPX(byte Value)
         {
-            return new Instruction("CPX", $"#${Value.ToString("X2")}", 2);
+            return new Instruction("CPX", $"#${Value.ToString("X2")}", 2, 2);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction DEX()
         {
-            return new Instruction("DEX", 2);
+            return new Instruction("DEX", 2, 1);
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction JMP(Symbol Label)
         {
-            return new Instruction("JMP", Label.Name, 3);
+            return new Instruction("JMP", Label.Name, 3, 3);
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction JSR(Symbol Label)
         {
-            return new Instruction("JSR", Label.Name, 6);
+            return new Instruction("JSR", Label.Name, 6, 3);
         }
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction LDA(byte Value)
         {
-            return new Instruction("LDA", $"#${Value.ToString("X2")}", 2);
+            return new Instruction("LDA", $"#${Value.ToString("X2")}", 2, 2);
         }
 
         /// <summary>
@@ -184,7 +184,7 @@ namespace CSharpTo2600.Framework.Assembly
             {
                 Argument = $"{Symbol.Name}+{Offset}";
             }
-            return new Instruction("LDA", Argument, 3);
+            return new Instruction("LDA", Argument, 3, 2);
         }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction LDX(byte Value)
         {
-            return new Instruction("LDX", $"#${Value.ToString("X2")}", 2);
+            return new Instruction("LDX", $"#${Value.ToString("X2")}", 2, 2);
         }
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction LDY(byte Value)
         {
-            return new Instruction("LDY", $"#${Value.ToString("X2")}", 2);
+            return new Instruction("LDY", $"#${Value.ToString("X2")}", 2, 2);
         }
 
         /// <summary>
@@ -208,7 +208,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction PHA()
         {
-            return new Instruction("PHA", 3);
+            return new Instruction("PHA", 3, 1);
         }
 
         /// <summary>
@@ -216,7 +216,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction PLA()
         {
-            return new Instruction("PLA", 4);
+            return new Instruction("PLA", 4, 1);
         }
 
         /// <summary>
@@ -225,7 +225,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// <returns></returns>
         public static Instruction RTS()
         {
-            return new Instruction("RTS", 6);
+            return new Instruction("RTS", 6, 1);
         }
 
         /// <summary>
@@ -235,15 +235,7 @@ namespace CSharpTo2600.Framework.Assembly
         // parameter it'll conflict with the future immediate mode one.
         public static Instruction SBC(byte Offset, Index IndexRegister)
         {
-            return new Instruction("SBC", $"${Offset.ToString("X2")},{IndexRegister}", 4);
-        }
-
-        /// <summary>
-        /// Set Interrupt Disable (2 cycles)
-        /// </summary>
-        public static Instruction SEI()
-        {
-            return new Instruction("SEI", 2);
+            return new Instruction("SBC", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
         }
 
         /// <summary>
@@ -251,7 +243,15 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction SEC()
         {
-            return new Instruction("SEC", 2);
+            return new Instruction("SEC", 2, 1);
+        }
+
+        /// <summary>
+        /// Set Interrupt Disable (2 cycles)
+        /// </summary>
+        public static Instruction SEI()
+        {
+            return new Instruction("SEI", 2, 1);
         }
 
         /// <summary>
@@ -259,7 +259,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction STA(byte Address)
         {
-            return new Instruction("STA", $"${Address.ToString("X2")}", 3);
+            return new Instruction("STA", $"${Address.ToString("X2")}", 3, 2);
         }
 
         /// <summary>
@@ -276,7 +276,7 @@ namespace CSharpTo2600.Framework.Assembly
             {
                 Argument = $"{Symbol.Name}+{Offset}";
             }
-            return new Instruction("STA", Argument, 3);
+            return new Instruction("STA", Argument, 3, 2);
         }
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction STA(byte Offset, Index IndexRegister)
         {
-            return new Instruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4);
+            return new Instruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
         }
 
         /// <summary>
@@ -292,7 +292,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction TAX()
         {
-            return new Instruction("TAX", 2);
+            return new Instruction("TAX", 2, 1);
         }
 
         /// <summary>
@@ -300,7 +300,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction TSX()
         {
-            return new Instruction("TSX", 2);
+            return new Instruction("TSX", 2, 1);
         }
 
         /// <summary>
@@ -308,7 +308,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction TXA()
         {
-            return new Instruction("TXA", 2);
+            return new Instruction("TXA", 2, 1);
         }
 
         /// <summary>
@@ -316,7 +316,7 @@ namespace CSharpTo2600.Framework.Assembly
         /// </summary>
         public static Instruction TXS()
         {
-            return new Instruction("TXS", 2);
+            return new Instruction("TXS", 2, 1);
         }
         #endregion
     }
