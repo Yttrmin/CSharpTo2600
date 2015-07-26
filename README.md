@@ -12,7 +12,7 @@ Not much, the project is very early in development. This will be updated as feat
 * Multiple user-defined types and multiple source files
 
 ### Building
-Load the solution into [Visual Studio 2015 RC](https://www.visualstudio.com/en-us/news/vs2015-vs) and it should build and run fine.
+Load the solution into [Visual Studio Community 2015](https://www.visualstudio.com/) and it should build and run fine.
 ### Usage
 The command line must be passed at least one file path. The order of the paths does not matter.
 
