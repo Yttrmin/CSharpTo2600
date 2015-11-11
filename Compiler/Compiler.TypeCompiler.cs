@@ -3,11 +3,13 @@ using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System;
 
 namespace CSharpTo2600.Compiler
 {
     public sealed partial class GameCompiler
     {
+        [Obsolete]
         private sealed class TypeCompiler
         {
             private readonly ProcessedType ParsedType;
@@ -19,25 +21,22 @@ namespace CSharpTo2600.Compiler
                 this.CompileOptions = CompileOptions;
             }
 
-            public static ProcessedType CompileType(ProcessedType ParsedType, CompilationState State, GameCompiler GCompiler)
+            public static ImmutableDictionary<IMethodSymbol, Subroutine> CompileType(ProcessedType ParsedType, CompilationState State, GameCompiler GCompiler)
             {
                 var Compiler = new TypeCompiler(ParsedType, GCompiler.Options);
                 var CompiledMethods = Compiler.CompileMethods(State, GCompiler);
-                return new ProcessedType(ParsedType.Symbol, CompiledMethods);
+                return CompiledMethods;
             }
 
             private ImmutableDictionary<IMethodSymbol, Subroutine> CompileMethods(CompilationState CompilationState, GameCompiler GCompiler)
             {
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
-                foreach (var SymbolSubPair in ParsedType.Subroutines)
+                foreach(var Symbol in ParsedType.Subroutines)
                 {
-                    // Pretty sure methods can only have one declaration. Even implemented partial methods
-                    // only have one declaration.
-                    var MethodNode = (MethodDeclarationSyntax)SymbolSubPair.Key.DeclaringSyntaxReferences.Single().GetSyntax();
+                    var MethodNode = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
                     var Model = GCompiler.Compilation.GetSemanticModel(MethodNode.SyntaxTree);
-                    var CompiledSubroutine = MethodCompiler.CompileMethod(SymbolSubPair.Key, CompilationState, Model, 
-                        CompileOptions.Optimize);
-                    Result.Add(SymbolSubPair.Key, CompiledSubroutine);
+                    var CompiledSubroutine = MethodCompiler.CompileMethod(Symbol, CompilationState, Model, CompileOptions.Optimize);
+                    Result.Add(Symbol, CompiledSubroutine);
                 }
                 return Result.ToImmutableDictionary();
             }

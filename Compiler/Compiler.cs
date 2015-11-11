@@ -80,14 +80,20 @@ namespace CSharpTo2600.Compiler
             CompilationState = CompilationState.WithMemoryMap(MemoryManager.Analyze(CompilationState));
             // Now we can compile methods, knowing any field accesses or method calls should work
             // since we explored them in the parsing stage.
+            var CompiledSubroutines = new Dictionary<IMethodSymbol, Subroutine>();
             foreach (var Type in CompilationState.AllTypes)
             {
                 if(CompilationState.BuiltIn.IsBuiltIn(Type))
                 {
                     continue;
                 }
-                CompilationState = CompilationState.WithReplacedType(TypeCompiler.CompileType(Type, CompilationState, Compiler));
+                var TypeSubroutines = TypeCompiler.CompileType(Type, CompilationState, Compiler);
+                foreach(var KeyValue in TypeSubroutines)
+                {
+                    CompiledSubroutines[KeyValue.Key] = KeyValue.Value;
+                }
             }
+            CompilationState = CompilationState.WithSubroutines(CompiledSubroutines.ToImmutableDictionary());
             var ROMInfo = ROMCreator.CreateROM(CompilationState);
             if (ROMInfo.DASMSuccess)
             {

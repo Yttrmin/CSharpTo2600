@@ -159,8 +159,8 @@ namespace CSharpTo2600.Compiler
 
         private static IEnumerable<AssemblyLine> CreateKernel(CompilationState State)
         {
-            var GameClassSubs = State.GetGameClass().Subroutines.Values;
-            var Kernel = GameClassSubs.SingleOrDefault(s => s.Type == MethodType.Kernel);
+            var GameClassSubroutines = State.GetSubroutinesFromType(State.GetGameClass());
+            var Kernel = GameClassSubroutines.SingleOrDefault(s => s.Type == MethodType.Kernel);
             if (Kernel != null)
             {
                 var KernelTechnique = Kernel.KernelTechnique;
@@ -237,7 +237,7 @@ namespace CSharpTo2600.Compiler
             // Emits all of a type's user-defined methods.
             foreach(var Type in CompilationState.AllTypes)
             {
-                var UserSubroutines = Type.Subroutines.Values.Where(s => s.Type == MethodType.UserDefined);
+                var UserSubroutines = CompilationState.GetSubroutinesFromType(Type).Where(s => s.Type == MethodType.UserDefined);
                 if(UserSubroutines.Count() != 0)
                 {
                     yield return Comment($"Begin Type: {Type.Name}", 0);
@@ -272,7 +272,7 @@ namespace CSharpTo2600.Compiler
         private static IEnumerable<Subroutine> GetSpecialSubroutines(CompilationState CompilationState, 
             MethodType MethodType)
         {
-            return CompilationState.GetGameClass().Subroutines.Values.Where(s => s.Type == MethodType);
+            return CompilationState.GetSubroutinesFromType(CompilationState.GetGameClass()).Where(s => s.Type == MethodType);
         }
 
         private static bool AssembleOutput()

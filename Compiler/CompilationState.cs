@@ -12,6 +12,8 @@ namespace CSharpTo2600.Compiler
     /// </summary>
     public sealed class CompilationState
     {
+        //@TODO - Move elsewhere
+        private readonly ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines;
         private readonly ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types;
         private readonly MemoryMap MemoryMap;
         public MethodCallHierarchy MethodCallHierarchy { get; }
@@ -29,28 +31,28 @@ namespace CSharpTo2600.Compiler
         {
             get
             {
-                foreach (var Type in AllTypes)
+                foreach (var Subroutine in Subroutines.Values)
                 {
-                    foreach (var Subroutine in Type.Subroutines.Values)
-                    {
-                        yield return Subroutine;
-                    }
+                    yield return Subroutine;
                 }
             }
         }
 
         public CompilationState()
-            : this(ImmutableDictionary<INamedTypeSymbol, ProcessedType>.Empty, MemoryMap.Empty, null, MethodCallHierarchy.Empty)
+            : this(ImmutableDictionary<INamedTypeSymbol, ProcessedType>.Empty, MemoryMap.Empty, null, MethodCallHierarchy.Empty,
+                  ImmutableDictionary<IMethodSymbol, Subroutine>.Empty)
         {
         }
 
         private CompilationState(ImmutableDictionary<INamedTypeSymbol, ProcessedType> Types,
-            MemoryMap MemoryMap, BuiltInTypes BuiltIn, MethodCallHierarchy MethodCallHierarchy)
+            MemoryMap MemoryMap, BuiltInTypes BuiltIn, MethodCallHierarchy MethodCallHierarchy,
+            ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines)
         {
             this.Types = Types;
             this.MethodCallHierarchy = MethodCallHierarchy;
             this.BuiltIn = BuiltIn;
             this.MemoryMap = MemoryMap;
+            this.Subroutines = Subroutines;
         }
 
         public ProcessedType GetGameClass()
@@ -78,8 +80,7 @@ namespace CSharpTo2600.Compiler
 
         public Subroutine GetSubroutineFromSymbol(IMethodSymbol MethodSymbol)
         {
-            var Type = Types[MethodSymbol.ContainingType];
-            return Type.Subroutines[MethodSymbol];
+            return Subroutines[MethodSymbol];
         }
 
         public IVariableInfo GetVariableFromField(IFieldSymbol FieldSymbol)
@@ -87,10 +88,24 @@ namespace CSharpTo2600.Compiler
             return MemoryMap[FieldSymbol];
         }
 
+        public IEnumerable<Subroutine> GetSubroutinesFromType(ProcessedType Type)
+        {
+            foreach(var Symbol in Type.Subroutines)
+            {
+                var Value = Subroutines.GetValueOrDefault(Symbol);
+                // Some subroutines are never made for builtin types. Like void's constructor.
+                // So just skip them if they come up.
+                if(Value != null)
+                {
+                    yield return Subroutines[Symbol];
+                }
+            }
+        }
+
         internal CompilationState WithType(ProcessedType Type)
         {
             var NewDictionary = Types.Add(Type.Symbol, Type);
-            return new CompilationState(NewDictionary, MemoryMap, BuiltIn, MethodCallHierarchy);
+            return new CompilationState(NewDictionary, MemoryMap, BuiltIn, MethodCallHierarchy, Subroutines);
         }
 
         internal CompilationState WithBuiltInTypes(IEnumerable<Tuple<Type, ProcessedType>> BuiltInTypes)
@@ -101,17 +116,7 @@ namespace CSharpTo2600.Compiler
             }
             var KeyValuePairs = BuiltInTypes.Select(tuple => new KeyValuePair<INamedTypeSymbol, ProcessedType>(tuple.Item2.Symbol, tuple.Item2));
             var NewDictionary = Types.AddRange(KeyValuePairs);
-            return new CompilationState(NewDictionary, MemoryMap, new BuiltInTypes(BuiltInTypes), MethodCallHierarchy);
-        }
-
-        internal CompilationState WithReplacedType(ProcessedType Type)
-        {
-            if(!Types.ContainsKey(Type.Symbol))
-            {
-                throw new ArgumentException($"Type was not previously parsed: {Type}", nameof(Type));
-            }
-            var NewDictionary = Types.SetItem(Type.Symbol, Type);
-            return new CompilationState(NewDictionary, MemoryMap, BuiltIn, MethodCallHierarchy);
+            return new CompilationState(NewDictionary, MemoryMap, new BuiltInTypes(BuiltInTypes), MethodCallHierarchy, Subroutines);
         }
 
         internal CompilationState WithMethodCallHierarchy(MethodCallHierarchy NewHierarchy)
@@ -120,7 +125,16 @@ namespace CSharpTo2600.Compiler
             {
                 throw new InvalidOperationException("Attempted to set the state's MethodCallHierarchy more than once.");
             }
-            return new CompilationState(Types, MemoryMap, BuiltIn, NewHierarchy);
+            return new CompilationState(Types, MemoryMap, BuiltIn, NewHierarchy, Subroutines);
+        }
+
+        internal CompilationState WithSubroutines(ImmutableDictionary<IMethodSymbol, Subroutine> NewSubroutines)
+        {
+            if(Subroutines != ImmutableDictionary<IMethodSymbol, Subroutine>.Empty)
+            {
+                throw new InvalidOperationException($"Attempted to set the state's {nameof(Subroutines)} more than once.");
+            }
+            return new CompilationState(Types, MemoryMap, BuiltIn, MethodCallHierarchy, NewSubroutines);
         }
 
         internal CompilationState WithMemoryMap(MemoryMap NewMap)
@@ -129,7 +143,7 @@ namespace CSharpTo2600.Compiler
             {
                 throw new InvalidOperationException("Attempted to set the state's MemoryMap more than once.");
             }
-            return new CompilationState(Types, NewMap, BuiltIn, MethodCallHierarchy);
+            return new CompilationState(Types, NewMap, BuiltIn, MethodCallHierarchy, Subroutines);
         }
 
         /// <summary>

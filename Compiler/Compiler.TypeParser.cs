@@ -25,7 +25,7 @@ namespace CSharpTo2600.Compiler
                 var Parser = new TypeParser(CLRType, Compilation);
                 Parser.ParseFields(State);
                 var ParsedSubroutines = Parser.ParseMethods(State);
-                var FirstStageType = new ProcessedType(Parser.Symbol, ParsedSubroutines);
+                var FirstStageType = new ProcessedType(Parser.Symbol);
                 // We've determined the type's fields and methods (although not the method bodies).
                 // That's enough for any other class to deal with us (other types' know our fields, don't
                 // need to know our method bodies).
