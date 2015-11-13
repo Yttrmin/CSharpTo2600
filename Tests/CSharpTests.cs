@@ -144,7 +144,7 @@ using CSharpTo2600.Framework;
 static void TestMethod() { Var++; } }";
             CompilationState State = null;
             Assert.DoesNotThrow(() => State = GameCompiler.CompileFromTexts(Source).CompilationState);
-            var TestSubroutine = State.AllSubroutines.Where(n => n.Name == "TestMethod").Single();
+            var TestSubroutine = State.AllSubroutineInfos.Where(n => n.Name == "TestMethod").Single();
             Assert.AreEqual(Framework.MethodType.UserDefined, TestSubroutine.Type);
         }
 
@@ -170,7 +170,7 @@ using CSharpTo2600.Framework;
 static partial void TestMethod();
 static partial void TestMethod() {Var++;Var++;Var++;}}";
             var Info = GameCompiler.CompileFromTexts(Source);
-            var Subroutine = Info.CompilationState.AllSubroutines.Single(s => s.Name == "TestMethod");
+            var Subroutine = Info.CompilationState.AllSubroutineInfos.Single(s => s.Name == "TestMethod");
             Assert.Greater(Subroutine.InstructionCount, 0);
         }
 
@@ -194,25 +194,25 @@ static class DataClass { public static byte Var; }";
         [Test]
         public void ByteReturnCompiles()
         {
-            Subroutine TestSubroutine = null;
+            SubroutineInfo TestSubroutine = null;
             Assert.DoesNotThrow(() => TestSubroutine = CompileStaticMethod(null, "byte", "return 21;"));
         }
 
-        private Subroutine CompileStaticMethod(string Globals, string ReturnType, string Source)
+        private SubroutineInfo CompileStaticMethod(string Globals, string ReturnType, string Source)
         {
             CompilationResult ThrowAway;
             return CompileStaticMethod(Globals, ReturnType, Source, out ThrowAway);
         }
 
-        private Subroutine CompileStaticMethod(string Globals, string ReturnType, string Source, 
+        private SubroutineInfo CompileStaticMethod(string Globals, string ReturnType, string Source, 
             out CompilationResult ROMInfo, CompileOptions CompileOptions)
         {
             var Code = $"using CSharpTo2600.Framework; [Atari2600Game]static class Test {{ {Globals} static {ReturnType} TestMethod() {{ {Source} }} }}";
             ROMInfo = GameCompiler.CompileFromTexts(CompileOptions, Code);
-            return ROMInfo.CompilationState.AllSubroutines.Single(s => s.Name == "TestMethod");
+            return ROMInfo.CompilationState.AllSubroutineInfos.Single(s => s.Name == "TestMethod");
         }
 
-        private Subroutine CompileStaticMethod(string Globals, string ReturnType, string Source, out CompilationResult ROMInfo)
+        private SubroutineInfo CompileStaticMethod(string Globals, string ReturnType, string Source, out CompilationResult ROMInfo)
         {
             return CompileStaticMethod(Globals, ReturnType, Source, out ROMInfo, CompileOptions.Default);
         }

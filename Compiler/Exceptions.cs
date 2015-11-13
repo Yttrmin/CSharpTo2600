@@ -55,8 +55,8 @@ namespace CSharpTo2600.Compiler
 
     internal class AttemptedToInvokeSpecialMethodException : FatalCompilationException
     {
-        public AttemptedToInvokeSpecialMethodException(Subroutine Subroutine, string From)
-            : base($"Attempted to invoke the special ({Subroutine.Type}) method \"{Subroutine.Name}\" from method \"{From}\".")
+        public AttemptedToInvokeSpecialMethodException(Subroutine SubroutineInfo, string From)
+            : base($"Attempted to invoke the special ({SubroutineInfo.Type}) method \"{SubroutineInfo.Name}\" from method \"{From}\".")
         {
 
         }

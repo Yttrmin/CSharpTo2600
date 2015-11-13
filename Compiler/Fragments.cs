@@ -244,13 +244,13 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        public static IEnumerable<AssemblyLine> Invoke(Subroutine Subroutine)
+        public static IEnumerable<AssemblyLine> Invoke(Subroutine SubroutineInfo)
         {
             // We can assume void return, 0 arguments.
-            yield return JSR(Subroutine.Label);
+            yield return JSR(SubroutineInfo.Label);
         }
 
-        public static IEnumerable<AssemblyLine> InlineInvoke(Subroutine Subroutine)
+        public static IEnumerable<AssemblyLine> InlineInvoke(SubroutineInfo Subroutine)
         {
             return Subroutine.Body.StripForInlining();
         }

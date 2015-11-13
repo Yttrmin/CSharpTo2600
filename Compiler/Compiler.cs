@@ -16,7 +16,7 @@ namespace CSharpTo2600.Compiler
         private readonly CSharpCompilation Compilation;
         private readonly Assembly CompiledAssembly;
         private readonly Assembly FrameworkAssembly;
-        private CompileOptions Options = CompileOptions.Default;
+        private readonly CompileOptions Options = CompileOptions.Default;
 
         static void Main(string[] args)
         {
@@ -65,7 +65,7 @@ namespace CSharpTo2600.Compiler
             var Compiler = new GameCompiler(Workspace.Compilation, Options);
             var CompilationState = new CompilationState();
             // Immediately put this in an array so it isn't enumerated multiple times and make duplicates.
-            var BuiltInTypes = ConstructBuiltInTypes(Compiler).ToImmutableArray();
+            var BuiltInTypes = Compiler.ConstructBuiltInTypes().ToImmutableArray();
             CompilationState = CompilationState.WithBuiltInTypes(BuiltInTypes);
             // First stage is to parse the types without compiling any methods. This gets us the
             // type's fields and subroutine signatures.
@@ -73,27 +73,38 @@ namespace CSharpTo2600.Compiler
             {
                 CompilationState = CompilationState.WithType(TypeParser.ParseType(Type, Workspace.Compilation, CompilationState));
             }
+            var Subroutines = new Dictionary<IMethodSymbol, Subroutine>();
+            foreach(var ProcessedType in CompilationState.AllTypes)
+            {
+                if (CompilationState.BuiltIn.IsBuiltIn(ProcessedType))
+                {
+                    continue;
+                }
+                var ParsedInfos = TypeParser.ParseMethods(CompilationState, ProcessedType);
+                Subroutines = Subroutines.Concat(ParsedInfos).ToDictionary(s => s.Key, s => s.Value);
+            }
+            CompilationState = CompilationState.WithSubroutines(Subroutines.ToImmutableDictionary());
             // All methods have been detected, so now we can build a call hierarchy.
-            var Hierarchy = ConstructMethodCallHierarchy(Compiler, CompilationState);
+            var Hierarchy = Compiler.ConstructMethodCallHierarchy(CompilationState);
             // All fields have been explored, so we have enough information to layout globals
             // in memory.
             CompilationState = CompilationState.WithMemoryMap(MemoryManager.Analyze(CompilationState));
             // Now we can compile methods, knowing any field accesses or method calls should work
             // since we explored them in the parsing stage.
-            var CompiledSubroutines = new Dictionary<IMethodSymbol, Subroutine>();
+            var CompiledSubroutines = new Dictionary<IMethodSymbol, SubroutineInfo>();
             foreach (var Type in CompilationState.AllTypes)
             {
                 if(CompilationState.BuiltIn.IsBuiltIn(Type))
                 {
                     continue;
                 }
-                var TypeSubroutines = TypeCompiler.CompileType(Type, CompilationState, Compiler);
-                foreach(var KeyValue in TypeSubroutines)
+                var TypeSubroutines = Compiler.CompileMethods(Type, CompilationState);
+                foreach (var KeyValue in TypeSubroutines)
                 {
                     CompiledSubroutines[KeyValue.Key] = KeyValue.Value;
                 }
             }
-            CompilationState = CompilationState.WithSubroutines(CompiledSubroutines.ToImmutableDictionary());
+            CompilationState = CompilationState.WithSubroutineInfos(CompiledSubroutines.ToImmutableDictionary());
             var ROMInfo = ROMCreator.CreateROM(CompilationState);
             if (ROMInfo.DASMSuccess)
             {
@@ -108,9 +119,9 @@ namespace CSharpTo2600.Compiler
             return ROMInfo;
         }
 
-        private static IEnumerable<Tuple<Type, ProcessedType>> ConstructBuiltInTypes(GameCompiler Compiler)
+        private IEnumerable<Tuple<Type, ProcessedType>> ConstructBuiltInTypes()
         {
-            var AssemblySymbol = (IAssemblySymbol)Compiler.Compilation.GetAssemblyOrModuleSymbol(CompilerWorkspace.MSCorLibReference);
+            var AssemblySymbol = (IAssemblySymbol)Compilation.GetAssemblyOrModuleSymbol(CompilerWorkspace.MSCorLibReference);
 
             // Byte
             var ByteSymbol = AssemblySymbol.GetTypeByMetadataName("System.Byte");
@@ -123,7 +134,21 @@ namespace CSharpTo2600.Compiler
             yield return Tuple.Create(typeof(void), ProcessedVoid);
         }
 
-        private static MethodCallHierarchy ConstructMethodCallHierarchy(GameCompiler Compiler, CompilationState State)
+        private ImmutableDictionary<IMethodSymbol, SubroutineInfo> CompileMethods(ProcessedType ParsedType, CompilationState CompilationState)
+        {
+            var Result = new Dictionary<IMethodSymbol, SubroutineInfo>();
+            foreach (var Subroutine in CompilationState.GetSubroutinesFromType(ParsedType))
+            {
+                var Symbol = Subroutine.Symbol;
+                var MethodNode = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
+                var Model = Compilation.GetSemanticModel(MethodNode.SyntaxTree);
+                var CompiledSubroutine = MethodCompiler.CompileMethod(Symbol, CompilationState, Model, Options.Optimize);
+                Result.Add(Symbol, CompiledSubroutine);
+            }
+            return Result.ToImmutableDictionary();
+        }
+
+        private MethodCallHierarchy ConstructMethodCallHierarchy(CompilationState State)
         {
             var Roots = State.AllSubroutines.Where(s => s.Type != MethodType.UserDefined);
             var Hierarchy = MethodCallHierarchy.Empty;
@@ -137,7 +162,7 @@ namespace CSharpTo2600.Compiler
                     throw new AttemptedToInvokeSpecialMethodException(Subroutine, "UNKNOWN");
                 }
                 var MethodDeclaration = (MethodDeclarationSyntax)Subroutine.Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
-                var Model = Compiler.Compilation.GetSemanticModel(MethodDeclaration.SyntaxTree);
+                var Model = Compilation.GetSemanticModel(MethodDeclaration.SyntaxTree);
                 Hierarchy = HierarchyBuilder.RecursiveBuilder(Subroutine.Symbol, Hierarchy, Model);
             }
             return Hierarchy;

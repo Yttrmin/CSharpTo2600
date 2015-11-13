@@ -15,6 +15,8 @@ namespace CSharpTo2600.Compiler
         {
             private readonly INamedTypeSymbol Symbol;
 
+
+
             private TypeParser(Type CLRType, CSharpCompilation Compilation)
             {
                 Symbol = Compilation.GetSymbolsWithName(s => s == CLRType.Name).Cast<INamedTypeSymbol>().Single();
@@ -22,19 +24,23 @@ namespace CSharpTo2600.Compiler
 
             public static ProcessedType ParseType(Type CLRType, CSharpCompilation Compilation, CompilationState State)
             {
-                var Parser = new TypeParser(CLRType, Compilation);
-                Parser.ParseFields(State);
-                var ParsedSubroutines = Parser.ParseMethods(State);
-                var FirstStageType = new ProcessedType(Parser.Symbol);
+                var Symbol = Compilation.GetSymbolsWithName(s => s == CLRType.Name).Cast<INamedTypeSymbol>().Single();
+                ParseFields(Symbol, State);
                 // We've determined the type's fields and methods (although not the method bodies).
                 // That's enough for any other class to deal with us (other types' know our fields, don't
                 // need to know our method bodies).
                 // So method compilation should go fine so long as all types involved have been
                 // at least parsed.
-                return FirstStageType;
+                return new ProcessedType(Symbol);
             }
 
-            private void ParseFields(CompilationState State)
+            public static ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(CompilationState State,
+                ProcessedType Type)
+            {
+                return ParseMethods(Type.Symbol, State);
+            }
+
+            private static void ParseFields(INamedTypeSymbol Symbol, CompilationState State)
             {
                 foreach (var FieldSymbol in Symbol.GetMembers().OfType<IFieldSymbol>())
                 {
@@ -46,7 +52,8 @@ namespace CSharpTo2600.Compiler
                 }
             }
 
-            private ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(CompilationState State)
+            private static ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(INamedTypeSymbol Symbol, 
+                CompilationState State)
             {
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
                 foreach (var MethodSymbol in Symbol.GetMembers().OfType<IMethodSymbol>())
@@ -72,7 +79,7 @@ namespace CSharpTo2600.Compiler
                         continue;
                     }
                     
-                    var Subroutine = new Subroutine(TrueMethodSymbol.Name, ReturnType, MethodSymbol, null);
+                    var Subroutine = new Subroutine(TrueMethodSymbol.Name, ReturnType, MethodSymbol);
                     Result.Add(MethodSymbol, Subroutine);
                 }
                 return Result.ToImmutableDictionary();

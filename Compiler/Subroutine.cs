@@ -6,12 +6,54 @@ using Microsoft.CodeAnalysis;
 
 namespace CSharpTo2600.Compiler
 {
+    public class Subroutine
+    {
+        public string Name { get; }
+        public MethodType Type { get { return GetMethodType(); } }
+        public KernelTechnique KernelTechnique { get { return GetKernelTechnique(); } }
+        public Symbol Label { get; }
+        public ProcessedType ReturnType { get; }
+        internal IMethodSymbol Symbol { get; }
+
+        public Subroutine(string Name, ProcessedType ReturnType, IMethodSymbol Symbol)
+        {
+            this.Name = Name;
+            this.ReturnType = ReturnType;
+            this.Symbol = Symbol;
+            //@TODO - Make unique even for overloaded methods
+            this.Label = AssemblyFactory.Label($"{Symbol.ContainingType.Name}_{Symbol.Name}");
+        }
+
+        private MethodType GetMethodType()
+        {
+            var MethodTypeAttribute = Symbol.GetAttributes().SingleOrDefault(a => a.AttributeClass.Name == nameof(SpecialMethodAttribute));
+            if (MethodTypeAttribute == null)
+            {
+                return MethodType.UserDefined;
+            }
+            return (MethodType)MethodTypeAttribute.ConstructorArguments.Single().Value;
+        }
+
+        private KernelTechnique GetKernelTechnique()
+        {
+            if (Type != MethodType.Kernel)
+            {
+                throw new FatalCompilationException($"Attempted to determine the kernel technique for {Symbol}, but it's a {Type} method instead!");
+            }
+            var Attribute = Symbol.GetAttributes().SingleOrDefault(a => a.AttributeClass.Name == nameof(KernelAttribute));
+            if (Attribute == null)
+            {
+                throw new FatalCompilationException($"Method {Symbol} is missing KernelAttribute.");
+            }
+            return (KernelTechnique)Attribute.ConstructorArguments.Single().Value;
+        }
+    }
+
     /// <summary>
     /// Immutable representation of a 6502-compatible subroutine.
     /// </summary>
-    public sealed class Subroutine
+    public sealed class SubroutineInfo : Subroutine
     {
-        public string Name { get; }
         // Is there any case where no body is an intended final result?
         private readonly ImmutableArray<AssemblyLine> _Body;
         public ImmutableArray<AssemblyLine> Body
@@ -36,22 +78,13 @@ namespace CSharpTo2600.Compiler
         public int Size { get { return Body.OfType<Instruction>().Sum(i => i.Size); } }
         // Could just make Body nullable, but meaning might be unclear.
         public bool IsCompiled { get; }
-        public MethodType Type { get { return GetMethodType(); } }
-        public KernelTechnique KernelTechnique { get { return GetKernelTechnique(); } }
-        public Symbol Label { get; }
-        internal IMethodSymbol Symbol { get; }
         public int InstructionCount { get { return Body.OfType<Instruction>().Count(); } }
         public int CycleCount { get { return Body.OfType<Instruction>().Sum(i => i.Cycles); } }
-        public ProcessedType ReturnType { get; }
 
-        internal Subroutine(string Name, ProcessedType ReturnType, IMethodSymbol Symbol, 
+        internal SubroutineInfo(string Name, ProcessedType ReturnType, IMethodSymbol Symbol, 
             ImmutableArray<AssemblyLine>? Body)
+            : base(Name, ReturnType, Symbol)
         {
-            this.Name = Name;
-            this.ReturnType = ReturnType;
-            this.Symbol = Symbol;
-            //@TODO - Make unique even for overloaded methods
-            Label = AssemblyFactory.Label($"{Symbol.ContainingType.Name}_{Symbol.Name}");
             if (Body.HasValue)
             {
                 IsCompiled = true;
@@ -64,33 +97,9 @@ namespace CSharpTo2600.Compiler
             }
         }
 
-        private MethodType GetMethodType()
+        internal SubroutineInfo ReplaceBody(ImmutableArray<AssemblyLine> NewInstructions)
         {
-            var MethodTypeAttribute = Symbol.GetAttributes().SingleOrDefault(a => a.AttributeClass.Name == nameof(SpecialMethodAttribute));
-            if(MethodTypeAttribute == null)
-            {
-                return MethodType.UserDefined;
-            }
-            return (MethodType)MethodTypeAttribute.ConstructorArguments.Single().Value;
-        }
-
-        private KernelTechnique GetKernelTechnique()
-        {
-            if(Type != MethodType.Kernel)
-            {
-                throw new FatalCompilationException($"Attempted to determine the kernel technique for {Symbol}, but it's a {Type} method instead!");
-            }
-            var Attribute = Symbol.GetAttributes().SingleOrDefault(a => a.AttributeClass.Name == nameof(KernelAttribute));
-            if(Attribute == null)
-            {
-                throw new FatalCompilationException($"Method {Symbol} is missing KernelAttribute.");
-            }
-            return (KernelTechnique)Attribute.ConstructorArguments.Single().Value;
-        }
-
-        internal Subroutine ReplaceBody(ImmutableArray<AssemblyLine> NewInstructions)
-        {
-            return new Subroutine(Name, ReturnType, Symbol, NewInstructions);
+            return new SubroutineInfo(Name, ReturnType, Symbol, NewInstructions);
         }
 
         public override string ToString()

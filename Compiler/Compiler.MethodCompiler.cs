@@ -57,7 +57,7 @@ namespace CSharpTo2600.Compiler
             /// Any types, fields, methods, etc that this method relies must have
             /// already been parsed (not compiled) previously.
             /// </summary>
-            public static Subroutine CompileMethod(IMethodSymbol Symbol, CompilationState CompilationState, 
+            public static SubroutineInfo CompileMethod(IMethodSymbol Symbol, CompilationState CompilationState, 
                 SemanticModel Model, bool Optimize)
             {
                 var MethodDeclaration = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
@@ -68,7 +68,7 @@ namespace CSharpTo2600.Compiler
                 // The return statement code will handle the return value. We just need to RTS.
                 Compiler.MethodBody.Add(AssemblyFactory.RTS());
                 var ReturnType = CompilationState.GetTypeFromSymbol((INamedTypeSymbol)Symbol.ReturnType);
-                var Subroutine = new Subroutine(Compiler.Name, ReturnType, Symbol, 
+                var Subroutine = new SubroutineInfo(Compiler.Name, ReturnType, Symbol, 
                     Compiler.MethodBody.ToImmutableArray());
                 Subroutine = Compiler.Optimizer.PerformAllOptimizations(Subroutine);
                 return Subroutine;
@@ -208,7 +208,7 @@ namespace CSharpTo2600.Compiler
             {
                 // We can assume void/byte return, 0 parameters, since it is checked during parsing.
                 var MethodSymbol = (IMethodSymbol)Model.GetSymbolInfo(node).Symbol;
-                var Subroutine = CompilationState.GetSubroutineFromSymbol(MethodSymbol);
+                var Subroutine = CompilationState.GetSubroutineInfoFromSymbol(MethodSymbol);
                 if (Subroutine.Type != MethodType.UserDefined)
                 {
                     throw new AttemptedToInvokeSpecialMethodException(Subroutine, Name);

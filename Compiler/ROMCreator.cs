@@ -159,7 +159,7 @@ namespace CSharpTo2600.Compiler
 
         private static IEnumerable<AssemblyLine> CreateKernel(CompilationState State)
         {
-            var GameClassSubroutines = State.GetSubroutinesFromType(State.GetGameClass());
+            var GameClassSubroutines = State.GetSubroutineInfosFromType(State.GetGameClass());
             var Kernel = GameClassSubroutines.SingleOrDefault(s => s.Type == MethodType.Kernel);
             if (Kernel != null)
             {
@@ -188,7 +188,7 @@ namespace CSharpTo2600.Compiler
             yield return Repend();
         }
 
-        private static IEnumerable<AssemblyLine> CreateKernelEveryScanline(Subroutine UserCode)
+        private static IEnumerable<AssemblyLine> CreateKernelEveryScanline(SubroutineInfo UserCode)
         {
             //@TODO - Check UserCode for too many cycles.
             //@TODO - Pick REPEAT vs loop dependent on cycles.
@@ -237,7 +237,7 @@ namespace CSharpTo2600.Compiler
             // Emits all of a type's user-defined methods.
             foreach(var Type in CompilationState.AllTypes)
             {
-                var UserSubroutines = CompilationState.GetSubroutinesFromType(Type).Where(s => s.Type == MethodType.UserDefined);
+                var UserSubroutines = CompilationState.GetSubroutineInfosFromType(Type).Where(s => s.Type == MethodType.UserDefined);
                 if(UserSubroutines.Count() != 0)
                 {
                     yield return Comment($"Begin Type: {Type.Name}", 0);
@@ -269,10 +269,10 @@ namespace CSharpTo2600.Compiler
             // BRK vector remains if we want to use it.
         }
 
-        private static IEnumerable<Subroutine> GetSpecialSubroutines(CompilationState CompilationState, 
+        private static IEnumerable<SubroutineInfo> GetSpecialSubroutines(CompilationState CompilationState, 
             MethodType MethodType)
         {
-            return CompilationState.GetSubroutinesFromType(CompilationState.GetGameClass()).Where(s => s.Type == MethodType);
+            return CompilationState.GetSubroutineInfosFromType(CompilationState.GetGameClass()).Where(s => s.Type == MethodType);
         }
 
         private static bool AssembleOutput()

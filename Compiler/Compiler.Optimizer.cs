@@ -9,12 +9,12 @@ namespace CSharpTo2600.Compiler
     {
         private interface IOptimizer
         {
-            Subroutine PerformAllOptimizations(Subroutine Subroutine);
+            SubroutineInfo PerformAllOptimizations(SubroutineInfo Subroutine);
         }
 
         private class NullOptimizer : IOptimizer
         {
-            public Subroutine PerformAllOptimizations(Subroutine Subroutine)
+            public SubroutineInfo PerformAllOptimizations(SubroutineInfo Subroutine)
             {
                 // Do nothing.
                 return Subroutine;
@@ -25,7 +25,7 @@ namespace CSharpTo2600.Compiler
         {
             private delegate ImmutableArray<AssemblyLine> OptimizingMethod(ImmutableArray<AssemblyLine> SubroutineBody);
 
-            public Subroutine PerformAllOptimizations(Subroutine Subroutine)
+            public SubroutineInfo PerformAllOptimizations(SubroutineInfo Subroutine)
             {
                 //@TODO - We need to loop and alternate between these two. Removing PHA/PLAs creates
                 // LDA/PLAs. Removing LDA/PLAs creates PHA/PLAs.
@@ -94,10 +94,10 @@ namespace CSharpTo2600.Compiler
                 return Optimized.ToImmutableArray();
             }
 
-            private Subroutine PerformOptimization(OptimizingMethod Method, Subroutine ToOptimize)
+            private SubroutineInfo PerformOptimization(OptimizingMethod Method, SubroutineInfo ToOptimize)
             {
                 var Result = ToOptimize;
-                Subroutine PreviousSubroutine;
+                SubroutineInfo PreviousSubroutine;
                 var Iterations = 0;
                 // Iterate as long as it keeps removing instructions.
                 do

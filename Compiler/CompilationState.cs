@@ -27,14 +27,20 @@ namespace CSharpTo2600.Compiler
                 return MemoryMap.AllStaticFields;
             }
         }
+
+        public IEnumerable<SubroutineInfo> AllSubroutineInfos
+        {
+            get
+            {
+                return Subroutines.Values.Cast<SubroutineInfo>();
+            }
+        }
+
         public IEnumerable<Subroutine> AllSubroutines
         {
             get
             {
-                foreach (var Subroutine in Subroutines.Values)
-                {
-                    yield return Subroutine;
-                }
+                return Subroutines.Values;
             }
         }
 
@@ -78,7 +84,12 @@ namespace CSharpTo2600.Compiler
             return Types[TypeSymbol];
         }
 
-        public Subroutine GetSubroutineFromSymbol(IMethodSymbol MethodSymbol)
+        public SubroutineInfo GetSubroutineFromSymbol(IMethodSymbol MethodSymbol)
+        {
+            return (SubroutineInfo)Subroutines[MethodSymbol];
+        }
+
+        public Subroutine GetSubroutineInfoFromSymbol(IMethodSymbol MethodSymbol)
         {
             return Subroutines[MethodSymbol];
         }
@@ -88,14 +99,19 @@ namespace CSharpTo2600.Compiler
             return MemoryMap[FieldSymbol];
         }
 
+        public IEnumerable<SubroutineInfo> GetSubroutineInfosFromType(ProcessedType Type)
+        {
+            return GetSubroutinesFromType(Type).Cast<SubroutineInfo>();
+        }
+
         public IEnumerable<Subroutine> GetSubroutinesFromType(ProcessedType Type)
         {
-            foreach(var Symbol in Type.Subroutines)
+            foreach (var Symbol in Type.Subroutines)
             {
                 var Value = Subroutines.GetValueOrDefault(Symbol);
                 // Some subroutines are never made for builtin types. Like void's constructor.
                 // So just skip them if they come up.
-                if(Value != null)
+                if (Value != null)
                 {
                     yield return Subroutines[Symbol];
                 }
@@ -135,6 +151,17 @@ namespace CSharpTo2600.Compiler
                 throw new InvalidOperationException($"Attempted to set the state's {nameof(Subroutines)} more than once.");
             }
             return new CompilationState(Types, MemoryMap, BuiltIn, MethodCallHierarchy, NewSubroutines);
+        }
+
+        internal CompilationState WithSubroutineInfos(ImmutableDictionary<IMethodSymbol, SubroutineInfo> NewSubroutineInfos)
+        {
+            if (this.Subroutines.Any((KeyValuePair<IMethodSymbol, Subroutine> pair) => pair.Value is SubroutineInfo))
+            {
+                throw new InvalidOperationException($"Attempted to set the state's {nameof(CompilationState.Subroutines)} more than once.");
+            }
+            ImmutableDictionary<IMethodSymbol, Subroutine> Subroutines = 
+                NewSubroutineInfos.ToDictionary(pair => pair.Key, pair => (Subroutine)pair.Value).ToImmutableDictionary();
+            return new CompilationState(Types, MemoryMap, BuiltIn, MethodCallHierarchy, Subroutines);
         }
 
         internal CompilationState WithMemoryMap(MemoryMap NewMap)
