@@ -67,20 +67,14 @@ namespace CSharpTo2600.Compiler
             // Immediately put this in an array so it isn't enumerated multiple times and make duplicates.
             var BuiltInTypes = Compiler.ConstructBuiltInTypes().ToImmutableArray();
             CompilationState = CompilationState.WithBuiltInTypes(BuiltInTypes);
-            // First stage is to parse the types without compiling any methods. This gets us the
-            // type's fields and subroutine signatures.
+            // First stage is to parse the types without compiling any methods.
+            // This gets us the type's fields and method metadata.
+            var Subroutines = new Dictionary<IMethodSymbol, Subroutine>();
             foreach (var Type in Compiler.CompiledAssembly.DefinedTypes)
             {
-                CompilationState = CompilationState.WithType(TypeParser.ParseType(Type, Workspace.Compilation, CompilationState));
-            }
-            var Subroutines = new Dictionary<IMethodSymbol, Subroutine>();
-            foreach(var ProcessedType in CompilationState.AllTypes)
-            {
-                if (CompilationState.BuiltIn.IsBuiltIn(ProcessedType))
-                {
-                    continue;
-                }
-                var ParsedInfos = TypeParser.ParseMethods(CompilationState, ProcessedType);
+                var ProcessedType = TypeParser.ParseType(Type, Workspace.Compilation, CompilationState);
+                CompilationState = CompilationState.WithType(ProcessedType);
+                var ParsedInfos = TypeParser.ParseMethods(ProcessedType, CompilationState);
                 Subroutines = Subroutines.Concat(ParsedInfos).ToDictionary(s => s.Key, s => s.Value);
             }
             CompilationState = CompilationState.WithSubroutines(Subroutines.ToImmutableDictionary());
@@ -92,17 +86,10 @@ namespace CSharpTo2600.Compiler
             // Now we can compile methods, knowing any field accesses or method calls should work
             // since we explored them in the parsing stage.
             var CompiledSubroutines = new Dictionary<IMethodSymbol, SubroutineInfo>();
-            foreach (var Type in CompilationState.AllTypes)
+            foreach (var Subroutine in CompilationState.AllSubroutines)
             {
-                if(CompilationState.BuiltIn.IsBuiltIn(Type))
-                {
-                    continue;
-                }
-                var TypeSubroutines = Compiler.CompileMethods(Type, CompilationState);
-                foreach (var KeyValue in TypeSubroutines)
-                {
-                    CompiledSubroutines[KeyValue.Key] = KeyValue.Value;
-                }
+                var SubroutineInfo = Compiler.CompileMethod(Subroutine, CompilationState);
+                CompiledSubroutines[SubroutineInfo.Symbol] = SubroutineInfo;
             }
             CompilationState = CompilationState.WithSubroutineInfos(CompiledSubroutines.ToImmutableDictionary());
             var ROMInfo = ROMCreator.CreateROM(CompilationState);
@@ -132,6 +119,15 @@ namespace CSharpTo2600.Compiler
             var VoidSymbol = AssemblySymbol.GetTypeByMetadataName("System.Void");
             var ProcessedVoid = ProcessedType.FromBuiltInType(VoidSymbol, 0);
             yield return Tuple.Create(typeof(void), ProcessedVoid);
+        }
+
+        private SubroutineInfo CompileMethod(Subroutine Subroutine, CompilationState CompilationState)
+        {
+            var Symbol = Subroutine.Symbol;
+            var MethodNode = (MethodDeclarationSyntax)Symbol.DeclaringSyntaxReferences.Single().GetSyntax();
+            var Model = Compilation.GetSemanticModel(MethodNode.SyntaxTree);
+            var CompiledSubroutine = MethodCompiler.CompileMethod(Symbol, CompilationState, Model, Options.Optimize);
+            return CompiledSubroutine;
         }
 
         private ImmutableDictionary<IMethodSymbol, SubroutineInfo> CompileMethods(ProcessedType ParsedType, CompilationState CompilationState)

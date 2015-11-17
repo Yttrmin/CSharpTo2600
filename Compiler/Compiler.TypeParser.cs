@@ -34,12 +34,6 @@ namespace CSharpTo2600.Compiler
                 return new ProcessedType(Symbol);
             }
 
-            public static ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(CompilationState State,
-                ProcessedType Type)
-            {
-                return ParseMethods(Type.Symbol, State);
-            }
-
             private static void ParseFields(INamedTypeSymbol Symbol, CompilationState State)
             {
                 foreach (var FieldSymbol in Symbol.GetMembers().OfType<IFieldSymbol>())
@@ -52,9 +46,10 @@ namespace CSharpTo2600.Compiler
                 }
             }
 
-            private static ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(INamedTypeSymbol Symbol, 
+            public static ImmutableDictionary<IMethodSymbol, Subroutine> ParseMethods(ProcessedType Type, 
                 CompilationState State)
             {
+                var Symbol = Type.Symbol;
                 var Result = new Dictionary<IMethodSymbol, Subroutine>();
                 foreach (var MethodSymbol in Symbol.GetMembers().OfType<IMethodSymbol>())
                 {
