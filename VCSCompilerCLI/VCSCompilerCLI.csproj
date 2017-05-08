@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VCSCompiler\VCSCompiler.csproj" />
+    <PackageReference Include="Microsoft.Composition" Version="1.0.27" ExcludeAssets="All" />
+    <PackageReference Include="System.Composition" Version="1.0.31" />
+  </ItemGroup>
+
+</Project>

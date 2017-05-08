@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VCSCompiler", "VCSCompiler\VCSCompiler.csproj", "{8BC6DDD7-A2FC-4E29-A012-79F9E99B7711}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VCSCompilerCLI", "VCSCompilerCLI\VCSCompilerCLI.csproj", "{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -66,6 +68,14 @@ Global
 		{8BC6DDD7-A2FC-4E29-A012-79F9E99B7711}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8BC6DDD7-A2FC-4E29-A012-79F9E99B7711}.Release|x86.ActiveCfg = Release|Any CPU
 		{8BC6DDD7-A2FC-4E29-A012-79F9E99B7711}.Release|x86.Build.0 = Release|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Debug|x86.Build.0 = Debug|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|x86.ActiveCfg = Release|Any CPU
+		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

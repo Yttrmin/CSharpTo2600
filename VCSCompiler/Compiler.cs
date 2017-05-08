@@ -5,9 +5,10 @@ namespace VCSCompiler
 {
     public static class Compiler
     {
-		public static void CompileFromFiles(IEnumerable<string> filePaths)
+		public static bool CompileFromFiles(IEnumerable<string> filePaths)
 		{
-
+			var compilation = CompilationCreator.CreateFromFilePaths(filePaths);
+			return true;
 		}
     }
 }

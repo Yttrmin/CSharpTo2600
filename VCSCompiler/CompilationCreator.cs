@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace VCSCompiler
 {
-	internal class CompilationCreator
+	internal static class CompilationCreator
 	{
 		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
 

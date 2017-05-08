@@ -43,17 +43,20 @@ namespace CSharpTo2600.Compiler
             }
         }
 
+		[Obsolete("Legacy, to be replaced by VCSCompiler and VCSCompilerCLI")]
         public static CompilationResult CompileFromTexts(params string[] SourceTexts)
         {
             return CompileFromTexts(CompileOptions.Default, SourceTexts);
         }
 
-        public static CompilationResult CompileFromTexts(CompileOptions CompileOptions, params string[] SourceTexts)
+		[Obsolete("Legacy, to be replaced by VCSCompiler and VCSCompilerCLI")]
+		public static CompilationResult CompileFromTexts(CompileOptions CompileOptions, params string[] SourceTexts)
         {
             return Compile(CompilerWorkspace.FromSourceTexts(SourceTexts), CompileOptions);
         }
 
-        public static CompilationResult CompileFromFilePaths(IEnumerable<string> FilePaths, CompileOptions Options)
+		[Obsolete("Legacy, to be replaced by VCSCompiler and VCSCompilerCLI")]
+		public static CompilationResult CompileFromFilePaths(IEnumerable<string> FilePaths, CompileOptions Options)
         {
             //@TODO - What if no paths were passed?
             //@TODO - What if the same file is passed multiple times?
