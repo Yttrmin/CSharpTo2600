@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace VCSCompiler
 {
     public static class Compiler
     {
-		public static bool CompileFromFiles(IEnumerable<string> filePaths)
+		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths)
 		{
-			var compilation = CompilationCreator.CreateFromFilePaths(filePaths);
+			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			return true;
 		}
     }

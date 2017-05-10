@@ -9,7 +9,7 @@ namespace VCSCompilerCLI
         {
 			var filePath = args[0];
 			Console.WriteLine($"Beginning compilation of {filePath}");
-			var result = Compiler.CompileFromFiles(new[] { filePath });
+			var result = Compiler.CompileFromFiles(new[] { filePath }).Result;
 			Console.WriteLine(result ? "Success!" : "Compilation failed");
 #if DEBUG
 			Console.ReadLine();

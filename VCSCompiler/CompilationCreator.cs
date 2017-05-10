@@ -6,11 +6,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp;
+using System.Reflection;
 
 namespace VCSCompiler
 {
 	internal static class CompilationCreator
 	{
+		// netstandard 1.5 needed for Assembly.Location
+		private static readonly MetadataReference MSCorLibReference = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
 		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
 
 		private static async Task<DocumentInfo> CreateDocumentInfo(FileInfo file, ProjectId projectId)
@@ -32,7 +35,7 @@ namespace VCSCompiler
 			var allDocumentInfo = Task.WhenAll(documentTasks);
 
 			var info = ProjectInfo.Create(projectId, VersionStamp.Default, "UserProject", "UserAssembly", "C#",
-				metadataReferences: new MetadataReference[] { },
+				metadataReferences: new[] { MSCorLibReference },
 				compilationOptions: Options,
 				documents: await allDocumentInfo);
 
@@ -67,6 +70,10 @@ namespace VCSCompiler
 			var projectInfo = CreateProjectInfo(allFileInfo);
 
 			var workspace = new AdhocWorkspace();
+			if (!workspace.Services.IsSupported("C#"))
+			{
+				throw new InvalidOperationException("C# not supported. Make sure to include Microsoft.CodeAnalysis.CSharp.Workspaces.");
+			}
 			var project = workspace.AddProject(await projectInfo);
 
 			return await CompileProject(project);

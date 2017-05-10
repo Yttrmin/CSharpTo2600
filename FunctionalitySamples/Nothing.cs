@@ -1,0 +1,4 @@
+﻿static class Nothing
+{
+
+}

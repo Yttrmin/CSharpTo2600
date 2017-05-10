@@ -45,6 +45,7 @@
     <Compile Include="MainLoopChangeBkColor.cs" />
     <Compile Include="KernelChangeBkColor_MultiType_File1.cs" />
     <Compile Include="KernelChangeBkColor_MultiType_File2.cs" />
+    <Compile Include="Nothing.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="InitializerChangeBkColor.cs" />
   </ItemGroup>
