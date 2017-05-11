@@ -14,7 +14,8 @@ namespace VCSCompiler
 	{
 		// netstandard 1.5 needed for Assembly.Location
 		private static readonly MetadataReference MSCorLibReference = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
-		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+		private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(VCSFramework.NByte).GetTypeInfo().Assembly.Location);
+		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.ConsoleApplication);
 
 		private static async Task<DocumentInfo> CreateDocumentInfo(FileInfo file, ProjectId projectId)
 		{
@@ -35,7 +36,7 @@ namespace VCSCompiler
 			var allDocumentInfo = Task.WhenAll(documentTasks);
 
 			var info = ProjectInfo.Create(projectId, VersionStamp.Default, "UserProject", "UserAssembly", "C#",
-				metadataReferences: new[] { MSCorLibReference },
+				metadataReferences: new[] { MSCorLibReference, FrameworkReference },
 				compilationOptions: Options,
 				documents: await allDocumentInfo);
 

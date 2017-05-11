@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VCSCompiler", "VCSCompiler\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VCSCompilerCLI", "VCSCompilerCLI\VCSCompilerCLI.csproj", "{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VCSFramework", "VCSFramework\VCSFramework.csproj", "{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +78,14 @@ Global
 		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|x86.ActiveCfg = Release|Any CPU
 		{B0AFC2FB-5DC6-44BD-8A5E-18F0D51FCFC7}.Release|x86.Build.0 = Release|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Debug|x86.Build.0 = Debug|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Release|x86.ActiveCfg = Release|Any CPU
+		{B5F8C62F-CEB0-47E4-858E-B2CA7B85C0D6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
