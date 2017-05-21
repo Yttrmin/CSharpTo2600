@@ -12,6 +12,11 @@ namespace VCSCompiler
 		public IEnumerable<ProcessedField> Fields { get; }
 		public IEnumerable<ProcessedSubroutine> Subroutines { get; }
 		public TypeDefinition TypeDefinition { get; }
+		public bool SystemType => TypeDefinition.Namespace.StartsWith("System");
+
+		protected ProcessedType(ProcessedType processedType)
+			: this(processedType.TypeDefinition, processedType.Fields, processedType.Subroutines)
+		{ }
 
 		public ProcessedType(TypeDefinition typeDefinition, IEnumerable<ProcessedField> fields, IEnumerable<ProcessedSubroutine> subroutines)
 		{

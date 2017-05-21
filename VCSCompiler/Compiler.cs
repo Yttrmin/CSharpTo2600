@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Reflection;
 
 namespace VCSCompiler
 {
@@ -22,6 +23,7 @@ namespace VCSCompiler
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var compiler = new Compiler();
+			compiler.AddPredefinedTypes();
 			var program = CompileAssembly(compiler, assemblyDefinition);
 			return true;
 		}
@@ -32,7 +34,6 @@ namespace VCSCompiler
 			// 1. Iterate over every type and collect basic information (Processsed*).
 			var types = assemblyDefinition.MainModule.Types.Where(t => t.BaseType != null);
 			var entryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
-			// TODO - Process predefined types before user-defined types.
 			compiler.ProcessTypes(types);
 			return null;
 		}
@@ -58,6 +59,25 @@ namespace VCSCompiler
 			assemblyStream.Position = 0;
 
 			return AssemblyDefinition.ReadAssembly(assemblyStream);
+		}
+
+		private void AddPredefinedTypes()
+		{
+			var system = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location);
+			var supportedTypes = new[] { "Object", "ValueType", "Void" };
+			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name));
+
+			var objectType = types.Single(x => x.Name == "Object");
+			var objectCompiled = new CompiledType(new ProcessedType(objectType, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			Types[objectType.FullName] = objectCompiled;
+
+			var valueType = types.Single(x => x.Name == "ValueType");
+			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			Types[valueType.FullName] = valueTypeCompiled;
+
+			var voidType = types.Single(x => x.Name == "Void");
+			var voidCompiled = new CompiledType(new ProcessedType(voidType, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			Types[voidType.FullName] = voidCompiled;
 		}
 
 		/// <summary>
