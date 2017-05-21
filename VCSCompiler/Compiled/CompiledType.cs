@@ -11,5 +11,7 @@ namespace VCSCompiler
 			: base(processedType)
 		{
 		}
-    }
+
+		public override string ToString() => $"{FullName} [Compiled]";
+	}
 }

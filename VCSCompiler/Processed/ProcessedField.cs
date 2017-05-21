@@ -17,5 +17,7 @@ namespace VCSCompiler
 			FieldDefinition = fieldDefinition;
 			FieldType = fieldType;
 		}
-    }
+
+		public override string ToString() => $"{FullName}";
+	}
 }

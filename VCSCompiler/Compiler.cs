@@ -34,13 +34,9 @@ namespace VCSCompiler
 			// 1. Iterate over every type and collect basic information (Processsed*).
 			var types = assemblyDefinition.MainModule.Types.Where(t => t.BaseType != null);
 			var entryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
+			// TODO - Pass immutable copies of Types around instead of all mutating the field?
 			compiler.ProcessTypes(types);
 			return null;
-		}
-
-		private static CompiledType CompileType(TypeDefinition type)
-		{
-			throw new NotImplementedException();
 		}
 
 		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
@@ -64,20 +60,24 @@ namespace VCSCompiler
 		private void AddPredefinedTypes()
 		{
 			var system = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location);
-			var supportedTypes = new[] { "Object", "ValueType", "Void" };
+			var supportedTypes = new[] { "Object", "ValueType", "Void", "Byte" };
 			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name));
 
 			var objectType = types.Single(x => x.Name == "Object");
-			var objectCompiled = new CompiledType(new ProcessedType(objectType, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
 			Types[objectType.FullName] = objectCompiled;
 
 			var valueType = types.Single(x => x.Name == "ValueType");
-			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
 			Types[valueType.FullName] = valueTypeCompiled;
 
 			var voidType = types.Single(x => x.Name == "Void");
-			var voidCompiled = new CompiledType(new ProcessedType(voidType, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
 			Types[voidType.FullName] = voidCompiled;
+
+			var byteType = types.Single(x => x.Name == "Byte");
+			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			Types[byteType.FullName] = byteCompiled;
 		}
 
 		/// <summary>
@@ -113,6 +113,14 @@ namespace VCSCompiler
 			{
 				throw new FatalCompilationException($"Type '{typeDefinition.FullName}' must be a value type or static reference type.");
 			}
+			if (!Types.ContainsKey(typeDefinition.BaseType.FullName))
+			{
+				throw new FatalCompilationException($"Type '{typeDefinition.FullName}' has a base type of an unknown type: '{typeDefinition.BaseType.FullName}'");
+			}
+			else if (Types[typeDefinition.BaseType.FullName] == null)
+			{
+				return null;
+			}
 			foreach(var field in typeDefinition.Fields)
 			{
 				if (!Types.ContainsKey(field.FieldType.FullName))
@@ -144,8 +152,19 @@ namespace VCSCompiler
 				}
 			}
 			return new ProcessedType(typeDefinition,
+				Types[typeDefinition.BaseType.FullName],
 				typeDefinition.Fields.Select(fd => new ProcessedField(fd, Types[fd.FieldType.FullName])),
 				typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName], Enumerable.Empty<ProcessedType>())));
+		}
+
+		private void CompileTypes(IEnumerable<ProcessedType> processedTypes)
+		{
+			throw new NotImplementedException();
+		}
+
+		private CompiledType CompileType(ProcessedType processedType)
+		{
+			throw new NotImplementedException();
 		}
     }
 }

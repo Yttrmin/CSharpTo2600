@@ -6,6 +6,7 @@ namespace VCSCompiler
 	internal class ProcessedSubroutine
 	{
 		public string Name => MethodDefinition.Name;
+		public string FullName => MethodDefinition.FullName;
 		public ProcessedType ReturnType { get; }
 		public IEnumerable<ProcessedType> Parameters { get; }
 		public MethodDefinition MethodDefinition { get; }
@@ -20,5 +21,7 @@ namespace VCSCompiler
 			ReturnType = returnType;
 			Parameters = parameters;
 		}
+
+		public override string ToString() => $"{FullName} [Processed]";
 	}
 }

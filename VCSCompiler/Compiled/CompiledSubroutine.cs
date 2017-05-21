@@ -13,5 +13,7 @@ namespace VCSCompiler
 		{
 			Body = body;
 		}
-    }
+
+		public override string ToString() => $"{FullName} [Compiled]";
+	}
 }
