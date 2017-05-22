@@ -36,6 +36,7 @@ namespace VCSCompiler
 			var entryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
 			// TODO - Pass immutable copies of Types around instead of all mutating the field?
 			compiler.ProcessTypes(types);
+			compiler.CompileTypes(compiler.Types.Values.Where(x => x.GetType() == typeof(ProcessedType)));
 			return null;
 		}
 
@@ -159,12 +160,25 @@ namespace VCSCompiler
 
 		private void CompileTypes(IEnumerable<ProcessedType> processedTypes)
 		{
-			throw new NotImplementedException();
+			foreach(var type in processedTypes)
+			{
+				CompileType(type);
+			}
 		}
 
 		private CompiledType CompileType(ProcessedType processedType)
 		{
-			throw new NotImplementedException();
+			foreach(var subroutine in processedType.Subroutines)
+			{
+				Console.WriteLine($"Compiling {subroutine.FullName}");
+				foreach(var line in subroutine.MethodDefinition.Body.Instructions)
+				{
+					Console.WriteLine(line);
+				}
+				Console.WriteLine("v  Compile  v");
+				var assembly = CilCompiler.CompileBody(subroutine.MethodDefinition.Body.Instructions);
+			}
+			return null;
 		}
     }
 }

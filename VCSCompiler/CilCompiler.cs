@@ -10,6 +10,22 @@ namespace VCSCompiler
 {
     internal class CilCompiler
     {
+		public static IEnumerable<AssemblyLine> CompileBody(IEnumerable<Instruction> instructions)
+		{
+			var compiledBody = new List<AssemblyLine>();
+			foreach(var instruction in instructions)
+			{
+				Console.WriteLine($"{instruction}  -->");
+				var vcsInstructions = CilInstructionCompiler.CompileInstruction(instruction);
+				compiledBody.AddRange(vcsInstructions);
+				foreach(var vcsInstruction in vcsInstructions)
+				{
+					Console.WriteLine($"  {vcsInstruction}");
+				}
+			}
+			return compiledBody;
+		}
+
 		private static IEnumerable<AssemblyLine> CompileInstruction(Instruction instruction)
 		{
 			return CilInstructionCompiler.CompileInstruction(instruction);
