@@ -65,19 +65,19 @@ namespace VCSCompiler
 			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name));
 
 			var objectType = types.Single(x => x.Name == "Object");
-			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0));
 			Types[objectType.FullName] = objectCompiled;
 
 			var valueType = types.Single(x => x.Name == "ValueType");
-			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0));
 			Types[valueType.FullName] = valueTypeCompiled;
 
 			var voidType = types.Single(x => x.Name == "Void");
-			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0));
 			Types[voidType.FullName] = voidCompiled;
 
 			var byteType = types.Single(x => x.Name == "Byte");
-			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>()));
+			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1));
 			Types[byteType.FullName] = byteCompiled;
 		}
 
