@@ -87,6 +87,7 @@ namespace VCSCompiler
 		/// </summary>
 		private void ProcessTypes(IEnumerable<TypeDefinition> cecilTypes)
 		{
+			// TODO - Probably should just build up a dependency graph instead of wastefully reprocessing types.
 			var toProcessFields = new Queue<TypeDefinition>(cecilTypes);
 
 			foreach (var type in cecilTypes)

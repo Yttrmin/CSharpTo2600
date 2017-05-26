@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VCSCompiler
+namespace VCSCompiler.Assembly
 {
     internal static class AssemblyFactory
     {

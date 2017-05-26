@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
 using System.Reflection;
-using static VCSCompiler.AssemblyFactory;
 using System.Linq;
+using VCSCompiler.Assembly;
+using static VCSCompiler.Assembly.AssemblyFactory;
 
 namespace VCSCompiler
 {
@@ -95,6 +96,12 @@ namespace VCSCompiler
 		private static IEnumerable<AssemblyLine> Ldc_I4_S(Instruction instruction) => Ldc_I4(instruction);
 
 		private static IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
+
+		private static IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
+		{
+			yield return PLA();
+			throw new NotImplementedException();
+		}
 
 		private static IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
 	}
