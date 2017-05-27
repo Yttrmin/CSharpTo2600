@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Linq;
 using VCSCompiler.Assembly;
 using static VCSCompiler.Assembly.AssemblyFactory;
+using Mono.Cecil;
 
 namespace VCSCompiler
 {
@@ -97,10 +98,16 @@ namespace VCSCompiler
 
 		private static IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
 
+		private static IEnumerable<AssemblyLine> Ret(Instruction instruction)
+		{
+			yield return RTS();
+		}
+
 		private static IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
 		{
 			yield return PLA();
-			throw new NotImplementedException();
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+			yield return STA(LabelGenerator.GetFromField(fieldDefinition));
 		}
 
 		private static IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);

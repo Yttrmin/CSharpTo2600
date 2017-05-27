@@ -262,10 +262,27 @@ namespace VCSCompiler.Assembly
             return new AssemblyInstruction("STA", $"${Address.ToString("X2")}", 3, 2);
         }
 
-        /// <summary>
-        /// Store Accumulator [Zero-page] (3 cycles)
-        /// </summary>
-        public static AssemblyInstruction STA(Symbol Symbol, int Offset = 0)
+		/// <summary>
+		/// Store Accumulator [Zero-page] (3 cycles)
+		/// </summary>
+		public static AssemblyInstruction STA(string Label, int Offset = 0)
+		{
+			string Argument;
+			if (Offset == 0)
+			{
+				Argument = Label;
+			}
+			else
+			{
+				Argument = $"{Label}+{Offset}";
+			}
+			return new AssemblyInstruction("STA", Argument, 3, 2);
+		}
+
+		/// <summary>
+		/// Store Accumulator [Zero-page] (3 cycles)
+		/// </summary>
+		public static AssemblyInstruction STA(Symbol Symbol, int Offset = 0)
         {
             string Argument;
             if (Offset == 0)
