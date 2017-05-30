@@ -24,8 +24,8 @@ namespace VCSCompiler
 		public TypeDefinition TypeDefinition { get; }
 		public bool SystemType => TypeDefinition.Namespace.StartsWith("System");
 
-		protected ProcessedType(ProcessedType processedType)
-			: this(processedType.TypeDefinition, processedType.BaseType, processedType.Fields, processedType.Subroutines, processedType.ThisSize)
+		protected ProcessedType(ProcessedType processedType, IEnumerable<CompiledSubroutine> compiledSubroutines)
+			: this(processedType.TypeDefinition, processedType.BaseType, processedType.Fields, compiledSubroutines, processedType.ThisSize)
 		{ }
 
 		public ProcessedType(TypeDefinition typeDefinition, ProcessedType baseType, IEnumerable<ProcessedField> fields, IEnumerable<ProcessedSubroutine> subroutines, int? size = null)

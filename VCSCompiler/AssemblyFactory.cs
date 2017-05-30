@@ -61,7 +61,12 @@ namespace VCSCompiler.Assembly
             return new PsuedoOp($"{Label.Name} subroutine");
         }
 
-        public static PsuedoOp Include(string FileName)
+		public static PsuedoOp Subroutine(string Label)
+		{
+			return new PsuedoOp($"{Label} subroutine");
+		}
+
+		public static PsuedoOp Include(string FileName)
         {
             return new PsuedoOp($"\tinclude \"{FileName}\"");
         }
@@ -70,10 +75,15 @@ namespace VCSCompiler.Assembly
         {
             return new PsuedoOp($"\t.word {Label.Name}");
         }
-        #endregion
 
-        #region Instructions
-        public enum Index
+		public static PsuedoOp Word(string Label)
+		{
+			return new PsuedoOp($"\t.word {Label}");
+		}
+		#endregion
+
+		#region Instructions
+		public enum Index
         {
             X,
             Y

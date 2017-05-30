@@ -18,13 +18,14 @@ namespace VCSCompiler
 			Types = new Dictionary<string, ProcessedType>();
 		}
 
-		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths)
+		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string dasmPath)
 		{
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var compiler = new Compiler();
 			compiler.AddPredefinedTypes();
 			var program = CompileAssembly(compiler, assemblyDefinition);
+			var romInfo = RomCreator.CreateRom(program);
 			return true;
 		}
 
@@ -33,11 +34,18 @@ namespace VCSCompiler
 			// Compilation steps (WIP):
 			// 1. Iterate over every type and collect basic information (Processsed*).
 			var types = assemblyDefinition.MainModule.Types.Where(t => t.BaseType != null);
-			var entryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
 			// TODO - Pass immutable copies of Types around instead of all mutating the field?
 			compiler.ProcessTypes(types);
-			compiler.CompileTypes(compiler.Types.Values.Where(x => x.GetType() == typeof(ProcessedType)));
-			return null;
+			// TODO - Do the above so we don't have to ToArray() to get around the fact we modify Types.
+			var compiledTypes = compiler.CompileTypes(compiler.Types.Values.Where(x => x.GetType() == typeof(ProcessedType))).ToArray();
+			foreach(var compiledType in compiledTypes.Select(t => (FullName: t.FullName, Type: t)))
+			{
+				compiler.Types[compiledType.FullName] = compiledType.Type;
+			}
+			var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
+			var cilEntryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
+			var entryType = (CompiledSubroutine)compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint);
+			return new CompiledProgram(compiledTypes, entryType);
 		}
 
 		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
@@ -65,19 +73,19 @@ namespace VCSCompiler
 			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name));
 
 			var objectType = types.Single(x => x.Name == "Object");
-			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0));
+			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[objectType.FullName] = objectCompiled;
 
 			var valueType = types.Single(x => x.Name == "ValueType");
-			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0));
+			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[valueType.FullName] = valueTypeCompiled;
 
 			var voidType = types.Single(x => x.Name == "Void");
-			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0));
+			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[voidType.FullName] = voidCompiled;
 
 			var byteType = types.Single(x => x.Name == "Byte");
-			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1));
+			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
 			Types[byteType.FullName] = byteCompiled;
 		}
 
@@ -159,16 +167,17 @@ namespace VCSCompiler
 				typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName], Enumerable.Empty<ProcessedType>())));
 		}
 
-		private void CompileTypes(IEnumerable<ProcessedType> processedTypes)
+		private IEnumerable<CompiledType> CompileTypes(IEnumerable<ProcessedType> processedTypes)
 		{
 			foreach(var type in processedTypes)
 			{
-				CompileType(type);
+				yield return CompileType(type);
 			}
 		}
 
 		private CompiledType CompileType(ProcessedType processedType)
 		{
+			var compiledSubroutines = new List<CompiledSubroutine>();
 			foreach(var subroutine in processedType.Subroutines)
 			{
 				Console.WriteLine($"Compiling {subroutine.FullName}");
@@ -178,8 +187,10 @@ namespace VCSCompiler
 				}
 				Console.WriteLine("v  Compile  v");
 				var assembly = CilCompiler.CompileBody(subroutine.MethodDefinition.Body.Instructions);
+				var compiledSubroutine = new CompiledSubroutine(subroutine, assembly);
+				compiledSubroutines.Add(compiledSubroutine);
 			}
-			return null;
+			return new CompiledType(processedType, compiledSubroutines);
 		}
     }
 }
