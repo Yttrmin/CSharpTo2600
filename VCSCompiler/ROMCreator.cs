@@ -20,8 +20,10 @@ namespace VCSCompiler
 
 		public static RomInfo CreateRom(CompiledProgram program)
 		{
+			var memoryManager = new MemoryManager(program);
 			var lines = new List<AssemblyLine>();
 			lines.AddRange(CreateHeader());
+			lines.AddRange(CreateStaticVariables(program.Types, memoryManager));
 			lines.AddRange(CreateEntryPoint(program.EntryPoint));
 			lines.AddRange(CreateInterruptVectors());
 
@@ -35,6 +37,16 @@ namespace VCSCompiler
 			yield return Processor();
 			yield return Include("vcs.h");
 			yield return Org(0xF000);
+			yield return BlankLine();
+		}
+
+		private static IEnumerable<AssemblyLine> CreateStaticVariables(IEnumerable<CompiledType> types, MemoryManager memoryManager)
+		{
+			yield return Comment("Global variables:", 0);
+			foreach(var symbol in memoryManager.AllSymbols)
+			{
+				yield return symbol;
+			}
 			yield return BlankLine();
 		}
 
