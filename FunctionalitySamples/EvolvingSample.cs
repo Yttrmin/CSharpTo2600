@@ -4,6 +4,11 @@
 
 	public static void Main()
 	{
+		mutateA();
+	}
+
+	private static void mutateA()
+	{
 		a = 0;
 	}
 }

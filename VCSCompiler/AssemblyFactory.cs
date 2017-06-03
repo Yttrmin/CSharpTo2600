@@ -170,10 +170,18 @@ namespace VCSCompiler.Assembly
             return new AssemblyInstruction("JSR", Label.Name, 6, 3);
         }
 
-        /// <summary>
-        /// Load Accumulator with Memory [Immediate] (2 cycles)
-        /// </summary>
-        public static AssemblyInstruction LDA(byte Value)
+		/// <summary>
+		/// Jump to Subroutine [Absolute] (6 cycles)
+		/// </summary>
+		public static AssemblyInstruction JSR(string Label)
+		{
+			return new AssemblyInstruction("JSR", Label, 6, 3);
+		}
+
+		/// <summary>
+		/// Load Accumulator with Memory [Immediate] (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction LDA(byte Value)
         {
             return new AssemblyInstruction("LDA", $"#${Value.ToString("X2")}", 2, 2);
         }
@@ -197,10 +205,29 @@ namespace VCSCompiler.Assembly
             return new AssemblyInstruction("LDA", Argument, 3, 2);
         }
 
-        /// <summary>
-        /// Load X Register [Immediate] (2 cycles)
-        /// </summary>
-        public static AssemblyInstruction LDX(byte Value)
+		/// <summary>
+		/// Load Accumulator with Memory [Zero-page] (3 cycles)
+		/// </summary>
+		public static AssemblyInstruction LDA(string Symbol, int Offset = 0)
+		{
+			//@TODO - Technically the symbol could refer to any point in the ROM,
+			// maybe not zero-page. Figure out a solution.
+			string Argument;
+			if (Offset == 0)
+			{
+				Argument = Symbol;
+			}
+			else
+			{
+				Argument = $"{Symbol}+{Offset}";
+			}
+			return new AssemblyInstruction("LDA", Argument, 3, 2);
+		}
+
+		/// <summary>
+		/// Load X Register [Immediate] (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction LDX(byte Value)
         {
             return new AssemblyInstruction("LDX", $"#${Value.ToString("X2")}", 2, 2);
         }

@@ -84,6 +84,12 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
+		private static IEnumerable<AssemblyLine> Call(Instruction instruction)
+		{
+			var methodDefinition = (MethodDefinition)instruction.Operand;
+			yield return JSR(LabelGenerator.GetFromMethod(methodDefinition));
+		}
+
 		/// <summary>
 		/// Pushes a constant uint8 onto the stack.
 		/// </summary>
@@ -95,6 +101,13 @@ namespace VCSCompiler
 		/// </summary>
 		/// <remarks>The spec says to push an int32, but that's impractical.</remarks>
 		private static IEnumerable<AssemblyLine> Ldc_I4_S(Instruction instruction) => Ldc_I4(instruction);
+
+		private static IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
+		{
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+			yield return LDA(LabelGenerator.GetFromField(fieldDefinition));
+			yield return PHA();
+		}
 
 		private static IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
 

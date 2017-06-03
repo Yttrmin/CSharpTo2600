@@ -25,6 +25,7 @@ namespace VCSCompiler
 			lines.AddRange(CreateHeader());
 			lines.AddRange(CreateStaticVariables(program.Types, memoryManager));
 			lines.AddRange(CreateEntryPoint(program.EntryPoint));
+			lines.AddRange(CreateMethods(program));
 			lines.AddRange(CreateInterruptVectors());
 
 			File.WriteAllLines(AssemblyFileName, lines.Select(l => l.ToString()));
@@ -60,6 +61,33 @@ namespace VCSCompiler
 			}
 			yield return Comment("End entry point code.", 0);
 			yield return BlankLine();
+		}
+
+		private static IEnumerable<AssemblyLine> CreateMethods(CompiledProgram program)
+		{
+			var methods = program.Types.SelectMany(t => t.Subroutines).Where(s => s != program.EntryPoint);
+			yield return Comment("Begin subroutine emit.", 0);
+			yield return BlankLine();
+			foreach(var method in methods)
+			{
+				foreach(var line in CreateMethod(method))
+				{
+					yield return line;
+				}
+			}
+			yield return Comment("End subroutine emit.", 0);
+			yield return BlankLine();
+
+			IEnumerable<AssemblyLine> CreateMethod(CompiledSubroutine subroutine)
+			{
+				yield return Comment(subroutine.MethodDefinition.ToString(), 0);
+				yield return Label(LabelGenerator.GetFromMethod(subroutine.MethodDefinition));
+				foreach(var line in subroutine.Body)
+				{
+					yield return line;
+				}
+				yield return BlankLine();
+			}
 		}
 
 		private static IEnumerable<AssemblyLine> CreateInterruptVectors()
