@@ -152,9 +152,12 @@ namespace VCSCompiler
 				{
 					throw new FatalCompilationException($"Method '{method.FullName}' has an unknown return type: {method.ReturnType.FullName}");
 				}
-				if (method.Parameters.Count != 0)
+				foreach(var parameter in method.Parameters)
 				{
-					throw new FatalCompilationException($"Method '{method.FullName}' takes {method.Parameters.Count} parameters, only parameterless methods are currently supported.");
+					if (Types[parameter.ParameterType.FullName] == null)
+					{
+						return null;
+					}
 				}
 				if (Types[method.ReturnType.FullName] == null)
 				{
@@ -164,7 +167,7 @@ namespace VCSCompiler
 			return new ProcessedType(typeDefinition,
 				Types[typeDefinition.BaseType.FullName],
 				typeDefinition.Fields.Select(fd => new ProcessedField(fd, Types[fd.FieldType.FullName])),
-				typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName], Enumerable.Empty<ProcessedType>())));
+				typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName], md.Parameters.Select(p => Types[p.ParameterType.FullName]))));
 		}
 
 		private IEnumerable<CompiledType> CompileTypes(IEnumerable<ProcessedType> processedTypes)

@@ -4,10 +4,10 @@
 
 	public static void Main()
 	{
-		mutateA();
+		mutateA(a);
 	}
 
-	private static void mutateA()
+	private static void mutateA(byte b)
 	{
 		a = 0;
 	}
