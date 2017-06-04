@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Reflection;
+using System.Collections.Immutable;
 
 namespace VCSCompiler
 {
@@ -210,9 +211,10 @@ namespace VCSCompiler
 					Console.WriteLine(line);
 				}
 				Console.WriteLine("v  Compile  v");
-				var assembly = CilCompiler.CompileBody(subroutine.MethodDefinition.Body.Instructions);
+				var assembly = CilCompiler.CompileBody(subroutine.MethodDefinition.Body.Instructions, Types.ToImmutableDictionary());
 				var compiledSubroutine = new CompiledSubroutine(subroutine, assembly);
 				compiledSubroutines.Add(compiledSubroutine);
+				Console.WriteLine($"{subroutine.FullName}, compilation finished");
 			}
 			return new CompiledType(processedType, compiledSubroutines);
 		}

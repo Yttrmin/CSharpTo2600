@@ -8,17 +8,27 @@ using System.Linq;
 using VCSCompiler.Assembly;
 using static VCSCompiler.Assembly.AssemblyFactory;
 using Mono.Cecil;
+using VCSFramework;
 
 namespace VCSCompiler
 {
 	/// <summary>
 	/// Contains the logic for compiling individual CIL instructions to 6502 instructions.
 	/// </summary>
-    internal static class CilInstructionCompiler
+    internal class CilInstructionCompiler
     {
-		private static readonly IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> MethodMap;
+		private readonly IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> MethodMap;
+		private readonly IImmutableDictionary<string, ProcessedType> Types;
 
-		static CilInstructionCompiler()
+		public CilInstructionCompiler(IImmutableDictionary<string, ProcessedType> types)
+		{
+			MethodMap = CreateMethodMap();
+			Types = types;
+		}
+
+		public IEnumerable<AssemblyLine> CompileInstruction(Instruction instruction) => MethodMap[instruction.OpCode.Code](instruction);
+
+		private IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> CreateMethodMap()
 		{
 			var dictionary = new Dictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>>();
 			var typeInfo = typeof(CilInstructionCompiler).GetTypeInfo();
@@ -30,17 +40,15 @@ namespace VCSCompiler
 				{
 					name = "Ldc_I4";
 				}
-				var method = typeInfo.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static);
-				dictionary[opCode] 
-					= (Func<Instruction, IEnumerable<AssemblyLine>>)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<AssemblyLine>>))
+				var method = typeInfo.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+				dictionary[opCode]
+					= (Func<Instruction, IEnumerable<AssemblyLine>>)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<AssemblyLine>>), this)
 					?? Unsupported;
 			}
-			MethodMap = dictionary.ToImmutableDictionary();
+			return dictionary.ToImmutableDictionary();
 		}
 
-		public static IEnumerable<AssemblyLine> CompileInstruction(Instruction instruction) => MethodMap[instruction.OpCode.Code](instruction);
-
-		private static IEnumerable<AssemblyLine> LoadConstant(Instruction instruction)
+		private IEnumerable<AssemblyLine> LoadConstant(Instruction instruction)
 		{
 			byte value = 0;
 			if (instruction.Operand != null)
@@ -78,24 +86,30 @@ namespace VCSCompiler
 			return LoadConstant(value);
 		}
 
-		private static IEnumerable<AssemblyLine> LoadConstant(byte value)
+		private IEnumerable<AssemblyLine> LoadConstant(byte value)
 		{
 			yield return LDA(value);
 			yield return PHA();
 		}
 
-		private static IEnumerable<AssemblyLine> Call(Instruction instruction)
+		private IEnumerable<AssemblyLine> Call(Instruction instruction)
 		{
-			switch(instruction.Operand)
+			// Could be either a MethodDefinition or MethodReference.
+			dynamic method = instruction.Operand;
+
+			var methodFullName = (string)method.DeclaringType.FullName;
+			var processedSubroutine = Types[methodFullName].Subroutines.Single(s => s.FullName == method.FullName);
+			// Don't directly compare types since we may have received a different Framework assembly than what this library was built against.
+			dynamic overrideStore = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithStoreToSymbolAttribute).FullName);
+			if (overrideStore != null)
 			{
-				case MethodDefinition methodDefinition:
-					yield return JSR(LabelGenerator.GetFromMethod(methodDefinition));
-					break;
-				case MethodReference methodReference:
-					yield return JSR(LabelGenerator.GetFromMethod(methodReference));
-					break;
-				default:
-					throw new FatalCompilationException($"Operand type '{instruction.Operand.GetType()}' not supported for 'Call' instruction.");
+				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
+				yield return PLA();
+				yield return STA(overrideStore.Symbol);
+			}
+			else
+			{
+				yield return JSR(LabelGenerator.GetFromMethod(method));
 			}
 		}
 
@@ -103,35 +117,35 @@ namespace VCSCompiler
 		/// Pushes a constant uint8 onto the stack.
 		/// </summary>
 		/// <remarks>The spec says to push an int32, but that's impractical.</remarks>
-		private static IEnumerable<AssemblyLine> Ldc_I4(Instruction instruction) => LoadConstant(instruction);
+		private IEnumerable<AssemblyLine> Ldc_I4(Instruction instruction) => LoadConstant(instruction);
 
 		/// <summary>
 		/// Pushes a constant uint8 onto the stack.
 		/// </summary>
 		/// <remarks>The spec says to push an int32, but that's impractical.</remarks>
-		private static IEnumerable<AssemblyLine> Ldc_I4_S(Instruction instruction) => Ldc_I4(instruction);
+		private IEnumerable<AssemblyLine> Ldc_I4_S(Instruction instruction) => Ldc_I4(instruction);
 
-		private static IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
+		private IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
 		{
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 			yield return LDA(LabelGenerator.GetFromField(fieldDefinition));
 			yield return PHA();
 		}
 
-		private static IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
+		private IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
 
-		private static IEnumerable<AssemblyLine> Ret(Instruction instruction)
+		private IEnumerable<AssemblyLine> Ret(Instruction instruction)
 		{
 			yield return RTS();
 		}
 
-		private static IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
+		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
 		{
 			yield return PLA();
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 			yield return STA(LabelGenerator.GetFromField(fieldDefinition));
 		}
 
-		private static IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
+		private IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
 	}
 }
