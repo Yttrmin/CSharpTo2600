@@ -172,10 +172,23 @@ namespace VCSCompiler
 					return null;
 				}
 			}
-			return new ProcessedType(typeDefinition,
-				Types[typeDefinition.BaseType.FullName],
-				typeDefinition.Fields.Select(fd => new ProcessedField(fd, Types[fd.FieldType.FullName])),
-				typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName], md.Parameters.Select(p => Types[p.ParameterType.FullName]))));
+
+			var baseType = Types[typeDefinition.BaseType.FullName];
+			var processedFields = typeDefinition.Fields.Select(fd => new ProcessedField(fd, Types[fd.FieldType.FullName]));
+			var processedSubroutines = typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName],
+					md.Parameters.Select(p => Types[p.ParameterType.FullName]),
+					md.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName))
+						.Select(a => CreateFrameworkAttribute(a)).ToArray()));
+
+			return new ProcessedType(typeDefinition, baseType, processedFields, processedSubroutines);
+		}
+
+		private Attribute CreateFrameworkAttribute(CustomAttribute attribute)
+		{
+			var type = FrameworkAttributes.Where(t => t.FullName == attribute.AttributeType.FullName).Single();
+			var parameters = attribute.ConstructorArguments.Select(a => a.Value).ToArray();
+			var instance = (Attribute)Activator.CreateInstance(type, parameters);
+			return instance;
 		}
 
 		private IEnumerable<CompiledType> CompileTypes(IEnumerable<ProcessedType> processedTypes)
