@@ -86,8 +86,17 @@ namespace VCSCompiler
 
 		private static IEnumerable<AssemblyLine> Call(Instruction instruction)
 		{
-			var methodDefinition = (MethodDefinition)instruction.Operand;
-			yield return JSR(LabelGenerator.GetFromMethod(methodDefinition));
+			switch(instruction.Operand)
+			{
+				case MethodDefinition methodDefinition:
+					yield return JSR(LabelGenerator.GetFromMethod(methodDefinition));
+					break;
+				case MethodReference methodReference:
+					yield return JSR(LabelGenerator.GetFromMethod(methodReference));
+					break;
+				default:
+					throw new FatalCompilationException($"Operand type '{instruction.Operand.GetType()}' not supported for 'Call' instruction.");
+			}
 		}
 
 		/// <summary>

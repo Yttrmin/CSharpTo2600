@@ -23,5 +23,10 @@ namespace VCSCompiler
 		{
 			return $"{method.DeclaringType.Name}_{method.Name}";
 		}
-    }
+
+		public static string GetFromMethod(MethodReference method)
+		{
+			return $"{method.DeclaringType.Name}_{method.Name}";
+		}
+	}
 }

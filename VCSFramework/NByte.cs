@@ -2,6 +2,7 @@
 
 namespace VCSFramework
 {
+	[DoNotCompile]
     public class NByte
     {
 		private byte Value;

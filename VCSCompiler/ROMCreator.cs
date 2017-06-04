@@ -18,7 +18,7 @@ namespace VCSCompiler
 
 		private RomCreator() { }
 
-		public static RomInfo CreateRom(CompiledProgram program)
+		public static RomInfo CreateRom(CompiledAssembly program)
 		{
 			var memoryManager = new MemoryManager(program);
 			var lines = new List<AssemblyLine>();
@@ -63,7 +63,7 @@ namespace VCSCompiler
 			yield return BlankLine();
 		}
 
-		private static IEnumerable<AssemblyLine> CreateMethods(CompiledProgram program)
+		private static IEnumerable<AssemblyLine> CreateMethods(CompiledAssembly program)
 		{
 			var methods = program.Types.SelectMany(t => t.Subroutines).Where(s => s != program.EntryPoint);
 			yield return Comment("Begin subroutine emit.", 0);

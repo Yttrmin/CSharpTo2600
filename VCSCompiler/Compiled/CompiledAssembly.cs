@@ -5,12 +5,12 @@ using System.Linq;
 
 namespace VCSCompiler
 {
-    internal sealed class CompiledProgram
+    internal sealed class CompiledAssembly
     {
 		public IEnumerable<CompiledType> Types { get; }
 		public CompiledSubroutine EntryPoint { get; }
 
-		public CompiledProgram(IEnumerable<CompiledType> types, CompiledSubroutine entryPoint)
+		public CompiledAssembly(IEnumerable<CompiledType> types, CompiledSubroutine entryPoint)
 		{
 			Types = types;
 			EntryPoint = entryPoint;

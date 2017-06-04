@@ -7,8 +7,28 @@ using System.Text;
 
 namespace VCSFramework
 {
+	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method)]
-    internal class CompilerImplementedAttribute : Attribute
+    public sealed class CompilerImplementedAttribute : Attribute
+	{
+
+	}
+
+	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Method)]
+	public sealed class OverrideWithStoreToSymbolAttribute : Attribute
+	{
+		public string Symbol { get; }
+
+		public OverrideWithStoreToSymbolAttribute(string symbol)
+		{
+			Symbol = symbol;
+		}
+	}
+
+	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Class)]
+	public sealed class DoNotCompileAttribute : Attribute
 	{
 
 	}

@@ -18,7 +18,7 @@ namespace VCSCompiler
 			Types = new Dictionary<string, ProcessedType>();
 		}
 
-		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string dasmPath)
+		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
@@ -29,7 +29,7 @@ namespace VCSCompiler
 			return true;
 		}
 
-		private static CompiledProgram CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
+		private static CompiledAssembly CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
 		{
 			// Compilation steps (WIP):
 			// 1. Iterate over every type and collect basic information (Processsed*).
@@ -45,7 +45,7 @@ namespace VCSCompiler
 			var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
 			var cilEntryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
 			var entryType = (CompiledSubroutine)compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint);
-			return new CompiledProgram(compiledTypes, entryType);
+			return new CompiledAssembly(compiledTypes, entryType);
 		}
 
 		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
