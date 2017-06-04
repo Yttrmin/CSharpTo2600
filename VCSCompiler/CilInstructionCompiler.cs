@@ -53,7 +53,10 @@ namespace VCSCompiler
 			byte value = 0;
 			if (instruction.Operand != null)
 			{
-				try { value = Convert.ToByte((int)instruction.Operand); }
+				try
+				{
+					value = Convert.ToByte(instruction.Operand);
+				}
 				catch (OverflowException)
 				{
 					throw new InvalidInstructionException(instruction, $"Constant value '{instruction.Operand}'must fit in a byte!");
