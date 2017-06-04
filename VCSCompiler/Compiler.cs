@@ -12,21 +12,25 @@ namespace VCSCompiler
     public sealed class Compiler
     {
 		private readonly IDictionary<string, ProcessedType> Types;
+		private readonly IEnumerable<Type> FrameworkAttributes;
 
-		private Compiler()
+		private Compiler(IEnumerable<Type> frameworkAttributes)
 		{
 			Types = new Dictionary<string, ProcessedType>();
+			FrameworkAttributes = frameworkAttributes;
 		}
 
 		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
-			var compiler = new Compiler();
+			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
+			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
+			var compiler = new Compiler(frameworkAttributes.ToArray());
 			compiler.AddPredefinedTypes();
-			var frameworkAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath));
-			var userAssembly = CompileAssembly(compiler, assemblyDefinition);
-			var program = new CompiledProgram(new[] { frameworkAssembly, userAssembly });
+			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath));
+			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
+			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly });
 			var romInfo = RomCreator.CreateRom(program);
 			return true;
 		}
