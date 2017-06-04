@@ -13,12 +13,12 @@ namespace VCSCompiler
 		private const int GlobalsStart = 0x80;
 		private const int StackStart = 0xFF;
 
-		private CompiledAssembly Program;
+		private CompiledProgram Program;
 		private int NextGlobal = GlobalsStart;
 
 		public IEnumerable<Symbol> AllSymbols { get; }
 
-		public MemoryManager(CompiledAssembly program)
+		public MemoryManager(CompiledProgram program)
 		{
 			Program = program;
 			AllSymbols = LayoutGlobals();

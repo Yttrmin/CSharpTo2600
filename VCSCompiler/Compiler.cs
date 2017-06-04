@@ -24,7 +24,9 @@ namespace VCSCompiler
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var compiler = new Compiler();
 			compiler.AddPredefinedTypes();
-			var program = CompileAssembly(compiler, assemblyDefinition);
+			var frameworkAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath));
+			var userAssembly = CompileAssembly(compiler, assemblyDefinition);
+			var program = new CompiledProgram(new[] { frameworkAssembly, userAssembly });
 			var romInfo = RomCreator.CreateRom(program);
 			return true;
 		}
@@ -33,7 +35,9 @@ namespace VCSCompiler
 		{
 			// Compilation steps (WIP):
 			// 1. Iterate over every type and collect basic information (Processsed*).
-			var types = assemblyDefinition.MainModule.Types.Where(t => t.BaseType != null);
+			var types = assemblyDefinition.MainModule.Types
+				.Where(t => t.BaseType != null)
+				.Where(t => !t.CustomAttributes.Any(a => a.AttributeType.Name == "DoNotCompileAttribute"));
 			// TODO - Pass immutable copies of Types around instead of all mutating the field?
 			compiler.ProcessTypes(types);
 			// TODO - Do the above so we don't have to ToArray() to get around the fact we modify Types.
@@ -43,9 +47,9 @@ namespace VCSCompiler
 				compiler.Types[compiledType.FullName] = compiledType.Type;
 			}
 			var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
-			var cilEntryType = assemblyDefinition.MainModule.EntryPoint.DeclaringType;
-			var entryType = (CompiledSubroutine)compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint);
-			return new CompiledAssembly(compiledTypes, entryType);
+			var cilEntryType = cilEntryPoint?.DeclaringType;
+			var entryPoint = cilEntryPoint != null ? (CompiledSubroutine)compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint) : null;
+			return new CompiledAssembly(compiledTypes, entryPoint);
 		}
 
 		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
