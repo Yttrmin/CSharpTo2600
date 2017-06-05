@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace VCSCompiler.Assembly
+namespace VCSFramework.Assembly
 {
-	internal abstract class AssemblyLine
+	public abstract class AssemblyLine
     {
         public string Text { get; }
         public string Comment { get; }
@@ -76,7 +76,7 @@ namespace VCSCompiler.Assembly
         }
     }
 
-	internal sealed class AssemblyInstruction : AssemblyLine
+	public sealed class AssemblyInstruction : AssemblyLine
     {
         public string OpCode { get; }
         public string Argument { get; }
@@ -111,7 +111,7 @@ namespace VCSCompiler.Assembly
         }
     }
 
-	internal sealed class Trivia : AssemblyLine
+	public sealed class Trivia : AssemblyLine
     {
         internal Trivia(string Text, string Comment = null)
             : base(Text, Comment)
@@ -130,7 +130,7 @@ namespace VCSCompiler.Assembly
         }
     }
 
-	internal sealed class Symbol : AssemblyLine
+	public sealed class Symbol : AssemblyLine
     {
         public string Name { get; }
         public ushort? Value { get; }
@@ -170,7 +170,7 @@ namespace VCSCompiler.Assembly
         }
     }
 
-	internal sealed class PsuedoOp : AssemblyLine
+	public sealed class PsuedoOp : AssemblyLine
     {
         //@TODO
         internal PsuedoOp(string Text, string Comment = null)

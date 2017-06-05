@@ -5,8 +5,8 @@ using System.Collections.Immutable;
 using System.Text;
 using System.Reflection;
 using System.Linq;
-using VCSCompiler.Assembly;
-using static VCSCompiler.Assembly.AssemblyFactory;
+using VCSFramework.Assembly;
+using static VCSFramework.Assembly.AssemblyFactory;
 using Mono.Cecil;
 using VCSFramework;
 

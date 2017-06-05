@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using System.IO;
-using VCSCompiler.Assembly;
-using static VCSCompiler.Assembly.AssemblyFactory;
+using VCSFramework.Assembly;
+using static VCSFramework.Assembly.AssemblyFactory;
 
 namespace VCSCompiler
 {
@@ -29,7 +29,7 @@ namespace VCSCompiler
 			lines.AddRange(CreateInterruptVectors());
 
 			File.WriteAllLines(AssemblyFileName, lines.Select(l => l.ToString()));
-			throw new NotImplementedException();
+			throw new NotImplementedException("RomCreator.CreateRom() not finished");
 		}
 
 		private static IEnumerable<AssemblyLine> CreateHeader()

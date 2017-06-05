@@ -5,7 +5,7 @@ using System.Text;
 using System.Linq;
 using Mono.Cecil.Cil;
 using Mono.Cecil;
-using VCSCompiler.Assembly;
+using VCSFramework.Assembly;
 using System.Collections.Immutable;
 
 namespace VCSCompiler

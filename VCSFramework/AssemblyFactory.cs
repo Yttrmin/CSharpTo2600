@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace VCSCompiler.Assembly
+namespace VCSFramework.Assembly
 {
-    internal static class AssemblyFactory
+    public static class AssemblyFactory
     {
         #region Trivia
         public static Trivia Comment(string Comment, int IndentationLevel = 1)

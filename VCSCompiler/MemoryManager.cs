@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using VCSCompiler.Assembly;
-using static VCSCompiler.Assembly.AssemblyFactory;
+using VCSFramework.Assembly;
+using static VCSFramework.Assembly.AssemblyFactory;
 
 namespace VCSCompiler
 {
