@@ -6,7 +6,9 @@ static class Evolving
 
 	public static void Main()
 	{
+	loopStart:
 		a = 0x4C;
 		BackgroundColor = a;
+		goto loopStart;
 	}
 }

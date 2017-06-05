@@ -95,6 +95,11 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
+		private IEnumerable<AssemblyLine> Br_S(Instruction instruction)
+		{
+			yield return JMP(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
+		}
+
 		private IEnumerable<AssemblyLine> Call(Instruction instruction)
 		{
 			// Could be either a MethodDefinition or MethodReference.

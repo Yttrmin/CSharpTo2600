@@ -163,10 +163,18 @@ namespace VCSFramework.Assembly
             return new AssemblyInstruction("JMP", Label.Name, 3, 3);
         }
 
-        /// <summary>
-        /// Jump to Subroutine [Absolute] (6 cycles)
-        /// </summary>
-        public static AssemblyInstruction JSR(Symbol Label)
+		/// <summary>
+		/// Jump [Absolute] (3 cycles)
+		/// </summary>
+		public static AssemblyInstruction JMP(string Label)
+		{
+			return new AssemblyInstruction("JMP", Label, 3, 3);
+		}
+
+		/// <summary>
+		/// Jump to Subroutine [Absolute] (6 cycles)
+		/// </summary>
+		public static AssemblyInstruction JSR(Symbol Label)
         {
             return new AssemblyInstruction("JSR", Label.Name, 6, 3);
         }
