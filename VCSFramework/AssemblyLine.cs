@@ -2,6 +2,7 @@
 
 namespace VCSFramework.Assembly
 {
+	[DoNotCompile]
 	public abstract class AssemblyLine
     {
         public string Text { get; }
@@ -76,6 +77,7 @@ namespace VCSFramework.Assembly
         }
     }
 
+	[DoNotCompile]
 	public sealed class AssemblyInstruction : AssemblyLine
     {
         public string OpCode { get; }
@@ -111,6 +113,7 @@ namespace VCSFramework.Assembly
         }
     }
 
+	[DoNotCompile]
 	public sealed class Trivia : AssemblyLine
     {
         internal Trivia(string Text, string Comment = null)
@@ -130,6 +133,7 @@ namespace VCSFramework.Assembly
         }
     }
 
+	[DoNotCompile]
 	public sealed class Symbol : AssemblyLine
     {
         public string Name { get; }
@@ -170,6 +174,7 @@ namespace VCSFramework.Assembly
         }
     }
 
+	[DoNotCompile]
 	public sealed class PsuedoOp : AssemblyLine
     {
         //@TODO

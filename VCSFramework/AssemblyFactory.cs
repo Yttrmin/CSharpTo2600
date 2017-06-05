@@ -2,6 +2,7 @@
 
 namespace VCSFramework.Assembly
 {
+	[DoNotCompile]
     public static class AssemblyFactory
     {
         #region Trivia
