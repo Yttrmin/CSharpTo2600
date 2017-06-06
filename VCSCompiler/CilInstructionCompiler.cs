@@ -89,6 +89,30 @@ namespace VCSCompiler
 			return LoadConstant(value);
 		}
 
+		private bool TryInlineAssemblyCall(Instruction instruction, out IEnumerable<AssemblyLine> assembly)
+		{
+			var methodReference = instruction.Operand as MethodReference;
+			var isFactoryCall = methodReference?.FullName.StartsWith("VCSFramework.Assembly.AssemblyInstruction VCSFramework.Assembly.AssemblyFactory::");
+			if (methodReference != null && isFactoryCall.Value)
+			{
+				if (methodReference.Parameters.Count() == 0)
+				{
+					// Skip the pop that follows.
+					instruction.Next = instruction.Next.Next;
+					var assemblyMethod = typeof(AssemblyFactory).GetTypeInfo().DeclaredMethods.Single(m => m.Name == methodReference.Name);
+					assembly = new[] { (AssemblyInstruction)assemblyMethod.Invoke(null, null) };
+					Console.WriteLine($"{instruction} is an inline assembly call, emitting {assemblyMethod.Name} instead, erasing Pop");
+					return true;
+				}
+				else
+				{
+					throw new NotImplementedException($"Can't process inline assembly call '{methodReference.Name}', it must take 0 parameters.");
+				}
+			}
+			assembly = Enumerable.Empty<AssemblyLine>();
+			return false;
+		}
+
 		private IEnumerable<AssemblyLine> LoadConstant(byte value)
 		{
 			yield return LDA(value);
@@ -106,6 +130,16 @@ namespace VCSCompiler
 			dynamic method = instruction.Operand;
 
 			var methodFullName = (string)method.DeclaringType.FullName;
+			
+			if (TryInlineAssemblyCall(instruction, out var inlineAssembly))
+			{
+				foreach(var assembly in inlineAssembly)
+				{
+					yield return assembly;
+				}
+				yield break;
+			}
+
 			var processedSubroutine = Types[methodFullName].Subroutines.Single(s => s.FullName == method.FullName);
 			// Don't directly compare types since we may have received a different Framework assembly than what this library was built against.
 			dynamic overrideStore = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithStoreToSymbolAttribute).FullName);
@@ -114,11 +148,10 @@ namespace VCSCompiler
 				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
 				yield return PLA();
 				yield return STA(overrideStore.Symbol);
+				yield break;
 			}
-			else
-			{
-				yield return JSR(LabelGenerator.GetFromMethod(method));
-			}
+
+			yield return JSR(LabelGenerator.GetFromMethod(method));
 		}
 
 		/// <summary>

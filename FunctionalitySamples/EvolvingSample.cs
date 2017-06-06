@@ -1,4 +1,5 @@
 ﻿using static VCSFramework.Registers;
+using static VCSFramework.Assembly.AssemblyFactory;
 
 static class Evolving
 {
@@ -6,6 +7,8 @@ static class Evolving
 
 	public static void Main()
 	{
+		SEI();
+		CLD();
 	loopStart:
 		a = 0x4C;
 		BackgroundColor = a;

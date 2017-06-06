@@ -17,14 +17,15 @@ namespace VCSCompiler
 			var instructionCompiler = new CilInstructionCompiler(types);
 			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions).ToArray();
 			var compiledBody = new List<AssemblyLine>();
-			foreach(var instruction in instructions)
+			// Iterate over Instruction::Next so we can rewrite instructions while processing.
+			for(var instruction = instructions.First(); instruction != null; instruction = instruction.Next)
 			{
 				Console.WriteLine($"{instruction}  -->");
 				if (instructionsToLabel.Contains(instruction))
 				{
 					compiledBody.Add(AssemblyFactory.Label(LabelGenerator.GetFromInstruction(instruction)));
 				}
-				var vcsInstructions = instructionCompiler.CompileInstruction(instruction);
+				var vcsInstructions = instructionCompiler.CompileInstruction(instruction).ToArray();
 				compiledBody.AddRange(vcsInstructions);
 				foreach(var vcsInstruction in vcsInstructions)
 				{
