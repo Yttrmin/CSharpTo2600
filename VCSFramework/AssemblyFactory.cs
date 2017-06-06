@@ -358,10 +358,18 @@ namespace VCSFramework.Assembly
             return new AssemblyInstruction("TAX", 2, 1);
         }
 
-        /// <summary>
-        /// Transfer Stack Pointer to X Register (2 cycles)
-        /// </summary>
-        public static AssemblyInstruction TSX()
+		/// <summary>
+		/// Transfer Accumulator to Y Register (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction TAY()
+		{
+			return new AssemblyInstruction("TAY", 2, 1);
+		}
+
+		/// <summary>
+		/// Transfer Stack Pointer to X Register (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction TSX()
         {
             return new AssemblyInstruction("TSX", 2, 1);
         }

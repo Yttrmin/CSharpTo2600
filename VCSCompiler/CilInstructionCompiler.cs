@@ -129,7 +129,7 @@ namespace VCSCompiler
 			// Could be either a MethodDefinition or MethodReference.
 			dynamic method = instruction.Operand;
 
-			var methodFullName = (string)method.DeclaringType.FullName;
+			var methodDeclaringType = (string)method.DeclaringType.FullName;
 			
 			if (TryInlineAssemblyCall(instruction, out var inlineAssembly))
 			{
@@ -140,7 +140,9 @@ namespace VCSCompiler
 				yield break;
 			}
 
-			var processedSubroutine = Types[methodFullName].Subroutines.Single(s => s.FullName == method.FullName);
+			var processedSubroutine = Types[methodDeclaringType].Subroutines.Single(s => s.FullName == method.FullName);
+
+			// Check if this method should be replaced with a direct store to a symbol (generally a TIA register).
 			// Don't directly compare types since we may have received a different Framework assembly than what this library was built against.
 			dynamic overrideStore = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithStoreToSymbolAttribute).FullName);
 			if (overrideStore != null)
@@ -148,6 +150,28 @@ namespace VCSCompiler
 				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
 				yield return PLA();
 				yield return STA(overrideStore.Symbol);
+				yield break;
+			}
+
+			// Check if this method should be replaced with a load to a 6502 register.
+			dynamic overrideLoad = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithLoadToRegisterAttribute).FullName);
+			if (overrideLoad != null)
+			{
+				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
+				yield return PLA();
+				switch(overrideLoad.Register)
+				{
+					case "A":
+						break;
+					case "X":
+						yield return TAX();
+						break;
+					case "Y":
+						yield return TAY();
+						break;
+					default:
+						throw new FatalCompilationException($"Attempted load to unknown register: {overrideLoad.Register}");
+				}
 				yield break;
 			}
 

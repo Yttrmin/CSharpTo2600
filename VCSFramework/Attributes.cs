@@ -27,6 +27,18 @@ namespace VCSFramework
 	}
 
 	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Method)]
+	public sealed class OverrideWithLoadToRegisterAttribute : Attribute
+	{
+		public string Register { get; }
+
+		public OverrideWithLoadToRegisterAttribute(string register)
+		{
+			Register = register;
+		}
+	}
+
+	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Class)]
 	public sealed class DoNotCompileAttribute : Attribute
 	{

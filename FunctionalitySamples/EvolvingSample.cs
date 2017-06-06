@@ -9,6 +9,8 @@ static class Evolving
 	{
 		SEI();
 		CLD();
+		X = 0xFF;
+		TXS();
 	loopStart:
 		a = 0x4C;
 		BackgroundColor = a;
