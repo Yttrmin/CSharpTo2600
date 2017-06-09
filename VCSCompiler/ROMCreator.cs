@@ -95,6 +95,7 @@ namespace VCSCompiler
 			yield return Comment("Interrupt vectors:", 0);
 			yield return Org(0xFFFC);
 			yield return Word(EntryPoint);
+			yield return Word(EntryPoint);
 		}
 	}
 }
