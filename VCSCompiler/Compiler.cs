@@ -8,17 +8,21 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Immutable;
 using VCSFramework;
+using Mono.Cecil.Cil;
+using VCSFramework.Assembly;
 
 namespace VCSCompiler
 {
     public sealed class Compiler
     {
 		private readonly IDictionary<string, ProcessedType> Types;
+		private readonly System.Reflection.Assembly FrameworkAssembly;
 		private readonly IEnumerable<Type> FrameworkAttributes;
 
-		private Compiler(IEnumerable<Type> frameworkAttributes)
+		private Compiler(System.Reflection.Assembly frameworkAssembly, IEnumerable<Type> frameworkAttributes)
 		{
 			Types = new Dictionary<string, ProcessedType>();
+			FrameworkAssembly = frameworkAssembly;
 			FrameworkAttributes = frameworkAttributes;
 		}
 
@@ -28,7 +32,7 @@ namespace VCSCompiler
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
-			var compiler = new Compiler(frameworkAttributes.ToArray());
+			var compiler = new Compiler(frameworkAssembly, frameworkAttributes.ToArray());
 			compiler.AddPredefinedTypes();
 			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath));
 			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
@@ -208,7 +212,21 @@ namespace VCSCompiler
 			foreach(var subroutine in processedType.Subroutines)
 			{
 				Console.WriteLine($"Compiling {subroutine.FullName}");
-				foreach(var line in subroutine.MethodDefinition.Body.Instructions)
+				dynamic providedImplementation = subroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(UseProvidedImplementationAttribute).FullName);
+				if (providedImplementation != null)
+				{
+					var implementationDefinition = processedType.TypeDefinition.Methods.Single(m => m.Name == providedImplementation.ImplementationName);
+					var implementation = FrameworkAssembly.GetType(processedType.FullName, true).GetTypeInfo().GetMethod(implementationDefinition.Name, BindingFlags.Static | BindingFlags.NonPublic);
+					var compiledBody = (IEnumerable<AssemblyLine>)implementation.Invoke(null, null);
+					compiledSubroutines.Add(new CompiledSubroutine(subroutine, compiledBody));
+					Console.WriteLine($"Implementation provided by '{implementationDefinition.FullName}':");
+					foreach(var line in compiledBody)
+					{
+						Console.WriteLine(line);
+					}
+					continue;
+				}
+				foreach (var line in subroutine.MethodDefinition.Body.Instructions)
 				{
 					Console.WriteLine(line);
 				}

@@ -98,10 +98,18 @@ namespace VCSFramework.Assembly
             return new AssemblyInstruction("ADC", $"#${Constant.ToString("X2")}", 2, 2);
         }
 
-        /// <summary>
-        /// Add with Carry [Zero-page indexed] (4 cycles)
-        /// </summary>
-        public static AssemblyInstruction ADC(byte Offset, Index IndexRegister)
+		/// <summary>
+		/// Add with Carry [Zero-page] (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction ADC(string Label)
+		{
+			return new AssemblyInstruction("ADC", Label, 3, 2);
+		}
+
+		/// <summary>
+		/// Add with Carry [Zero-page indexed] (4 cycles)
+		/// </summary>
+		public static AssemblyInstruction ADC(byte Offset, Index IndexRegister)
         {
             if (IndexRegister != Index.X)
             {

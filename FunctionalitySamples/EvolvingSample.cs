@@ -12,6 +12,7 @@ static class Evolving
 		CLD();
 		X = 0xFF;
 		TXS();
+		SetRam(0xFF, 0);
 	loopStart:
 		a++;
 		a = 0x4C;
