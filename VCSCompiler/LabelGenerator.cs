@@ -8,6 +8,9 @@ namespace VCSCompiler
 {
 	internal static class LabelGenerator
     {
+		public static string TemporaryRegister1 => "TempReg1";
+		public static string TemporaryRegister2 => "TempReg2";
+
 		public static string GetFromField(FieldDefinition field)
 		{
 			if (field.IsStatic)

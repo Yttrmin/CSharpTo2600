@@ -122,13 +122,11 @@ namespace VCSCompiler
 		private IEnumerable<AssemblyLine> Add(Instruction instruction)
 		{
 			// TODO - Should probably just allocate a couple address locations instead of trying to use the stack operations.
-			yield return TSX();
+			yield return PLA();
+			yield return STA(LabelGenerator.TemporaryRegister1);
 			yield return PLA();
 			yield return CLC();
-			yield return ADC(0xFE, Index.X);
-			yield return DEX();
-			yield return DEX();
-			yield return TXS();
+			yield return ADC(LabelGenerator.TemporaryRegister1);
 			yield return PHA();
 		}
 

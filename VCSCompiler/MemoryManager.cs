@@ -21,7 +21,15 @@ namespace VCSCompiler
 		public MemoryManager(CompiledProgram program)
 		{
 			Program = program;
-			AllSymbols = LayoutGlobals();
+			AllSymbols = Enumerable.Concat(AddPredefinedGlobals(), LayoutGlobals());
+		}
+
+		private IEnumerable<Symbol> AddPredefinedGlobals()
+		{
+			yield return DefineSymbol(LabelGenerator.TemporaryRegister1, NextGlobal);
+			AdvanceNextGlobal(1);
+			yield return DefineSymbol(LabelGenerator.TemporaryRegister2, NextGlobal);
+			AdvanceNextGlobal(1);
 		}
 
 		private IEnumerable<Symbol> LayoutGlobals()
