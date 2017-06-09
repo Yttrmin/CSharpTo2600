@@ -119,6 +119,19 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
+		private IEnumerable<AssemblyLine> Add(Instruction instruction)
+		{
+			// TODO - Should probably just allocate a couple address locations instead of trying to use the stack operations.
+			yield return TSX();
+			yield return PLA();
+			yield return CLC();
+			yield return ADC(0xFE, Index.X);
+			yield return DEX();
+			yield return DEX();
+			yield return TXS();
+			yield return PHA();
+		}
+
 		private IEnumerable<AssemblyLine> Br_S(Instruction instruction)
 		{
 			yield return JMP(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
@@ -185,6 +198,11 @@ namespace VCSCompiler
 
 			yield return JSR(LabelGenerator.GetFromMethod(method));
 		}
+
+		/// <summary>
+		/// Convert value on stack to int8, which it already should be.
+		/// </summary>
+		private IEnumerable<AssemblyLine> Conv_U1(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
 
 		/// <summary>
 		/// Pushes a constant uint8 onto the stack.
