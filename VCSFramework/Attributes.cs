@@ -39,7 +39,19 @@ namespace VCSFramework
 	}
 
 	[DoNotCompile]
-	[AttributeUsage(AttributeTargets.Class)]
+	[AttributeUsage(AttributeTargets.Method)]
+	public sealed class UseProvidedImplementationAttribute : Attribute
+	{
+		public string ImplementationName { get; }
+
+		public UseProvidedImplementationAttribute(string implementatioName)
+		{
+			ImplementationName = implementatioName;
+		}
+	}
+	
+	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 	public sealed class DoNotCompileAttribute : Attribute
 	{
 

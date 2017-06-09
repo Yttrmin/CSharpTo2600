@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Reflection;
 using System.Collections.Immutable;
+using VCSFramework;
 
 namespace VCSCompiler
 {
@@ -155,7 +156,8 @@ namespace VCSCompiler
 					return null;
 				}
 			}
-			foreach(var method in typeDefinition.Methods)
+			var methods = typeDefinition.Methods.Where(m => !m.CustomAttributes.Any(a => a.AttributeType.Name == nameof(DoNotCompileAttribute)));
+			foreach (var method in methods)
 			{
 				if (!Types.ContainsKey(method.ReturnType.FullName))
 				{
@@ -176,7 +178,7 @@ namespace VCSCompiler
 
 			var baseType = Types[typeDefinition.BaseType.FullName];
 			var processedFields = typeDefinition.Fields.Select(fd => new ProcessedField(fd, Types[fd.FieldType.FullName]));
-			var processedSubroutines = typeDefinition.Methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName],
+			var processedSubroutines = methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName],
 					md.Parameters.Select(p => Types[p.ParameterType.FullName]),
 					md.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName))
 						.Select(a => CreateFrameworkAttribute(a)).ToArray()));
