@@ -12,6 +12,7 @@ static class Evolving
 		CLD();
 		X = 0xFF;
 		TXS();
+		// ClearMemory() will infinitely loop until inlining works.
 		ClearMemory();
 	loopStart:
 		a++;

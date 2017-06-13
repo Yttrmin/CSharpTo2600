@@ -194,6 +194,12 @@ namespace VCSCompiler
 				yield break;
 			}
 
+			dynamic alwaysInline = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName);
+			if (alwaysInline != null)
+			{
+				throw new NotImplementedException("Do method inlining");
+			}
+
 			yield return JSR(LabelGenerator.GetFromMethod(method));
 		}
 

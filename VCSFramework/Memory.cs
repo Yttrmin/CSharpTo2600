@@ -12,6 +12,7 @@ namespace VCSFramework
 		public static void SetRam(byte index, byte value) { }
 
 		[UseProvidedImplementation(nameof(ClearMemoryInternal))]
+		[AlwaysInline]
 		public static void ClearMemory() { }
 
 		[DoNotCompile]

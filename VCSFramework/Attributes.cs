@@ -8,14 +8,21 @@ using System.Text;
 namespace VCSFramework
 {
 	[DoNotCompile]
-	[AttributeUsage(AttributeTargets.Method)]
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+	public sealed class AlwaysInlineAttribute : Attribute
+	{
+
+	}
+
+	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class CompilerImplementedAttribute : Attribute
 	{
 
 	}
 
 	[DoNotCompile]
-	[AttributeUsage(AttributeTargets.Method)]
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class OverrideWithStoreToSymbolAttribute : Attribute
 	{
 		public string Symbol { get; }
@@ -27,7 +34,7 @@ namespace VCSFramework
 	}
 
 	[DoNotCompile]
-	[AttributeUsage(AttributeTargets.Method)]
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class OverrideWithLoadToRegisterAttribute : Attribute
 	{
 		public string Register { get; }
@@ -39,7 +46,7 @@ namespace VCSFramework
 	}
 
 	[DoNotCompile]
-	[AttributeUsage(AttributeTargets.Method)]
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class UseProvidedImplementationAttribute : Attribute
 	{
 		public string ImplementationName { get; }
@@ -51,7 +58,7 @@ namespace VCSFramework
 	}
 	
 	[DoNotCompile]
-	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class DoNotCompileAttribute : Attribute
 	{
 
