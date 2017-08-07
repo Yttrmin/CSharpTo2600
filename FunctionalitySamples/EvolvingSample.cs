@@ -22,10 +22,10 @@ static class Evolving
 		goto loopStart;*/
 		ClearMemory();
 		byte q = 1;
-		Foo(1);
+		Foo(a, 6);
 	}
 
-	private static void Foo(byte q)
+	private static void Foo(byte q, byte z)
 	{
 		BackgroundColor = a;
 	}

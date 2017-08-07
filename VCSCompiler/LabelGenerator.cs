@@ -35,7 +35,7 @@ namespace VCSCompiler
 
 	    public static string GetFromParameter(ParameterDefinition parameter)
 	    {
-		    var method = (MethodDefinition) parameter.Method;
+		    var method = (MethodReference) parameter.Method;
 		    return $"{GetFromMethod(method)}_{parameter.Name}";
 	    }
 

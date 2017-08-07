@@ -234,6 +234,16 @@ namespace VCSCompiler
 				throw new NotImplementedException("Do method inlining");
 			}
 
+			var parameters = ((MethodReference) method).Parameters.ToImmutableArray();
+			if (parameters.Any())
+			{
+				// PLA arguments in reverse off stack and assign to parameters.
+				foreach (var parameter in parameters.Reverse())
+				{
+					yield return PLA();
+					yield return STA(LabelGenerator.GetFromParameter(parameter));
+				}
+			}
 			yield return JSR(LabelGenerator.GetFromMethod(method));
 		}
 
