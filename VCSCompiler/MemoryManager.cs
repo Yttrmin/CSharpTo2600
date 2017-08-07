@@ -21,8 +21,20 @@ namespace VCSCompiler
 		public MemoryManager(CompiledProgram program)
 		{
 			Program = program;
-			AllSymbols = Enumerable.Concat(AddPredefinedGlobals(), LayoutGlobals());
+			AllSymbols = AddPredefinedGlobals().Concat(LayoutGlobals()).Concat(AllocateLocalAddresses(program.CallGraph));
 		}
+
+	    private IEnumerable<Symbol> AllocateLocalAddresses(CallGraph callGraph)
+	    {
+		    foreach (var node in callGraph.AllNodes())
+		    {
+			    foreach (var parameter in node.MethodDefinition.Parameters)
+			    {
+				    yield return DefineSymbol(LabelGenerator.GetFromParameter(parameter), NextGlobal);
+					AdvanceNextGlobal(1);
+			    }
+		    }
+	    }
 
 		private IEnumerable<Symbol> AddPredefinedGlobals()
 		{

@@ -33,6 +33,18 @@ namespace VCSCompiler
 			return $"{method.DeclaringType.Name}_{method.Name}";
 		}
 
+	    public static string GetFromParameter(ParameterDefinition parameter)
+	    {
+		    var method = (MethodDefinition) parameter.Method;
+		    return $"{GetFromMethod(method)}_{parameter.Name}";
+	    }
+
+	    public static string GetFromVariable(VariableDefinition variable)
+	    {
+			// TODO - Use symbols to get true name of variable.
+		    return $".V_{variable.Index}";
+	    }
+
 		public static string GetFromInstruction(Instruction instruction)
 		{
 			// We assume all instructions are contained in subroutine psuedo-ops

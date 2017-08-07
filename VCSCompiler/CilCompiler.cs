@@ -12,9 +12,10 @@ namespace VCSCompiler
 {
     internal class CilCompiler
     {
-		public static IEnumerable<AssemblyLine> CompileBody(IEnumerable<Instruction> instructions, IImmutableDictionary<string, ProcessedType> types)
+		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, IImmutableDictionary<string, ProcessedType> types)
 		{
-			var instructionCompiler = new CilInstructionCompiler(types);
+			var instructionCompiler = new CilInstructionCompiler(definition, types);
+			var instructions = definition.Body.Instructions;
 			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions).ToArray();
 			var compiledBody = new List<AssemblyLine>();
 			// Iterate over Instruction::Next so we can rewrite instructions while processing.

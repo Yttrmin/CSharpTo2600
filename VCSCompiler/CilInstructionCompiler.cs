@@ -19,10 +19,12 @@ namespace VCSCompiler
     {
 		private readonly IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> MethodMap;
 		private readonly IImmutableDictionary<string, ProcessedType> Types;
+	    private readonly MethodDefinition MethodDefinition;
 
-		public CilInstructionCompiler(IImmutableDictionary<string, ProcessedType> types)
+		public CilInstructionCompiler(MethodDefinition methodDefinition, IImmutableDictionary<string, ProcessedType> types)
 		{
 			MethodMap = CreateMethodMap();
+			MethodDefinition = methodDefinition;
 			Types = types;
 		}
 
@@ -40,6 +42,10 @@ namespace VCSCompiler
 				{
 					name = "Ldc_I4";
 				}
+				if (opCode >= Code.Stloc_0 && opCode <= Code.Stloc_3)
+				{
+					name = "Stloc";
+				}
 				var method = typeInfo.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 				dictionary[opCode]
 					= (Func<Instruction, IEnumerable<AssemblyLine>>)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<AssemblyLine>>), this)
@@ -47,6 +53,30 @@ namespace VCSCompiler
 			}
 			return dictionary.ToImmutableDictionary();
 		}
+
+	    private bool TryInlineAssemblyCall(Instruction instruction, out IEnumerable<AssemblyLine> assembly)
+	    {
+		    var methodReference = instruction.Operand as MethodReference;
+		    var isFactoryCall = methodReference?.FullName.StartsWith("VCSFramework.Assembly.AssemblyInstruction VCSFramework.Assembly.AssemblyFactory::");
+		    if (methodReference != null && isFactoryCall.Value)
+		    {
+			    if (methodReference.Parameters.Count() == 0)
+			    {
+				    // Skip the pop that follows.
+				    instruction.Next = instruction.Next.Next;
+				    var assemblyMethod = typeof(AssemblyFactory).GetTypeInfo().DeclaredMethods.Single(m => m.Name == methodReference.Name);
+				    assembly = new[] { (AssemblyInstruction)assemblyMethod.Invoke(null, null) };
+				    Console.WriteLine($"{instruction} is an inline assembly call, emitting {assemblyMethod.Name} instead, erasing Pop");
+				    return true;
+			    }
+			    else
+			    {
+				    throw new NotImplementedException($"Can't process inline assembly call '{methodReference.Name}', it must take 0 parameters.");
+			    }
+		    }
+		    assembly = Enumerable.Empty<AssemblyLine>();
+		    return false;
+	    }
 
 		private IEnumerable<AssemblyLine> LoadConstant(Instruction instruction)
 		{
@@ -89,35 +119,39 @@ namespace VCSCompiler
 			return LoadConstant(value);
 		}
 
-		private bool TryInlineAssemblyCall(Instruction instruction, out IEnumerable<AssemblyLine> assembly)
-		{
-			var methodReference = instruction.Operand as MethodReference;
-			var isFactoryCall = methodReference?.FullName.StartsWith("VCSFramework.Assembly.AssemblyInstruction VCSFramework.Assembly.AssemblyFactory::");
-			if (methodReference != null && isFactoryCall.Value)
-			{
-				if (methodReference.Parameters.Count() == 0)
-				{
-					// Skip the pop that follows.
-					instruction.Next = instruction.Next.Next;
-					var assemblyMethod = typeof(AssemblyFactory).GetTypeInfo().DeclaredMethods.Single(m => m.Name == methodReference.Name);
-					assembly = new[] { (AssemblyInstruction)assemblyMethod.Invoke(null, null) };
-					Console.WriteLine($"{instruction} is an inline assembly call, emitting {assemblyMethod.Name} instead, erasing Pop");
-					return true;
-				}
-				else
-				{
-					throw new NotImplementedException($"Can't process inline assembly call '{methodReference.Name}', it must take 0 parameters.");
-				}
-			}
-			assembly = Enumerable.Empty<AssemblyLine>();
-			return false;
-		}
-
 		private IEnumerable<AssemblyLine> LoadConstant(byte value)
 		{
 			yield return LDA(value);
 			yield return PHA();
 		}
+
+	    private IEnumerable<AssemblyLine> StoreLocal(Instruction instruction)
+	    {
+		    if (instruction.Operand != null)
+		    {
+			    throw new NotImplementedException();
+		    }
+		    switch (instruction.OpCode.Code)
+		    {
+				case Code.Stloc_0:
+					return StoreLocal(0);
+				case Code.Stloc_1:
+					return StoreLocal(1);
+				case Code.Stloc_2:
+					return StoreLocal(2);
+				case Code.Stloc_3:
+					return StoreLocal(3);
+				default:
+					throw new NotImplementedException();
+		    }
+	    }
+
+	    private IEnumerable<AssemblyLine> StoreLocal(int index)
+	    {
+		    var local = MethodDefinition.Body.Variables[index];
+		    yield return PLA();
+		    yield return STA(LabelGenerator.GetFromVariable(local));
+	    }
 
 		private IEnumerable<AssemblyLine> Add(Instruction instruction)
 		{
@@ -233,6 +267,10 @@ namespace VCSCompiler
 		{
 			yield return RTS();
 		}
+
+	    private IEnumerable<AssemblyLine> Stloc(Instruction instruction) => StoreLocal(instruction);
+
+	    private IEnumerable<AssemblyLine> Stloc_S(Instruction instruction) => StoreLocal(instruction);
 
 		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
 		{

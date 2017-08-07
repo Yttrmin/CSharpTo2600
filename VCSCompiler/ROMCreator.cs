@@ -35,6 +35,7 @@ namespace VCSCompiler
 		private static IEnumerable<AssemblyLine> CreateHeader()
 		{
 			yield return Comment("Beginning of compiler-generated source file.", 0);
+			yield return Comment($"Date of generation: {DateTime.UtcNow}", 0);
 			yield return Processor();
 			yield return Include("vcs.h");
 			yield return Org(0xF000);

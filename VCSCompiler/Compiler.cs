@@ -26,7 +26,7 @@ namespace VCSCompiler
 			FrameworkAttributes = frameworkAttributes;
 		}
 
-		public async static Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
+		public static async Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
@@ -34,9 +34,10 @@ namespace VCSCompiler
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
 			var compiler = new Compiler(frameworkAssembly, frameworkAttributes.ToArray());
 			compiler.AddPredefinedTypes();
-			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath));
+			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
 			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
-			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly });
+			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
+			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
 			var romInfo = RomCreator.CreateRom(program);
 			return true;
 		}
@@ -47,7 +48,7 @@ namespace VCSCompiler
 			// 1. Iterate over every type and collect basic information (Processsed*).
 			var types = assemblyDefinition.MainModule.Types
 				.Where(t => t.BaseType != null)
-				.Where(t => !t.CustomAttributes.Any(a => a.AttributeType.Name == "DoNotCompileAttribute"));
+				.Where(t => t.CustomAttributes.All(a => a.AttributeType.Name != "DoNotCompileAttribute"));
 			// TODO - Pass immutable copies of Types around instead of all mutating the field?
 			compiler.ProcessTypes(types);
 			// TODO - Do the above so we don't have to ToArray() to get around the fact we modify Types.
@@ -56,16 +57,23 @@ namespace VCSCompiler
 			{
 				compiler.Types[compiledType.FullName] = compiledType.Type;
 			}
-			var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
-			var cilEntryType = cilEntryPoint?.DeclaringType;
-			var entryPoint = cilEntryPoint != null ? (CompiledSubroutine)compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint) : null;
+			var entryPoint = GetEntryPoint(compiler, assemblyDefinition) as CompiledSubroutine;
 			return new CompiledAssembly(compiledTypes, entryPoint);
 		}
+
+	    private static ProcessedSubroutine GetEntryPoint(Compiler compiler, AssemblyDefinition assemblyDefinition)
+	    {
+			var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
+		    var cilEntryType = cilEntryPoint?.DeclaringType;
+		    var entryPoint = cilEntryPoint != null ? compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint) : null;
+		    return entryPoint;
+	    }
 
 		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
 		{
 			assemblyStream = new MemoryStream();
 			
+			// TODO - Emit debug symbols so Cecil can use them.
 			var result = compilation.Emit(assemblyStream);
 			if (!result.Success)
 			{
@@ -231,7 +239,7 @@ namespace VCSCompiler
 					Console.WriteLine(line);
 				}
 				Console.WriteLine("v  Compile  v");
-				var assembly = CilCompiler.CompileBody(subroutine.MethodDefinition.Body.Instructions, Types.ToImmutableDictionary());
+				var assembly = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary());
 				var compiledSubroutine = new CompiledSubroutine(subroutine, assembly);
 				compiledSubroutines.Add(compiledSubroutine);
 				Console.WriteLine($"{subroutine.FullName}, compilation finished");
