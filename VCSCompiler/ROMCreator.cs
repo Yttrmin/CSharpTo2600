@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using System.IO;
+using VCSFramework;
 using VCSFramework.Assembly;
 using static VCSFramework.Assembly.AssemblyFactory;
 
@@ -71,6 +72,11 @@ namespace VCSCompiler
 			yield return BlankLine();
 			foreach(var method in methods)
 			{
+				// Do not emit subroutines that will never be JSR'd.
+				if (method.FrameworkAttributes.Any(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName))
+				{
+					continue;
+				}
 				foreach(var line in CreateMethod(method))
 				{
 					yield return line;

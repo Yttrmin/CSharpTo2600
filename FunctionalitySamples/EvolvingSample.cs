@@ -13,12 +13,13 @@ static class Evolving
 		X = 0xFF;
 		TXS();
 		ClearMemory();
-		byte q = 1;
 		Foo(a, 6);
+		loop:
+		goto loop;
 	}
 
 	private static void Foo(byte q, byte z)
 	{
-		BackgroundColor = a;
+		BackgroundColor = 0xD2;
 	}
 }
