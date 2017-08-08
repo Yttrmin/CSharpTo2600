@@ -172,7 +172,7 @@ namespace VCSCompiler
 		private IEnumerable<AssemblyLine> Call(Instruction instruction)
 		{
 			// Could be either a MethodDefinition or MethodReference.
-			dynamic method = instruction.Operand;
+			MethodReference method = (MethodReference)instruction.Operand;
 
 			var methodDeclaringType = (string)method.DeclaringType.FullName;
 			
@@ -228,12 +228,6 @@ namespace VCSCompiler
 				yield break;
 			}
 
-			dynamic alwaysInline = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName);
-			if (alwaysInline != null)
-			{
-				throw new NotImplementedException("Do method inlining");
-			}
-
 			var parameters = ((MethodReference) method).Parameters.ToImmutableArray();
 			if (parameters.Any())
 			{
@@ -244,6 +238,25 @@ namespace VCSCompiler
 					yield return STA(LabelGenerator.GetFromParameter(parameter));
 				}
 			}
+
+			dynamic alwaysInline = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName);
+			if (alwaysInline != null)
+			{
+				//TODO - Assuming the subroutine is already compiled is dangerous.
+				var compiledSubroutine = ((CompiledType)Types[method.DeclaringType.FullName]).Subroutines.Single(s => s.FullName == method.FullName);
+				foreach (var assemblyLine in compiledSubroutine.Body)
+				{
+					//TODO - If the subroutine contains labels you can end up emitting duplicates if the inline subroutine is called more than once.
+					//TODO - Once we have branching and multiple return statements this will explode.
+					// In reality we probably want to replace RTS with JMP to a label inserted after this method body.
+					if (!assemblyLine.Text.Contains("RTS"))
+					{
+						yield return assemblyLine;
+					}
+				}
+				yield break;
+			}
+
 			yield return JSR(LabelGenerator.GetFromMethod(method));
 		}
 

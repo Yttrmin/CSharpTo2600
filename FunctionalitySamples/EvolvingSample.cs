@@ -8,18 +8,10 @@ static class Evolving
 
 	public static void Main()
 	{
-		/*SEI();
+		SEI();
 		CLD();
 		X = 0xFF;
 		TXS();
-		// ClearMemory() will infinitely loop until inlining works.
-		ClearMemory();
-		byte b = 0;
-	loopStart:
-		a++;
-		a = 0x4C;
-		Foo(27);
-		goto loopStart;*/
 		ClearMemory();
 		byte q = 1;
 		Foo(a, 6);
