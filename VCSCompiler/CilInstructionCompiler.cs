@@ -42,7 +42,11 @@ namespace VCSCompiler
 				{
 					name = "Ldc_I4";
 				}
-				if (opCode >= Code.Stloc_0 && opCode <= Code.Stloc_3)
+				else if (opCode >= Code.Ldarg_0 && opCode <= Code.Ldarg_3)
+				{
+					name = "Ldarg";
+				}
+				else if (opCode >= Code.Stloc_0 && opCode <= Code.Stloc_3)
 				{
 					name = "Stloc";
 				}
@@ -76,6 +80,35 @@ namespace VCSCompiler
 		    }
 		    assembly = Enumerable.Empty<AssemblyLine>();
 		    return false;
+	    }
+
+	    private IEnumerable<AssemblyLine> LoadArgument(Instruction instruction)
+	    {
+			//TODO - Ldarg, Ldarg_S
+		    if (instruction.Operand != null)
+		    {
+			    throw new NotImplementedException();
+		    }
+		    switch (instruction.OpCode.Code)
+		    {
+				case Code.Ldarg_0:
+					return LoadArgument(0);
+				case Code.Ldarg_1:
+					return LoadArgument(1);
+				case Code.Ldarg_2:
+					return LoadArgument(2);
+				case Code.Ldarg_3:
+					return LoadArgument(3);
+				default:
+					throw new NotImplementedException();
+		    }
+	    }
+
+	    private IEnumerable<AssemblyLine> LoadArgument(int index)
+	    {
+		    var parameter = MethodDefinition.Parameters[index];
+		    yield return LDA(LabelGenerator.GetFromParameter(parameter));
+		    yield return PHA();
 	    }
 
 		private IEnumerable<AssemblyLine> LoadConstant(Instruction instruction)
@@ -246,7 +279,7 @@ namespace VCSCompiler
 				var compiledSubroutine = ((CompiledType)Types[method.DeclaringType.FullName]).Subroutines.Single(s => s.FullName == method.FullName);
 				foreach (var assemblyLine in compiledSubroutine.Body)
 				{
-					//TODO - If the subroutine contains labels you can end up emitting duplicates if the inline subroutine is called more than once.
+					//TODO - If the subroutine contains labels you can end up emitting duplicates if the inline subroutine is called more than once. Make them unique.
 					//TODO - Once we have branching and multiple return statements this will explode.
 					// In reality we probably want to replace RTS with JMP to a label inserted after this method body.
 					if (!assemblyLine.Text.Contains("RTS"))
@@ -264,6 +297,10 @@ namespace VCSCompiler
 		/// Convert value on stack to int8, which it already should be.
 		/// </summary>
 		private IEnumerable<AssemblyLine> Conv_U1(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
+
+	    private IEnumerable<AssemblyLine> Ldarg(Instruction instruction) => LoadArgument(instruction);
+
+	    private IEnumerable<AssemblyLine> Ldarg_S(Instruction instruction) => LoadArgument(instruction);
 
 		/// <summary>
 		/// Pushes a constant uint8 onto the stack.
