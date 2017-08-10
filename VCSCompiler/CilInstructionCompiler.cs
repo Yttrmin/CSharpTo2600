@@ -158,6 +158,14 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
+	    private IEnumerable<AssemblyLine> StoreArgument(Instruction instruction)
+	    {
+		    // Either Starg or Starg_S.
+		    var parameter = (ParameterDefinition)instruction.Operand;
+			yield return PLA();
+		    yield return STA(LabelGenerator.GetFromParameter(parameter));
+		}
+
 	    private IEnumerable<AssemblyLine> StoreLocal(Instruction instruction)
 	    {
 		    if (instruction.Operand != null)
@@ -327,6 +335,10 @@ namespace VCSCompiler
 		{
 			yield return RTS();
 		}
+
+	    private IEnumerable<AssemblyLine> Starg(Instruction instruction) => StoreArgument(instruction);
+
+		private IEnumerable<AssemblyLine> Starg_S(Instruction instruction) => StoreArgument(instruction);
 
 	    private IEnumerable<AssemblyLine> Stloc(Instruction instruction) => StoreLocal(instruction);
 
