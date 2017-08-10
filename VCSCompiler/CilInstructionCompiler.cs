@@ -46,6 +46,10 @@ namespace VCSCompiler
 				{
 					name = "Ldarg";
 				}
+				else if (opCode >= Code.Ldloc_0 && opCode <= Code.Ldloc_3)
+				{
+					name = "Ldloc";
+				}
 				else if (opCode >= Code.Stloc_0 && opCode <= Code.Stloc_3)
 				{
 					name = "Stloc";
@@ -157,6 +161,37 @@ namespace VCSCompiler
 			yield return LDA(value);
 			yield return PHA();
 		}
+
+	    private IEnumerable<AssemblyLine> LoadLocal(Instruction instruction)
+	    {
+		    if (instruction.Operand != null)
+		    {
+			    throw new NotImplementedException();
+		    }
+		    else
+		    {
+			    switch (instruction.OpCode.Code)
+			    {
+					case Code.Ldloc_0:
+						return LoadLocal(0);
+					case Code.Ldloc_1:
+						return LoadLocal(1);
+					case Code.Ldloc_2:
+						return LoadLocal(2);
+					case Code.Ldloc_3:
+						return LoadLocal(3);
+					default:
+						throw new NotImplementedException();
+			    }
+		    }
+	    }
+
+	    private IEnumerable<AssemblyLine> LoadLocal(int index)
+	    {
+		    var local = MethodDefinition.Body.Variables[index];
+		    yield return LDA(LabelGenerator.GetFromVariable(MethodDefinition, local));
+		    yield return PHA();
+	    }
 
 	    private IEnumerable<AssemblyLine> StoreArgument(Instruction instruction)
 	    {
@@ -309,6 +344,10 @@ namespace VCSCompiler
 	    private IEnumerable<AssemblyLine> Ldarg(Instruction instruction) => LoadArgument(instruction);
 
 	    private IEnumerable<AssemblyLine> Ldarg_S(Instruction instruction) => LoadArgument(instruction);
+
+	    private IEnumerable<AssemblyLine> Ldloc(Instruction instruction) => LoadLocal(instruction);
+
+	    private IEnumerable<AssemblyLine> Ldloc_S(Instruction instruction) => LoadLocal(instruction);
 
 		/// <summary>
 		/// Pushes a constant uint8 onto the stack.
