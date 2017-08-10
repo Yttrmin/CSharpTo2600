@@ -13,7 +13,8 @@ static class Evolving
 		X = 0xFF;
 		TXS();
 		ClearMemory();
-		Foo(a, 0xD4);
+		byte d = 0xD8;
+		Foo(a, d);
 	loop:
 		goto loop;
 	}

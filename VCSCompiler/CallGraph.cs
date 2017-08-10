@@ -25,6 +25,7 @@ namespace VCSCompiler
 		public IEnumerable<Node> AllNodes()
 		{
 			ISet<Node> nodes = new HashSet<Node>();
+			nodes.Add(Root);
 			AddChildren(Root, nodes);
 			return nodes.OrderBy(n => n.MethodDefinition.DeclaringType.Name).ThenBy(n => n.MethodDefinition.Name);
 
