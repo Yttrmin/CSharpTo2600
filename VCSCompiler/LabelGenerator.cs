@@ -39,10 +39,10 @@ namespace VCSCompiler
 		    return $"{GetFromMethod(method)}_{parameter.Name}";
 	    }
 
-	    public static string GetFromVariable(VariableDefinition variable)
+	    public static string GetFromVariable(MethodDefinition methodDefinition, VariableDefinition variable)
 	    {
 			// TODO - Use symbols to get true name of variable.
-		    return $".V_{variable.Index}";
+		    return $"{GetFromMethod(methodDefinition)}_Local_{variable.Index}";
 	    }
 
 		public static string GetFromInstruction(Instruction instruction)

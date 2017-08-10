@@ -20,7 +20,7 @@ static class Evolving
 
 	private static void Foo(byte q, byte z)
 	{
-		z += 2;
+		byte c = z;
 		BackgroundColor = z;
 	}
 }

@@ -33,6 +33,11 @@ namespace VCSCompiler
 				    yield return DefineSymbol(LabelGenerator.GetFromParameter(parameter), NextGlobal);
 					AdvanceNextGlobal(1);
 			    }
+			    foreach (var local in node.MethodDefinition.Body.Variables)
+			    {
+				    yield return DefineSymbol(LabelGenerator.GetFromVariable(node.MethodDefinition, local), NextGlobal);
+					AdvanceNextGlobal(1);
+			    }
 		    }
 	    }
 

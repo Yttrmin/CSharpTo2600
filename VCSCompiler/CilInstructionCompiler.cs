@@ -191,7 +191,7 @@ namespace VCSCompiler
 	    {
 		    var local = MethodDefinition.Body.Variables[index];
 		    yield return PLA();
-		    yield return STA(LabelGenerator.GetFromVariable(local));
+		    yield return STA(LabelGenerator.GetFromVariable(MethodDefinition, local));
 	    }
 
 		private IEnumerable<AssemblyLine> Add(Instruction instruction)
