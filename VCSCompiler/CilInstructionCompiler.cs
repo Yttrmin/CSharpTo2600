@@ -279,8 +279,8 @@ namespace VCSCompiler
 			}
 
 			// Check if this method should be replaced with a load to a 6502 register.
-			dynamic overrideLoad = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithLoadToRegisterAttribute).FullName);
-			if (overrideLoad != null)
+			dynamic overrideRegisterLoad = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithLoadToRegisterAttribute).FullName);
+			if (overrideRegisterLoad != null)
 			{
 				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
 				if (method.Parameters.Count != 1)
@@ -288,7 +288,7 @@ namespace VCSCompiler
 					throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithLoadToRegisterAttribute)} must take 1 parameter.");
 				}
 				yield return PLA();
-				switch(overrideLoad.Register)
+				switch(overrideRegisterLoad.Register)
 				{
 					case "A":
 						break;
@@ -299,8 +299,20 @@ namespace VCSCompiler
 						yield return TAY();
 						break;
 					default:
-						throw new FatalCompilationException($"Attempted load to unknown register: {overrideLoad.Register}");
+						throw new FatalCompilationException($"Attempted load to unknown register: {overrideRegisterLoad.Register}");
 				}
+				yield break;
+			}
+
+			dynamic overrideLoad = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithLoadFromSymbolAttribute).FullName);
+			if (overrideLoad != null)
+			{
+				if (method.Parameters.Count != 0)
+				{
+					throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithLoadFromSymbolAttribute)}, must take 0 parameters.");
+				}
+				yield return LDA(overrideLoad.Symbol);
+				yield return PHA();
 				yield break;
 			}
 

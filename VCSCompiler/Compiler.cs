@@ -168,7 +168,7 @@ namespace VCSCompiler
 					return null;
 				}
 			}
-			var methods = typeDefinition.Methods.Where(m => !m.CustomAttributes.Any(a => a.AttributeType.Name == nameof(DoNotCompileAttribute)));
+			var methods = typeDefinition.Methods.Where(m => m.CustomAttributes.All(a => a.AttributeType.Name != nameof(DoNotCompileAttribute)));
 			foreach (var method in methods)
 			{
 				if (!Types.ContainsKey(method.ReturnType.FullName))
@@ -239,8 +239,17 @@ namespace VCSCompiler
 					Console.WriteLine(line);
 				}
 				Console.WriteLine("v  Compile  v");
-				var assembly = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary());
-				var compiledSubroutine = new CompiledSubroutine(subroutine, assembly);
+				IEnumerable<AssemblyLine> body;
+				if (subroutine.FrameworkAttributes.Any(a => a.GetType().FullName == typeof(IgnoreImplementationAttribute).FullName))
+				{
+					body = Enumerable.Empty<AssemblyLine>();
+					Console.WriteLine($"Skipping CIL compilation due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");
+				}
+				else
+				{
+					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary());
+				}
+				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
 				Console.WriteLine($"{subroutine.FullName}, compilation finished");
 			}

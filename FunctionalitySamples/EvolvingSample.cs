@@ -15,6 +15,7 @@ static class Evolving
 		ClearMemory();
 		byte d = 0xD8;
 		Foo(a, d);
+		d = InTim;
 	loop:
 		goto loop;
 	}

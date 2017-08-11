@@ -22,6 +22,25 @@ namespace VCSFramework
 	}
 
 	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Method)]
+	public sealed class IgnoreImplementationAttribute : Attribute
+	{
+		
+	}
+
+	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Method)]
+	public sealed class OverrideWithLoadFromSymbolAttribute : Attribute
+	{
+		public string Symbol { get; }
+
+		public OverrideWithLoadFromSymbolAttribute(string symbol)
+		{
+			Symbol = symbol;
+		}
+	}
+
+	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class OverrideWithStoreToSymbolAttribute : Attribute
 	{

@@ -70,7 +70,8 @@ namespace VCSCompiler
 			var methods = program.Types.SelectMany(t => t.Subroutines).Where(s => s != program.EntryPoint);
 			yield return Comment("Begin subroutine emit.", 0);
 			yield return BlankLine();
-			foreach(var method in methods)
+			// Do not emit empty methods.
+			foreach(var method in methods.Where(m => m.Body.Any()))
 			{
 				// Do not emit subroutines that will never be JSR'd.
 				if (method.FrameworkAttributes.Any(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName))
