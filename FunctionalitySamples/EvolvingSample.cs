@@ -22,6 +22,6 @@ static class Evolving
 	private static void Foo(byte q, byte z)
 	{
 		byte c = z;
-		BackgroundColor = c;
+		ColuBk = c;
 	}
 }

@@ -13,7 +13,9 @@ namespace VCSCompiler
 	internal static class CompilationCreator
 	{
 		// netstandard 1.5 needed for Assembly.Location
-		private static readonly MetadataReference MSCorLibReference = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
+		private static readonly MetadataReference RuntimeReference = MetadataReference.CreateFromFile(Assembly.Load(new AssemblyName("System.Runtime, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")).Location);
+		private static readonly MetadataReference CoreLibReference = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
+		private static readonly MetadataReference MsCorLibReference = MetadataReference.CreateFromFile(Assembly.Load(new AssemblyName("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e")).Location);
 		private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(VCSFramework.NByte).GetTypeInfo().Assembly.Location);
 		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.ConsoleApplication);
 
@@ -36,7 +38,7 @@ namespace VCSCompiler
 			var allDocumentInfo = Task.WhenAll(documentTasks);
 
 			var info = ProjectInfo.Create(projectId, VersionStamp.Default, "UserProject", "UserAssembly", "C#",
-				metadataReferences: new[] { MSCorLibReference, FrameworkReference },
+				metadataReferences: new[] { CoreLibReference, RuntimeReference, MsCorLibReference, FrameworkReference },
 				compilationOptions: Options,
 				documents: await allDocumentInfo);
 

@@ -10,9 +10,10 @@ namespace VCSFramework
 		public static byte X { [OverrideWithLoadToRegister("X")] set { } }
 		public static byte Y { [OverrideWithLoadToRegister("Y")] set { } }
 
-		public static byte BackgroundColor { [OverrideWithStoreToSymbol("COLUBK")] set { } }
-		public static byte VSync { [OverrideWithStoreToSymbol("VSYNC") ]set { } }
-		[OverrideWithStoreToSymbol("WSYNC")]
-		public static void WSync() { }
+		public static byte ColuBk { [OverrideWithStoreToSymbol("COLUBK")] set { } }
+		public static byte Tim64T { [OverrideWithStoreToSymbol("TIM64T")] set { } }
+		public static byte VBlank { [OverrideWithStoreToSymbol("VBLANK")] set { } }
+		public static byte VSync { [OverrideWithStoreToSymbol("VSYNC") ] set { } }
+		public static byte WSync { [OverrideWithStoreToSymbol("WSYNC")] set { } }
     }
 }
