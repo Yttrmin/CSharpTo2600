@@ -45,10 +45,12 @@ namespace VCSFramework
 	public sealed class OverrideWithStoreToSymbolAttribute : Attribute
 	{
 		public string Symbol { get; }
+		public bool Strobe { get; }
 
-		public OverrideWithStoreToSymbolAttribute(string symbol)
+		public OverrideWithStoreToSymbolAttribute(string symbol, bool strobe = false)
 		{
 			Symbol = symbol;
+			Strobe = strobe;
 		}
 	}
 

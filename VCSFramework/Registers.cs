@@ -22,7 +22,7 @@ namespace VCSFramework
 		public static byte ColuP1 { [IgnoreImplementation][OverrideWithStoreToSymbol("COLUP1")] set { } }
 		public static byte ColuPf { [IgnoreImplementation][OverrideWithStoreToSymbol("COLUPF")] set { } }
 		public static byte CtrlPf { [IgnoreImplementation][OverrideWithStoreToSymbol("CTRLPF")] set { } }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("CXCLR")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("CXCLR", true)]
 		public static void CxClr() { }
 		public static byte EnaM0  { [IgnoreImplementation][OverrideWithStoreToSymbol("ENAM0")] set { } }
 		public static byte EnaM1  { [IgnoreImplementation][OverrideWithStoreToSymbol("ENAM1")] set { } }
@@ -30,13 +30,13 @@ namespace VCSFramework
 		public static byte GrP0   { [IgnoreImplementation][OverrideWithStoreToSymbol("GRP0")] set { } }
 		public static byte GrP1   { [IgnoreImplementation][OverrideWithStoreToSymbol("GRP1")] set { } }
 		public static byte HMBl   { [IgnoreImplementation][OverrideWithStoreToSymbol("HMBL")] set { } }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("HMCLR")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("HMCLR", true)]
 		public static void HmClr() { }
 		public static byte HMP0   { [IgnoreImplementation][OverrideWithStoreToSymbol("HMP0")] set { } }
 		public static byte HMP1   { [IgnoreImplementation][OverrideWithStoreToSymbol("HMP1")] set { } }
 		public static byte HMM0   { [IgnoreImplementation][OverrideWithStoreToSymbol("HMM0")] set { } }
 		public static byte HMM1   { [IgnoreImplementation][OverrideWithStoreToSymbol("HMM1")] set { } }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("HMOVE")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("HMOVE", true)]
 		public static void HMove() { }
 		public static byte NuSiz0 { [IgnoreImplementation][OverrideWithStoreToSymbol("NUSIZ0")] set { } }
 		public static byte NuSiz1 { [IgnoreImplementation][OverrideWithStoreToSymbol("NUSIZ1")] set { } }
@@ -45,26 +45,26 @@ namespace VCSFramework
 		public static byte Pf2    { [IgnoreImplementation][OverrideWithStoreToSymbol("PF2")] set { } }
 		public static byte RefP0  { [IgnoreImplementation][OverrideWithStoreToSymbol("REFP0")] set { } }
 		public static byte RefP1  { [IgnoreImplementation][OverrideWithStoreToSymbol("REFP1")] set { } }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("RESBL")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("RESBL", true)]
 		public static void ResBl() { }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("RESM0")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("RESM0", true)]
 		public static void ResM0() { }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("RESM1")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("RESM1", true)]
 		public static void ResM1() { }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("RESP0")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("RESP0", true)]
 		public static void ResP0() { }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("RESP1")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("RESP1", true)]
 		public static void ResP1() { }
 		public static byte ResMP0 { [IgnoreImplementation][OverrideWithStoreToSymbol("RESMP0")] set { } }
 		public static byte ResMP1 { [IgnoreImplementation][OverrideWithStoreToSymbol("RESMP1")] set { } }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("RSYNC")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("RSYNC", true)]
 		public static void RSync() { }
 		public static byte VBlank { [IgnoreImplementation][OverrideWithStoreToSymbol("VBLANK")] set { } }
 		public static byte VDelP0 { [IgnoreImplementation][OverrideWithStoreToSymbol("VDELP0")] set { } }
 		public static byte VDelP1 { [IgnoreImplementation][OverrideWithStoreToSymbol("VDELP1")] set { } }
 		public static byte VDelBl { [IgnoreImplementation][OverrideWithStoreToSymbol("VDELBl")] set { } }
 		public static byte VSync  { [IgnoreImplementation][OverrideWithStoreToSymbol("VSYNC")] set { } }
-		[IgnoreImplementation][OverrideWithStoreToSymbol("WSYNC")]
+		[IgnoreImplementation][OverrideWithStoreToSymbol("WSYNC", true)]
 		public static void WSync() { }
 
 		public static byte InTim  { [IgnoreImplementation][OverrideWithLoadFromSymbol("INTIM")] get { throw new NotImplementedException(); } }

@@ -16,6 +16,8 @@ static class Evolving
 		byte d = 0xD8;
 		Foo(a, d);
 		d = InTim;
+		WSync();
+		Tim64T = a;
 	loop:
 		goto loop;
 	}

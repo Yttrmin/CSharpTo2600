@@ -268,12 +268,15 @@ namespace VCSCompiler
 			dynamic overrideStore = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithStoreToSymbolAttribute).FullName);
 			if (overrideStore != null)
 			{
-				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
-				if (method.Parameters.Count != 1)
+				if (!overrideStore.Strobe)
 				{
-					throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithStoreToSymbolAttribute)}, must take 1 parameter for now.");
+					//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
+					if (method.Parameters.Count != 1)
+					{
+						throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithStoreToSymbolAttribute)}, must take 1 parameter for now.");
+					}
+					yield return PLA();
 				}
-				yield return PLA();
 				yield return STA(overrideStore.Symbol);
 				yield break;
 			}
