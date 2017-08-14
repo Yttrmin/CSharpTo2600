@@ -20,6 +20,7 @@ namespace VCSCompiler
 		private readonly IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> MethodMap;
 		private readonly IImmutableDictionary<string, ProcessedType> Types;
 	    private readonly MethodDefinition MethodDefinition;
+	    private int CgtCount;
 
 		public CilInstructionCompiler(MethodDefinition methodDefinition, IImmutableDictionary<string, ProcessedType> types)
 		{
@@ -362,9 +363,10 @@ namespace VCSCompiler
 	    private IEnumerable<AssemblyLine> Cgt_Un(Instruction instruction)
 	    {
 			// CLI says to push a 1 if true, 0 if false.
-		    var endLabel = Label("__CGT_UN_END");
-		    var trueLabel = Label("__CGT_UN_TRUE");
-		    var falseLabel = Label("__CGT_UN_FALSE");
+		    var endLabel = Label($"__CGT_UN_END_{CgtCount}");
+		    var trueLabel = Label($"__CGT_UN_TRUE_{CgtCount}");
+		    var falseLabel = Label($"__CGT_UN_FALSE_{CgtCount}");
+		    CgtCount++;
 			yield return PLA();
 		    yield return STA(LabelGenerator.TemporaryRegister1);
 		    yield return PLA();

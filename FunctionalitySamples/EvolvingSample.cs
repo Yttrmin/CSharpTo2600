@@ -22,8 +22,7 @@ static class Evolving
 		WSync();
 		Tim64T = 43;
 		VSync = 0;
-		ColuBk = backgroundColor;
-		backgroundColor++;
+		ColuBk = 0x56;
 
 		// Wait for VBlank end.
 		while (InTim != 0) ;
@@ -31,22 +30,24 @@ static class Evolving
 		WSync();
 		VBlank = 0;
 
-		var lines = 191;
+		/*var lines = 191;
 		while (lines != 0)
 		{
 			lines--;
 			WSync();
-		}
+		}*/
+		WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync();
 
 		WSync();
 		VBlank = 0b10;
 
-		lines = 30;
+		/*lines = 30;
 		while (lines != 0)
 		{
 			lines--;
 			WSync();
-		}
+		}*/
+		WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync();
 
 		goto MainLoop;
 	}
