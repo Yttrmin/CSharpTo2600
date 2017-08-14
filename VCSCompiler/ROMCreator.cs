@@ -67,11 +67,14 @@ namespace VCSCompiler
 
 		private static IEnumerable<AssemblyLine> CreateMethods(CompiledProgram program)
 		{
-			var methods = program.Types.SelectMany(t => t.Subroutines).Where(s => s != program.EntryPoint);
+			var nodes = program.CallGraph.AllNodes().ToArray();
+			var methods = program.Types.SelectMany(t => t.Subroutines)
+				.Where(s => s != program.EntryPoint)
+				.Where(s => s.Body.Any()) // Don't emit empty methods.
+				.Where(s => nodes.Any(n => n.MethodDefinition == s.MethodDefinition)); // Don't emit methods that are never called.
 			yield return Comment("Begin subroutine emit.", 0);
 			yield return BlankLine();
-			// Do not emit empty methods.
-			foreach(var method in methods.Where(m => m.Body.Any()))
+			foreach(var method in methods)
 			{
 				// Do not emit subroutines that will never be JSR'd.
 				if (method.FrameworkAttributes.Any(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName))
