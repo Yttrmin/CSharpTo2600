@@ -13,11 +13,7 @@ static class Evolving
 		X = 0xFF;
 		TXS();
 		ClearMemory();
-		/*byte d = 0xD8;
-		Foo(a, d);
-		d = InTim;
-		WSync();
-		Tim64T = a;*/
+		byte backgroundColor = 0;
 	MainLoop:
 		// VSYNC
 		VSync = 0b10;
@@ -26,8 +22,32 @@ static class Evolving
 		WSync();
 		Tim64T = 43;
 		VSync = 0;
+		ColuBk = backgroundColor;
+		backgroundColor++;
 
+		// Wait for VBlank end.
 		while (InTim != 0) ;
+
+		WSync();
+		VBlank = 0;
+
+		var lines = 191;
+		while (lines != 0)
+		{
+			lines--;
+			WSync();
+		}
+
+		WSync();
+		VBlank = 0b10;
+
+		lines = 30;
+		while (lines != 0)
+		{
+			lines--;
+			WSync();
+		}
+
 		goto MainLoop;
 	}
 

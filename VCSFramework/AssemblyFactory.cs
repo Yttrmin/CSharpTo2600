@@ -308,11 +308,19 @@ namespace VCSFramework.Assembly
         /// <summary>
         /// Return from Subroutine [Implied] (6 cycles)
         /// </summary>
-        /// <returns></returns>
         public static AssemblyInstruction RTS()
         {
             return new AssemblyInstruction("RTS", 6, 1);
         }
+
+		/// <summary>
+		/// Subtract with Carry [Zero-page] (3 cycles)
+		/// </summary>
+		/// <returns></returns>
+	    public static AssemblyInstruction SBC(string label)
+	    {
+		    return new AssemblyInstruction("SBC", label, 3, 2);
+	    }
 
         /// <summary>
         /// Subtract with Carry [Zero-page indexed] (4 cycles)

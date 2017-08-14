@@ -166,7 +166,7 @@ namespace VCSCompiler
 	    {
 		    if (instruction.Operand != null)
 		    {
-			    throw new NotImplementedException();
+			    return LoadLocal(((VariableReference) instruction.Operand).Index);
 		    }
 		    else
 		    {
@@ -205,7 +205,7 @@ namespace VCSCompiler
 	    {
 		    if (instruction.Operand != null)
 		    {
-			    throw new NotImplementedException();
+			    return StoreLocal(((VariableReference) instruction.Operand).Index);
 		    }
 		    switch (instruction.OpCode.Code)
 		    {
@@ -240,10 +240,12 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
-		private IEnumerable<AssemblyLine> Br_S(Instruction instruction)
-		{
+	    private IEnumerable<AssemblyLine> Br(Instruction instruction)
+	    {
 			yield return JMP(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
 		}
+
+	    private IEnumerable<AssemblyLine> Br_S(Instruction instruction) => Br(instruction);
 
 	    private IEnumerable<AssemblyLine> Brtrue_S(Instruction instruction)
 	    {
@@ -435,6 +437,16 @@ namespace VCSCompiler
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 			yield return STA(LabelGenerator.GetFromField(fieldDefinition));
 		}
+
+	    private IEnumerable<AssemblyLine> Sub(Instruction instruction)
+	    {
+		    yield return PLA();
+		    yield return STA(LabelGenerator.TemporaryRegister1);
+		    yield return PLA();
+		    yield return SEC();
+		    yield return SBC(LabelGenerator.TemporaryRegister1);
+		    yield return PHA();
+	    }
 
 		private IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
 	}
