@@ -15,7 +15,7 @@ static class Evolving
 		ClearMemory();
 		byte backgroundColor = 0;
 	MainLoop:
-		// VSYNC
+		// Vertical blank.
 		VSync = 0b10;
 		WSync();
 		WSync();
@@ -30,25 +30,25 @@ static class Evolving
 		WSync();
 		VBlank = 0;
 
-		/*var lines = 191;
+		// Visible image.
+		var lines = 191;
 		while (lines != 0)
 		{
 			lines--;
 			WSync();
-		}*/
-		WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync();
-
+		}
+		
 		WSync();
 		VBlank = 0b10;
 
-		/*lines = 30;
+		// Overscan.
+		lines = 30;
 		while (lines != 0)
 		{
 			lines--;
 			WSync();
-		}*/
-		WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync(); WSync();
-
+		}
+		
 		goto MainLoop;
 	}
 

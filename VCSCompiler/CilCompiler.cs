@@ -33,8 +33,31 @@ namespace VCSCompiler
 					Console.WriteLine($"  {vcsInstruction}");
 				}
 			}
+			compiledBody = OptimizeMethod(compiledBody).ToList();
 			return compiledBody;
 		}
+
+	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body)
+	    {
+		    var mutableBody = body.ToList();
+		    var toDelete = new List<int>();
+		    for (var i = 0; i < mutableBody.Count; i++)
+		    {
+			    if ((mutableBody[i] as AssemblyInstruction)?.OpCode == "PHA"
+			        && (mutableBody[i + 1] as AssemblyInstruction)?.OpCode == "PLA")
+			    {
+				    toDelete.Add(i);
+					toDelete.Add(i + 1);
+			    }
+		    }
+		    toDelete.Reverse();
+		    foreach (var index in toDelete)
+		    {
+			    mutableBody.RemoveAt(index);
+		    }
+			Console.WriteLine($"Eliminated {toDelete.Count} redundant PHA/PLA pairs.");
+		    return mutableBody;
+	    }
 		
 		/// <summary>
 		/// Gets instructions that need to be labeled, generally for branching instructions.
