@@ -245,6 +245,12 @@ namespace VCSCompiler
 			yield return JMP(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
 		}
 
+	    private IEnumerable<AssemblyLine> Brtrue_S(Instruction instruction)
+	    {
+		    yield return PLA();
+		    yield return BNE(LabelGenerator.GetFromInstruction((Instruction) instruction.Operand));
+	    }
+
 		private IEnumerable<AssemblyLine> Call(Instruction instruction)
 		{
 			// Could be either a MethodDefinition or MethodReference.
@@ -350,6 +356,31 @@ namespace VCSCompiler
 
 			yield return JSR(LabelGenerator.GetFromMethod(method));
 		}
+
+	    private IEnumerable<AssemblyLine> Cgt_Un(Instruction instruction)
+	    {
+			// CLI says to push a 1 if true, 0 if false.
+		    var endLabel = Label("__CGT_UN_END");
+		    var trueLabel = Label("__CGT_UN_TRUE");
+		    var falseLabel = Label("__CGT_UN_FALSE");
+			yield return PLA();
+		    yield return STA(LabelGenerator.TemporaryRegister1);
+		    yield return PLA();
+		    yield return CMP(LabelGenerator.TemporaryRegister1);
+		    yield return BEQ(falseLabel.Name);
+		    yield return BCS(trueLabel.Name);
+
+			// == and < fall to here.
+		    yield return falseLabel;
+		    yield return LDA(0);
+		    yield return BEQ(endLabel.Name); // Always branches
+
+			yield return trueLabel;
+		    yield return LDA(1);
+
+		    yield return endLabel;
+			yield return PHA();
+	    }
 
 		/// <summary>
 		/// Convert value on stack to int8, which it already should be.

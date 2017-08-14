@@ -37,7 +37,6 @@ namespace VCSFramework
 			yield return STA(0, Index.X);
 			yield return DEX();
 			yield return BNE(loopTarget);
-			// TODO - Gonna work real well after we destroyed the stack.
 			yield return RTS();
 		}
     }

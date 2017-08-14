@@ -118,17 +118,41 @@ namespace VCSFramework.Assembly
             return new AssemblyInstruction("ADC", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
         }
 
-        /// <summary>
-        /// Branch if Not Equal (2-4 cycles)
-        /// </summary>
-        public static AssemblyInstruction BNE(Symbol Label)
+		/// <summary>
+		/// Branch on Carry Set (2-4 cycles)
+		/// </summary>
+	    public static AssemblyInstruction BCS(string label)
+	    {
+		    return new AssemblyInstruction("BCS", label, 4, 2);
+	    }
+
+		/// <summary>
+		/// Branch if Equal (2-4 cycles)
+		/// </summary>
+	    public static AssemblyInstruction BEQ(string label)
+	    {
+		    return new AssemblyInstruction("BEQ", label, 4, 2);
+	    }
+
+	    /// <summary>
+	    /// Branch if Not Equal (2-4 cycles)
+	    /// </summary>
+	    public static AssemblyInstruction BNE(string label)
+	    {
+		    return new AssemblyInstruction("BNE", label, 4, 2);
+	    }
+
+		/// <summary>
+		/// Branch if Not Equal (2-4 cycles)
+		/// </summary>
+		public static AssemblyInstruction BNE(Symbol Label)
         {
             // 4 if branch to new page.
             if (Label.Value.HasValue)
             {
                 throw new ArgumentException("Can only branch to label.");
             }
-            return new AssemblyInstruction("BNE", Label.Name, 4, 2);
+	        return BNE(Label.Name);
         }
 
         /// <summary>
@@ -146,6 +170,14 @@ namespace VCSFramework.Assembly
         {
             return new AssemblyInstruction("CLD", 2, 1);
         }
+
+		/// <summary>
+		/// Compare Accumulator [Zero-page] (3 cycles)
+		/// </summary>
+	    public static AssemblyInstruction CMP(string label)
+		{
+			return new AssemblyInstruction("CMP", label, 3, 2);
+		}
 
         /// <summary>
         /// Compare X Register [Immediate] (2 cycles)
