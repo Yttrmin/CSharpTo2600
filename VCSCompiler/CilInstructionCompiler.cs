@@ -248,11 +248,13 @@ namespace VCSCompiler
 
 	    private IEnumerable<AssemblyLine> Br_S(Instruction instruction) => Br(instruction);
 
-	    private IEnumerable<AssemblyLine> Brtrue_S(Instruction instruction)
+	    private IEnumerable<AssemblyLine> Brtrue(Instruction instruction)
 	    {
-		    yield return PLA();
-		    yield return BNE(LabelGenerator.GetFromInstruction((Instruction) instruction.Operand));
-	    }
+			yield return PLA();
+		    yield return BNE(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
+		}
+
+	    private IEnumerable<AssemblyLine> Brtrue_S(Instruction instruction) => Brtrue(instruction);
 
 		private IEnumerable<AssemblyLine> Call(Instruction instruction)
 		{
