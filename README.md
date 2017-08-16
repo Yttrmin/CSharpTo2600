@@ -2,8 +2,12 @@
 A compiler and framework for creating Atari 2600 games using C#. It uses the .NET Compiler Platform (Roslyn) to compile C# files, and Mono.Cecil to compile the resulting CIL into 6502 assembly.
 
 ### Current Status
-This project is being actively rewritten to compile from CIL to 6502 instead of C# to 6502. This is being done to (hopefully) ease development and allow for more features.
-The old C# to 6502 compiler can be found on the [master branch](https://github.com/Yttrmin/CSharpTo2600/tree/master) for now.
+Initially this project was written to compile C# straight to 6502 assembly. It has since been rewritten to compile C# to CIL, and then compile the CIL to 6502 assembly.
+The rewrite quickly surpassed the original implementation in both features and development speed.
+Development will continue towards the goal of porting [my 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#.
+
+### Current Goal
+The current goal is to add all the features needed for me to port my [attempt at a 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#.
 
 ### Features
 An incomplete list of supported features in no particular order. 
@@ -47,9 +51,7 @@ An incomplete list of supported features in no particular order.
     * :heavy_check_mark: Greater than (`cgt.un`)
 	* :x: Less than
   * :x: Load
-    * :x: Argument
-	  * :x: `ldarg`, `ldarg.s`
-	  * :heavy_check_mark: `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`
+    * :heavy_check_mark: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
 	* :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`)
 	* :x: Element
 	* :heavy_check_mark: Field (static) (`ldsfld`)

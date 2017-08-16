@@ -89,10 +89,9 @@ namespace VCSCompiler
 
 	    private IEnumerable<AssemblyLine> LoadArgument(Instruction instruction)
 	    {
-			//TODO - Ldarg, Ldarg_S
 		    if (instruction.Operand != null)
 		    {
-			    throw new NotImplementedException();
+			    return LoadArgument(((ParameterReference) instruction.Operand).Index);
 		    }
 		    switch (instruction.OpCode.Code)
 		    {

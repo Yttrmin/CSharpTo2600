@@ -24,6 +24,8 @@ static class Evolving
 		VSync = 0;
 		ColuBk = 0x56;
 
+		Foo(0,1,2,3,4,5,6);
+
 		// Wait for VBlank end.
 		while (InTim != 0) ;
 
@@ -52,9 +54,8 @@ static class Evolving
 		goto MainLoop;
 	}
 
-	private static void Foo(byte q, byte z)
+	private static void Foo(byte e, byte f, byte g, byte h, byte i, byte j, byte k)
 	{
-		byte c = z;
-		ColuBk = c;
+		k = j;
 	}
 }
