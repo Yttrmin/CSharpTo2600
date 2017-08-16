@@ -91,7 +91,7 @@ namespace VCSCompiler
 		private void AddPredefinedTypes()
 		{
 			var system = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location);
-			var supportedTypes = new[] { "Object", "ValueType", "Void", "Byte" };
+			var supportedTypes = new[] { "Object", "ValueType", "Void", "Byte", "Boolean" };
 			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name));
 
 			var objectType = types.Single(x => x.Name == "Object");
@@ -109,6 +109,10 @@ namespace VCSCompiler
 			var byteType = types.Single(x => x.Name == "Byte");
 			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
 			Types[byteType.FullName] = byteCompiled;
+
+			var boolType = types.Single(x => x.Name == "Boolean");
+			var boolCompiled = new CompiledType(new ProcessedType(boolType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
+			Types[boolType.FullName] = boolCompiled;
 		}
 
 		/// <summary>
@@ -178,6 +182,13 @@ namespace VCSCompiler
 				foreach(var parameter in method.Parameters)
 				{
 					if (Types[parameter.ParameterType.FullName] == null)
+					{
+						return null;
+					}
+				}
+				foreach (var local in method.Body.Variables)
+				{
+					if (Types[local.VariableType.FullName] == null)
 					{
 						return null;
 					}

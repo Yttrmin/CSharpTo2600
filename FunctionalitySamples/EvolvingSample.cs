@@ -5,6 +5,7 @@ using static VCSFramework.Memory;
 static class Evolving
 {
 	static byte a;
+	static bool ShouldLoop;
 
 	public static void Main()
 	{
@@ -25,7 +26,7 @@ static class Evolving
 		ColuBk = 0x56;
 
 		Foo(0,1,2,3,4,5,6);
-
+		ShouldLoop = true;
 		// Wait for VBlank end.
 		while (InTim != 0) ;
 
@@ -33,7 +34,7 @@ static class Evolving
 		VBlank = 0;
 
 		// Visible image.
-		var lines = 191;
+		byte lines = 191;
 		while (lines != 0)
 		{
 			lines--;
@@ -45,9 +46,10 @@ static class Evolving
 
 		// Overscan.
 		lines = 30;
-		while (lines != 0)
+		while (ShouldLoop)
 		{
 			lines--;
+			ShouldLoop = lines != 0;
 			WSync();
 		}
 		
