@@ -121,25 +121,10 @@ namespace VCSCompiler
 		/// </summary>
 		private void ProcessTypes(IEnumerable<TypeDefinition> cecilTypes)
 		{
-			// TODO - Probably should just build up a dependency graph instead of wastefully reprocessing types.
-			var toProcessFields = new Queue<TypeDefinition>(cecilTypes);
-
 			foreach (var type in cecilTypes)
 			{
-				Types[type.FullName] = null;
-			}
-			while (toProcessFields.Count > 0)
-			{
-				var type = toProcessFields.Dequeue();
 				var processedType = ProcessType(type);
-				if (processedType == null)
-				{
-					toProcessFields.Enqueue(type);
-				}
-				else
-				{
-					Types[type.FullName] = processedType;
-				}
+				Types[type.FullName] = processedType;
 			}
 		}
 
@@ -153,11 +138,17 @@ namespace VCSCompiler
 			{
 				throw new FatalCompilationException($"Type '{typeDefinition.FullName}' has a base type of an unknown type: '{typeDefinition.BaseType.FullName}'");
 			}
-			else if (Types[typeDefinition.BaseType.FullName] == null)
-			{
-				return null;
-			}
-			foreach(var field in typeDefinition.Fields)
+
+			var processedFields = typeDefinition.Fields.Select(ProcessField);
+
+			var methods = typeDefinition.Methods.Where(m => m.CustomAttributes.All(a => a.AttributeType.Name != nameof(DoNotCompileAttribute)));
+			var processedSubroutines = methods.Select(ProcessMethod);
+
+			var baseType = Types[typeDefinition.BaseType.FullName];
+
+			return new ProcessedType(typeDefinition, baseType, processedFields, processedSubroutines);
+
+			ProcessedField ProcessField(FieldDefinition field)
 			{
 				if (!Types.ContainsKey(field.FieldType.FullName))
 				{
@@ -167,46 +158,41 @@ namespace VCSCompiler
 				{
 					throw new FatalCompilationException($"Field '{field.FullName}' can not be a variable of a reference type.");
 				}
-				if (Types[field.FieldType.FullName] == null)
-				{
-					return null;
-				}
+				return new ProcessedField(field, Types[field.FieldType.FullName]);
 			}
-			var methods = typeDefinition.Methods.Where(m => m.CustomAttributes.All(a => a.AttributeType.Name != nameof(DoNotCompileAttribute)));
-			foreach (var method in methods)
+
+			ProcessedSubroutine ProcessMethod(MethodDefinition method)
 			{
 				if (!Types.ContainsKey(method.ReturnType.FullName))
 				{
 					throw new FatalCompilationException($"Method '{method.FullName}' has an unknown return type: {method.ReturnType.FullName}");
 				}
-				foreach(var parameter in method.Parameters)
+
+				foreach (var parameter in method.Parameters)
 				{
-					if (Types[parameter.ParameterType.FullName] == null)
-					{
-						return null;
-					}
+					ProcessParameter(parameter);
 				}
+
 				foreach (var local in method.Body.Variables)
 				{
-					if (Types[local.VariableType.FullName] == null)
-					{
-						return null;
-					}
+					ProcessLocal(local);
 				}
-				if (Types[method.ReturnType.FullName] == null)
+
+				return new ProcessedSubroutine(method, 
+					Types[method.ReturnType.FullName], 
+					method.Parameters.Select(p => Types[p.ParameterType.FullName]),
+					method.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName)).Select(CreateFrameworkAttribute).ToArray());
+
+				void ProcessParameter(ParameterDefinition parameter)
 				{
-					return null;
+					//TODO - Track in ProcessedType.
+				}
+
+				void ProcessLocal(VariableDefinition variable)
+				{
+					//TODO - Track in ProcessedType.
 				}
 			}
-
-			var baseType = Types[typeDefinition.BaseType.FullName];
-			var processedFields = typeDefinition.Fields.Select(fd => new ProcessedField(fd, Types[fd.FieldType.FullName]));
-			var processedSubroutines = methods.Select(md => new ProcessedSubroutine(md, Types[md.ReturnType.FullName],
-					md.Parameters.Select(p => Types[p.ParameterType.FullName]),
-					md.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName))
-						.Select(a => CreateFrameworkAttribute(a)).ToArray()));
-
-			return new ProcessedType(typeDefinition, baseType, processedFields, processedSubroutines);
 		}
 
 		private Attribute CreateFrameworkAttribute(CustomAttribute attribute)
