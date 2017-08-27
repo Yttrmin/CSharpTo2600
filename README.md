@@ -9,6 +9,68 @@ Development will continue towards the goal of porting [my 2600 game](https://gis
 ### Current Goal
 The current goal is to add all the features needed for me to port my [attempt at a 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#.
 
+### Example
+There's no collection of samples yet since they may quickly become obsolete. 
+Below is an example of how you could, at the time of writing, write a program to cycle through the NTSC background colors. 
+See the [Features](#features) section below for a more complete list of features.
+
+```csharp
+using static VCSFramework.Registers;
+using static VCSFramework.Assembly.AssemblyFactory;
+using static VCSFramework.Memory;
+
+static class CycleBackgroundExample
+{
+    public static void Main()
+    {
+        SEI();                    // Inline assembly for implied addressing instructions.
+        CLD();
+        X = 0xFF;                 // Write access to A/X/Y registers.
+        TXS();
+        ClearMemory();            // Call methods implemented by the framework.
+        byte backgroundColor = 0; // Local variable support.
+    MainLoop:
+        // Vertical blank.
+        VSync = 0b10;
+        WSync();                  // TIA strobe registers implemented as method calls.
+        WSync();
+        WSync();
+        Tim64T = 43;
+        VSync = 0;                // TIA write-only registers implemented as setter-only properties.
+
+        backgroundColor += 2;
+        ColuBk = backgroundColor;
+
+        // Wait for VBlank end.
+        while (InTim != 0) ;      // RIOT read-only registers implemented as getter-only properties.
+
+        WSync();
+        VBlank = 0;
+
+        // Visible image.
+        byte lines = 191;
+        while (lines != 0)        // While loops and support for some comparisons.
+        {
+            lines--;
+            WSync();
+        }
+        
+        WSync();
+        VBlank = 0b10;
+
+        // Overscan.
+        lines = 30;
+        while (lines != 0)
+        {
+            lines--;
+            WSync();
+        }
+        
+        goto MainLoop;            // goto support!
+    }
+}
+```
+
 ### Features
 An incomplete list of supported features in no particular order. 
 
@@ -63,6 +125,14 @@ An incomplete list of supported features in no particular order.
 	* :x: Element
 	* :heavy_check_mark: Field (static) (`stsfld`)
 	* :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
+
+### Building
+Load the solution into [Visual Studio Community 2017](https://www.visualstudio.com/) and it should build and run fine.
+
+### Usage
+The public interface is very rudimentary. You can either invoke it programmatically through `VCSCompiler.Compiler.CompileFromFiles()`, or through the command line program like so:
+
+`dotnet VCSCompilerCLI.dll path_to_source_file path_to_vcsframework_dll path_to_dasm_executable`
 
 ### License
 This project is licensed under the [MIT License](./LICENSE.txt).

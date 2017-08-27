@@ -7,6 +7,7 @@ namespace VCSCompilerCLI
     {
         static void Main(string[] args)
         {
+			//TODO - Error handling, actual argument parsing, etc.
 			var filePath = args[0];
 			var frameworkPath = args[1];
 			var dasmPath = args[2];
