@@ -12,7 +12,7 @@ namespace VCSCompilerCLI
 			var dasmPath = args[2];
 			Console.WriteLine($"Beginning compilation of {filePath}");
 			var result = Compiler.CompileFromFiles(new[] { filePath }, frameworkPath, dasmPath).Result;
-			Console.WriteLine(result ? "Success!" : "Compilation failed");
+			Console.WriteLine("Compilation complete.");
 #if DEBUG
 			Console.ReadLine();
 #endif

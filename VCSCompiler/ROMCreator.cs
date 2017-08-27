@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Linq;
 using System.IO;
@@ -16,6 +17,9 @@ namespace VCSCompiler
 		private const string BinaryFileName = "out.bin";
 		private const string SymbolsFileName = "out.sym";
 		private const string ListFileName = "out.lst";
+		//TODO - Have path passed in.
+	    private const string AssemblerPath = "./Dependencies/DASM";
+	    private const string AssemblerName = "dasm.exe";
 
 		private RomCreator() { }
 
@@ -30,7 +34,12 @@ namespace VCSCompiler
 			lines.AddRange(CreateInterruptVectors());
 
 			File.WriteAllLines(AssemblyFileName, lines.Select(l => l.ToString()));
-			throw new NotImplementedException("RomCreator.CreateRom() not finished");
+			var assembled = AssembleOutput();
+			return new RomInfo(assembled,
+				Path.GetFullPath(BinaryFileName),
+				Path.GetFullPath(AssemblyFileName),
+				Path.GetFullPath(SymbolsFileName),
+				Path.GetFullPath(ListFileName));
 		}
 
 		private static IEnumerable<AssemblyLine> CreateHeader()
@@ -108,5 +117,36 @@ namespace VCSCompiler
 			yield return Word(EntryPoint);
 			yield return Word(EntryPoint);
 		}
+
+	    private static bool AssembleOutput()
+	    {
+		    var assemblerFullPath = Path.Combine(AssemblerPath, AssemblerName);
+
+			if (!File.Exists(assemblerFullPath))
+		    {
+			    throw new FatalCompilationException($"Could not find assembler at: {assemblerFullPath}");
+		    }
+
+			var assemblerProcess = new Process
+			{
+				StartInfo = new ProcessStartInfo
+				{
+					FileName = assemblerFullPath,
+					UseShellExecute = false,
+					RedirectStandardOutput = true,
+					CreateNoWindow = true,
+					WorkingDirectory = AssemblerPath,
+					Arguments = $@"""{Path.GetFullPath(AssemblerName)}"" -f3 -o{BinaryFileName} -s{SymbolsFileName} -l{ListFileName}"
+				}
+			};
+
+			assemblerProcess.Start();
+		    assemblerProcess.WaitForExit();
+		    var output = assemblerProcess.StandardOutput.ReadToEnd();
+		    var success = assemblerProcess.ExitCode == 0;
+			Console.WriteLine("Assembler STDOUT:");
+			Console.WriteLine(output);
+		    return success;
+	    }
 	}
 }

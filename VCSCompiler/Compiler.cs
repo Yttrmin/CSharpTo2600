@@ -26,7 +26,7 @@ namespace VCSCompiler
 			FrameworkAttributes = frameworkAttributes;
 		}
 
-		public static async Task<bool> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
+		public static async Task<RomInfo> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
@@ -39,7 +39,7 @@ namespace VCSCompiler
 			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
 			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
 			var romInfo = RomCreator.CreateRom(program);
-			return true;
+			return romInfo;
 		}
 
 		private static CompiledAssembly CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
