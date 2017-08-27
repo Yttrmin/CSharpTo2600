@@ -17,13 +17,10 @@ namespace VCSCompiler
 		private const string BinaryFileName = "out.bin";
 		private const string SymbolsFileName = "out.sym";
 		private const string ListFileName = "out.lst";
-		//TODO - Have path passed in.
-	    private const string AssemblerPath = "./Dependencies/DASM";
-	    private const string AssemblerName = "dasm.exe";
 
 		private RomCreator() { }
 
-		public static RomInfo CreateRom(CompiledProgram program)
+		public static RomInfo CreateRom(CompiledProgram program, string assemblerPath)
 		{
 			var memoryManager = new MemoryManager(program);
 			var lines = new List<AssemblyLine>();
@@ -34,7 +31,7 @@ namespace VCSCompiler
 			lines.AddRange(CreateInterruptVectors());
 
 			File.WriteAllLines(AssemblyFileName, lines.Select(l => l.ToString()));
-			var assembled = AssembleOutput();
+			var assembled = AssembleOutput(assemblerPath);
 			return new RomInfo(assembled,
 				Path.GetFullPath(BinaryFileName),
 				Path.GetFullPath(AssemblyFileName),
@@ -118,9 +115,9 @@ namespace VCSCompiler
 			yield return Word(EntryPoint);
 		}
 
-	    private static bool AssembleOutput()
+	    private static bool AssembleOutput(string assemblerPath)
 	    {
-		    var assemblerFullPath = Path.Combine(AssemblerPath, AssemblerName);
+		    var assemblerFullPath = Path.GetFullPath(assemblerPath);
 
 			if (!File.Exists(assemblerFullPath))
 		    {
@@ -135,8 +132,8 @@ namespace VCSCompiler
 					UseShellExecute = false,
 					RedirectStandardOutput = true,
 					CreateNoWindow = true,
-					WorkingDirectory = AssemblerPath,
-					Arguments = $@"""{Path.GetFullPath(AssemblerName)}"" -f3 -o{BinaryFileName} -s{SymbolsFileName} -l{ListFileName}"
+					WorkingDirectory = Path.GetDirectoryName(assemblerPath),
+					Arguments = $@"""{Path.GetFullPath(AssemblyFileName)}"" -f3 -o{BinaryFileName} -s{SymbolsFileName} -l{ListFileName}"
 				}
 			};
 

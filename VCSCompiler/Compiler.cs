@@ -38,7 +38,7 @@ namespace VCSCompiler
 			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
 			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
 			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
-			var romInfo = RomCreator.CreateRom(program);
+			var romInfo = RomCreator.CreateRom(program, dasmPath);
 			return romInfo;
 		}
 
