@@ -168,29 +168,42 @@ namespace VCSCompiler
 					throw new FatalCompilationException($"Method '{method.FullName}' has an unknown return type: {method.ReturnType.FullName}");
 				}
 
-				foreach (var parameter in method.Parameters)
-				{
-					ProcessParameter(parameter);
-				}
+				var parameters = ProcessParameters().ToList();
+				var locals = ProcessLocals().ToList();
 
-				foreach (var local in method.Body.Variables)
-				{
-					ProcessLocal(local);
-				}
-
-				return new ProcessedSubroutine(method, 
+				return new ProcessedSubroutine(
+					method,
 					Types[method.ReturnType.FullName], 
-					method.Parameters.Select(p => Types[p.ParameterType.FullName]),
+					parameters,
+					locals,
 					method.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName)).Select(CreateFrameworkAttribute).ToArray());
 
-				void ProcessParameter(ParameterDefinition parameter)
+				IEnumerable<ProcessedType> ProcessParameters()
 				{
-					//TODO - Track in ProcessedType.
+					foreach (var parameter in method.Parameters)
+					{
+						ProcessParameter(parameter);
+						yield return Types[parameter.ParameterType.FullName];
+					}
+
+					void ProcessParameter(ParameterDefinition parameter)
+					{
+						//TODO
+					}
 				}
 
-				void ProcessLocal(VariableDefinition variable)
+				IEnumerable<ProcessedType> ProcessLocals()
 				{
-					//TODO - Track in ProcessedType.
+					foreach (var local in method.Body.Variables)
+					{
+						ProcessLocal(local);
+						yield return Types[local.VariableType.FullName];
+					}
+
+					void ProcessLocal(VariableDefinition variable)
+					{
+						//TODO
+					}
 				}
 			}
 		}
