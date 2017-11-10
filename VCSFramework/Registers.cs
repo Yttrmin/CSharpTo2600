@@ -66,6 +66,19 @@ namespace VCSFramework
 		public static byte VSync  { [IgnoreImplementation][OverrideWithStoreToSymbol("VSYNC")] set { } }
 		[IgnoreImplementation][OverrideWithStoreToSymbol("WSYNC", true)]
 		public static void WSync() { }
+		
+		// TIA_REGISTERS_READ
+
+		public static byte CxM0P { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXM0P")] get { throw new NotImplementedException(); } }
+		public static byte CxM1P { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXM1P")] get { throw new NotImplementedException(); } }
+		public static byte CxP0FB { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXP0FB")] get { throw new NotImplementedException(); } }
+		public static byte CxP1FB { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXP1FB")] get { throw new NotImplementedException(); } }
+		public static byte CxM0FB { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXM0FB")] get { throw new NotImplementedException(); } }
+		public static byte CxM1FB { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXM1FB")] get { throw new NotImplementedException(); } }
+		public static byte CxBlPf { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXBLPF")] get { throw new NotImplementedException(); } }
+		public static byte CxPPMM { [IgnoreImplementation][OverrideWithLoadFromSymbol("CXPPMM")] get { throw new NotImplementedException(); } }
+
+		//
 
 		public static byte InTim  { [IgnoreImplementation][OverrideWithLoadFromSymbol("INTIM")] get { throw new NotImplementedException(); } }
 		public static byte Tim64T { [IgnoreImplementation][OverrideWithStoreToSymbol("TIM64T")] set { } }
