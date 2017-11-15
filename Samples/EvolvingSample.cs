@@ -15,7 +15,7 @@ static class Evolving
 		TXS();
 		ClearMemory();
 		byte backgroundColor = 0;
-	MainLoop:
+		MainLoop:
 		// Vertical blank.
 		VSync = 0b10;
 		WSync();
@@ -25,7 +25,9 @@ static class Evolving
 		VSync = 0;
 		ColuBk = 0x56;
 
-		Foo(0,1,2,3,4,5,6);
+		Foo(0, 1, 2, 3, 4, 5, 6);
+		var z = CxPPMM;
+
 		ShouldLoop = true;
 		// Wait for VBlank end.
 		while (InTim != 0) ;
@@ -40,7 +42,7 @@ static class Evolving
 			lines--;
 			WSync();
 		}
-		
+
 		WSync();
 		VBlank = 0b10;
 
@@ -52,7 +54,7 @@ static class Evolving
 			ShouldLoop = lines != 0;
 			WSync();
 		}
-		
+
 		goto MainLoop;
 	}
 
