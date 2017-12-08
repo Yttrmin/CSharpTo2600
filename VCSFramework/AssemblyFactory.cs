@@ -240,18 +240,10 @@ namespace VCSFramework.Assembly
         /// </summary>
         public static AssemblyInstruction LDA(Symbol Symbol, int Offset = 0)
         {
-            //@TODO - Technically the symbol could refer to any point in the ROM,
+	        //@TODO - Technically the symbol could refer to any point in the ROM,
             // maybe not zero-page. Figure out a solution.
-            string Argument;
-            if (Offset == 0)
-            {
-                Argument = Symbol.Name;
-            }
-            else
-            {
-                Argument = $"{Symbol.Name}+{Offset}";
-            }
-            return new AssemblyInstruction("LDA", Argument, 3, 2);
+	        var Argument = Offset == 0 ? Symbol.Name : $"{Symbol.Name}+{Offset}";
+	        return new AssemblyInstruction("LDA", Argument, 3, 2);
         }
 
 		/// <summary>
@@ -261,15 +253,7 @@ namespace VCSFramework.Assembly
 		{
 			//@TODO - Technically the symbol could refer to any point in the ROM,
 			// maybe not zero-page. Figure out a solution.
-			string Argument;
-			if (Offset == 0)
-			{
-				Argument = Symbol;
-			}
-			else
-			{
-				Argument = $"{Symbol}+{Offset}";
-			}
+			var Argument = Offset == 0 ? Symbol : $"{Symbol}+{Offset}";
 			return new AssemblyInstruction("LDA", Argument, 3, 2);
 		}
 
@@ -361,15 +345,7 @@ namespace VCSFramework.Assembly
 		/// </summary>
 		public static AssemblyInstruction STA(string Label, int Offset = 0)
 		{
-			string Argument;
-			if (Offset == 0)
-			{
-				Argument = Label;
-			}
-			else
-			{
-				Argument = $"{Label}+{Offset}";
-			}
+			var Argument = Offset == 0 ? Label : $"{Label}+{Offset}";
 			return new AssemblyInstruction("STA", Argument, 3, 2);
 		}
 
@@ -377,18 +353,10 @@ namespace VCSFramework.Assembly
 		/// Store Accumulator [Zero-page] (3 cycles)
 		/// </summary>
 		public static AssemblyInstruction STA(Symbol Symbol, int Offset = 0)
-        {
-            string Argument;
-            if (Offset == 0)
-            {
-                Argument = Symbol.Name;
-            }
-            else
-            {
-                Argument = $"{Symbol.Name}+{Offset}";
-            }
-            return new AssemblyInstruction("STA", Argument, 3, 2);
-        }
+		{
+			var Argument = Offset == 0 ? Symbol.Name : $"{Symbol.Name}+{Offset}";
+			return new AssemblyInstruction("STA", Argument, 3, 2);
+		}
 
         /// <summary>
         /// Store Accumulator [Zero-page indexed] (4 cycles)

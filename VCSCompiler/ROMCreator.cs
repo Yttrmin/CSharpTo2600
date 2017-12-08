@@ -10,7 +10,7 @@ using static VCSFramework.Assembly.AssemblyFactory;
 
 namespace VCSCompiler
 {
-    internal sealed class RomCreator
+    internal static class RomCreator
     {
 		private const string EntryPoint = "__EntryPoint";
 		private const string AssemblyFileName = "out.asm";
@@ -18,9 +18,7 @@ namespace VCSCompiler
 		private const string SymbolsFileName = "out.sym";
 		private const string ListFileName = "out.lst";
 
-		private RomCreator() { }
-
-		public static RomInfo CreateRom(CompiledProgram program, string assemblerPath)
+	    public static RomInfo CreateRom(CompiledProgram program, string assemblerPath)
 		{
 			var memoryManager = new MemoryManager(program);
 			var lines = new List<AssemblyLine>();

@@ -39,14 +39,7 @@ namespace VCSCompiler
 			Fields = fields;
 			Subroutines = subroutines;
 			AllowedAsLValue = allowedAsLValue;
-			if (size.HasValue)
-			{
-				ThisSize = size.Value;
-			}
-			else
-			{
-				ThisSize = Fields.Sum(pf => pf.FieldType.TotalSize);
-			}
+			ThisSize = size ?? Fields.Sum(pf => pf.FieldType.TotalSize);
 		}
 
 		public override string ToString() => $"{FullName} [Processed]";

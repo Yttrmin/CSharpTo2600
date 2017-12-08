@@ -16,10 +16,10 @@ namespace VCSCompiler
     public sealed class Compiler
     {
 		private readonly IDictionary<string, ProcessedType> Types;
-		private readonly System.Reflection.Assembly FrameworkAssembly;
+		private readonly Assembly FrameworkAssembly;
 		private readonly IEnumerable<Type> FrameworkAttributes;
 
-		private Compiler(System.Reflection.Assembly frameworkAssembly, IEnumerable<Type> frameworkAttributes)
+		private Compiler(Assembly frameworkAssembly, IEnumerable<Type> frameworkAttributes)
 		{
 			Types = new Dictionary<string, ProcessedType>();
 			FrameworkAssembly = frameworkAssembly;
@@ -92,7 +92,7 @@ namespace VCSCompiler
 		{
 			var system = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location);
 			var supportedTypes = new[] { "Object", "ValueType", "Void", "Byte", "Boolean" };
-			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name));
+			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name)).ToImmutableArray();
 
 			var objectType = types.Single(x => x.Name == "Object");
 			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
@@ -182,13 +182,17 @@ namespace VCSCompiler
 				{
 					foreach (var parameter in method.Parameters)
 					{
-						ProcessParameter(parameter);
-						yield return Types[parameter.ParameterType.FullName];
-					}
+						if (!Types.ContainsKey(parameter.ParameterType.FullName))
+						{
+							throw new FatalCompilationException($"Parameter '{parameter.Name}' of method '{method.Name}' has unknown type: '{parameter.ParameterType.Name}'");
+						}
+						var type = Types[parameter.ParameterType.FullName];
 
-					void ProcessParameter(ParameterDefinition parameter)
-					{
-						//TODO
+						if (!type.AllowedAsLValue)
+						{
+							throw new FatalCompilationException($"Can not have variable of type: '{parameter.ParameterType.Name}'");
+						}
+						yield return type;
 					}
 				}
 
@@ -196,13 +200,17 @@ namespace VCSCompiler
 				{
 					foreach (var local in method.Body.Variables)
 					{
-						ProcessLocal(local);
-						yield return Types[local.VariableType.FullName];
-					}
+						if (!Types.ContainsKey(local.VariableType.FullName))
+						{
+							throw new FatalCompilationException($"Local {local.Index} of method '{method.Name}' has unknown type: '{local.VariableType.Name}'");
+						}
+						var type = Types[local.VariableType.FullName];
 
-					void ProcessLocal(VariableDefinition variable)
-					{
-						//TODO
+						if (!type.AllowedAsLValue)
+						{
+							throw new FatalCompilationException($"Can not have variable of type: '{local.VariableType.Name}'");
+						}
+						yield return type;
 					}
 				}
 			}
@@ -210,7 +218,7 @@ namespace VCSCompiler
 
 		private Attribute CreateFrameworkAttribute(CustomAttribute attribute)
 		{
-			var type = FrameworkAttributes.Where(t => t.FullName == attribute.AttributeType.FullName).Single();
+			var type = FrameworkAttributes.Single(t => t.FullName == attribute.AttributeType.FullName);
 			var parameters = attribute.ConstructorArguments.Select(a => a.Value).ToArray();
 			var instance = (Attribute)Activator.CreateInstance(type, parameters);
 			return instance;

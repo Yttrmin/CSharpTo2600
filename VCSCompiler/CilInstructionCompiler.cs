@@ -69,7 +69,7 @@ namespace VCSCompiler
 		    var isFactoryCall = methodReference?.FullName.StartsWith("VCSFramework.Assembly.AssemblyInstruction VCSFramework.Assembly.AssemblyFactory::");
 		    if (methodReference != null && isFactoryCall.Value)
 		    {
-			    if (methodReference.Parameters.Count() == 0)
+			    if (!methodReference.Parameters.Any())
 			    {
 				    // Skip the pop that follows.
 				    instruction.Next = instruction.Next.Next;
