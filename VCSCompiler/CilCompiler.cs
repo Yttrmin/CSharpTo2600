@@ -40,47 +40,33 @@ namespace VCSCompiler
 	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body)
 	    {
 		    var mutableBody = body.ToList();
-		    var toDelete = new List<int>();
 
-			// Optimize out redundant PHA/PLA
-		    for (var i = 0; i < mutableBody.Count; i++)
-		    {
-			    if ((mutableBody[i] as AssemblyInstruction)?.OpCode == "PHA"
-			        && (mutableBody[i + 1] as AssemblyInstruction)?.OpCode == "PLA")
-			    {
-				    toDelete.Add(i);
-					toDelete.Add(i + 1);
-			    }
-		    }
-		    toDelete.Reverse();
-		    foreach (var index in toDelete)
-		    {
-			    mutableBody.RemoveAt(index);
-		    }
-			Console.WriteLine($"Eliminated {toDelete.Count} redundant PHA/PLA pairs.");
+			// Remove redundant PHA/PLA pairs.
+			var pairs = mutableBody.OfType<AssemblyInstruction>().Zip(mutableBody.OfType<AssemblyInstruction>().Skip(1), Tuple.Create);
+			var phaPlaPairs = pairs.Where(p => p.Item1.OpCode == "PHA" && p.Item2.OpCode == "PLA").ToArray();
 
-			toDelete.Clear();
-			// Optimize out redundant LDAs following STAs.
-			for (var i = 0; i < mutableBody.Count - 1; i++)
+			foreach(var pair in phaPlaPairs)
 			{
-				var line1 = mutableBody[i] as AssemblyInstruction;
-				var line2 = mutableBody[i + 1] as AssemblyInstruction;
+				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item1));
+				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item2));
+			}
+			
+			Console.WriteLine($"Eliminated {phaPlaPairs.Length} redundant PHA/PLA pairs.");
 
-				if (line1?.OpCode == "STA" && line2?.OpCode == "LDA")
-				{
-					if (line1?.Argument != null && line1?.Argument == line2?.Argument)
-					{
-						toDelete.Add(i + 1);
-					}
-				}
-			}
-			toDelete.Reverse();
-			foreach(var index in toDelete)
+			// Remove LDAs following a STA to the same argument.
+			pairs = mutableBody.OfType<AssemblyInstruction>().Zip(mutableBody.OfType<AssemblyInstruction>().Skip(1), Tuple.Create);
+			var staLdaPairs = pairs
+				.Where(p => p.Item1.OpCode == "STA" && p.Item2.OpCode == "LDA")
+				.Where(p => p.Item1.Argument == p.Item2.Argument)
+				.ToArray();
+
+			foreach(var pair in staLdaPairs)
 			{
-				mutableBody.RemoveAt(index);
+				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item2));
 			}
-			Console.WriteLine($"Eliminated {toDelete.Count} redundant LDAs.");
-		    return mutableBody;
+			
+			Console.WriteLine($"Eliminated {staLdaPairs.Length} redundant LDAs.");
+			return mutableBody;
 	    }
 		
 		/// <summary>
