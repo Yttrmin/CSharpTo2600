@@ -419,6 +419,13 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
+		private IEnumerable<AssemblyLine> Ldsflda(Instruction instruction)
+		{
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+			yield return LDA($"#{LabelGenerator.GetFromField(fieldDefinition)}");
+			yield return PHA();
+		}
+
 		private IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
 
 		private IEnumerable<AssemblyLine> Ret(Instruction instruction)

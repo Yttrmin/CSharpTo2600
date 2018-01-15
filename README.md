@@ -119,6 +119,7 @@ An incomplete list of supported features in no particular order.
 	* :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`)
 	* :x: Element
 	* :heavy_check_mark: Field (static) (`ldsfld`)
+	  * :heavy_check_mark: Address (`ldsflda`)
 	* :heavy_check_mark: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`)
   * :o: Store
     * :heavy_check_mark: Argument (`starg`, `starg.s`)
