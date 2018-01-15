@@ -70,10 +70,19 @@ namespace VCSCompiler
 		{
 			error = string.Empty;
 
-			var methodErrorHeader = $"Method '{method.FullName}' has";
+			var methodErrorHeader = $"Method '{method.FullName}'";
 			if (!types.ContainsKey(method.ReturnType.FullName))
 			{
-				error = $"Method '{method.FullName}' has an unknown return type: {method.ReturnType.FullName}";
+				error = $"{methodErrorHeader} has an unknown return type: {method.ReturnType.FullName}";
+				return false;
+			}
+
+			// Static constructors are most likely being used for field initializers. Since when exactly memory is
+			// cleared is up to the user, we don't have a safe place to invoke it.
+			// So we block the feature altogether.
+			if (method.IsConstructor && method.IsStatic)
+			{
+				error = $"{methodErrorHeader} must not be a static constructor.";
 				return false;
 			}
 
@@ -81,7 +90,7 @@ namespace VCSCompiler
 			{
 				if (!IsValidParameter(parameter, types, out string parameterError))
 				{
-					error = $"{methodErrorHeader} an invalid parameter: {parameterError}";
+					error = $"{methodErrorHeader} has an invalid parameter: {parameterError}";
 					return false;
 				}
 			}
@@ -90,7 +99,7 @@ namespace VCSCompiler
 			{
 				if (!IsValidLocal(local, types, out string localError))
 				{
-					error = $"{methodErrorHeader} an invalid local: {localError}";
+					error = $"{methodErrorHeader} has an invalid local: {localError}";
 					return false;
 				}
 			}
