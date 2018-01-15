@@ -7,6 +7,9 @@ using System.Text;
 
 namespace VCSFramework
 {
+	/// <summary>
+	/// Instructs compiler to replace all invocations of this method with its body.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class AlwaysInlineAttribute : Attribute
@@ -21,6 +24,10 @@ namespace VCSFramework
 
 	}
 
+	/// <summary>
+	/// Instructs compiler not to compile the CIL body of this method.
+	/// Generally used in combination with another attribute to provide an implementation.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method)]
 	public sealed class IgnoreImplementationAttribute : Attribute
@@ -28,6 +35,9 @@ namespace VCSFramework
 		
 	}
 
+	/// <summary>
+	/// Instructs compiler to replace a non-void 0-parameter method invocation with an LDA instruction.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method)]
 	public sealed class OverrideWithLoadFromSymbolAttribute : Attribute
@@ -40,6 +50,9 @@ namespace VCSFramework
 		}
 	}
 
+	/// <summary>
+	/// Instructs compiler to replace a void 1-parameter method invocation with an STA instruction.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class OverrideWithStoreToSymbolAttribute : Attribute
@@ -54,6 +67,9 @@ namespace VCSFramework
 		}
 	}
 
+	/// <summary>
+	/// Instructs compiler to replace a void 1-parameter method invocation with an LDA/X/Y instruction.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class OverrideWithLoadToRegisterAttribute : Attribute
@@ -66,6 +82,9 @@ namespace VCSFramework
 		}
 	}
 
+	/// <summary>
+	/// Instructs compiler to replace this method's body with that of another method.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class UseProvidedImplementationAttribute : Attribute
@@ -78,6 +97,9 @@ namespace VCSFramework
 		}
 	}
 	
+	/// <summary>
+	/// Instructs compiler to completely ignore this type or method.
+	/// </summary>
 	[DoNotCompile]
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 	public sealed class DoNotCompileAttribute : Attribute
