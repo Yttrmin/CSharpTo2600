@@ -41,6 +41,8 @@ namespace VCSCompiler
 	    {
 		    var mutableBody = body.ToList();
 		    var toDelete = new List<int>();
+
+			// Optimize out redundant PHA/PLA
 		    for (var i = 0; i < mutableBody.Count; i++)
 		    {
 			    if ((mutableBody[i] as AssemblyInstruction)?.OpCode == "PHA"
@@ -56,6 +58,28 @@ namespace VCSCompiler
 			    mutableBody.RemoveAt(index);
 		    }
 			Console.WriteLine($"Eliminated {toDelete.Count} redundant PHA/PLA pairs.");
+
+			toDelete.Clear();
+			// Optimize out redundant LDAs following STAs.
+			for (var i = 0; i < mutableBody.Count - 1; i++)
+			{
+				var line1 = mutableBody[i] as AssemblyInstruction;
+				var line2 = mutableBody[i + 1] as AssemblyInstruction;
+
+				if (line1?.OpCode == "STA" && line2?.OpCode == "LDA")
+				{
+					if (line1?.Argument != null && line1?.Argument == line2?.Argument)
+					{
+						toDelete.Add(i + 1);
+					}
+				}
+			}
+			toDelete.Reverse();
+			foreach(var index in toDelete)
+			{
+				mutableBody.RemoveAt(index);
+			}
+			Console.WriteLine($"Eliminated {toDelete.Count} redundant LDAs.");
 		    return mutableBody;
 	    }
 		
