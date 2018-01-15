@@ -123,6 +123,10 @@ namespace VCSCompiler
 		{
 			foreach (var type in cecilTypes)
 			{
+				if (!TypeChecker.IsValidType(type, Types, out var typeError))
+				{
+					throw new FatalCompilationException(typeError);
+				}
 				var processedType = ProcessType(type);
 				Types[type.FullName] = processedType;
 			}
@@ -130,18 +134,9 @@ namespace VCSCompiler
 
 		private ProcessedType ProcessType(TypeDefinition typeDefinition)
 		{
-			if (!(typeDefinition.IsValueType || (typeDefinition.IsAbstract && typeDefinition.IsSealed)))
-			{
-				throw new FatalCompilationException($"Type '{typeDefinition.FullName}' must be a value type or static reference type.");
-			}
-			if (!Types.ContainsKey(typeDefinition.BaseType.FullName))
-			{
-				throw new FatalCompilationException($"Type '{typeDefinition.FullName}' has a base type of an unknown type: '{typeDefinition.BaseType.FullName}'");
-			}
-
 			var processedFields = typeDefinition.Fields.Select(ProcessField);
 
-			var methods = typeDefinition.Methods.Where(m => m.CustomAttributes.All(a => a.AttributeType.Name != nameof(DoNotCompileAttribute)));
+			var methods = typeDefinition.CompilableMethods();
 			var processedSubroutines = methods.Select(ProcessMethod);
 
 			var baseType = Types[typeDefinition.BaseType.FullName];
@@ -150,26 +145,13 @@ namespace VCSCompiler
 
 			ProcessedField ProcessField(FieldDefinition field)
 			{
-				if (!Types.ContainsKey(field.FieldType.FullName))
-				{
-					throw new FatalCompilationException($"Field '{field.FullName}' is of an unknown type: {field.FieldType.FullName}");
-				}
-				if (!field.FieldType.IsValueType)
-				{
-					throw new FatalCompilationException($"Field '{field.FullName}' can not be a variable of a reference type.");
-				}
 				return new ProcessedField(field, Types[field.FieldType.FullName]);
 			}
 
 			ProcessedSubroutine ProcessMethod(MethodDefinition method)
 			{
-				if (!Types.ContainsKey(method.ReturnType.FullName))
-				{
-					throw new FatalCompilationException($"Method '{method.FullName}' has an unknown return type: {method.ReturnType.FullName}");
-				}
-
-				var parameters = ProcessParameters().ToList();
-				var locals = ProcessLocals().ToList();
+				var parameters = method.Parameters.Select(p => Types[p.ParameterType.FullName]).ToList();
+				var locals = method.Body.Variables.Select(l => Types[l.VariableType.FullName]).ToList();
 
 				return new ProcessedSubroutine(
 					method,
@@ -177,42 +159,6 @@ namespace VCSCompiler
 					parameters,
 					locals,
 					method.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName)).Select(CreateFrameworkAttribute).ToArray());
-
-				IEnumerable<ProcessedType> ProcessParameters()
-				{
-					foreach (var parameter in method.Parameters)
-					{
-						if (!Types.ContainsKey(parameter.ParameterType.FullName))
-						{
-							throw new FatalCompilationException($"Parameter '{parameter.Name}' of method '{method.Name}' has unknown type: '{parameter.ParameterType.Name}'");
-						}
-						var type = Types[parameter.ParameterType.FullName];
-
-						if (!type.AllowedAsLValue)
-						{
-							throw new FatalCompilationException($"Can not have variable of type: '{parameter.ParameterType.Name}'");
-						}
-						yield return type;
-					}
-				}
-
-				IEnumerable<ProcessedType> ProcessLocals()
-				{
-					foreach (var local in method.Body.Variables)
-					{
-						if (!Types.ContainsKey(local.VariableType.FullName))
-						{
-							throw new FatalCompilationException($"Local {local.Index} of method '{method.Name}' has unknown type: '{local.VariableType.Name}'");
-						}
-						var type = Types[local.VariableType.FullName];
-
-						if (!type.AllowedAsLValue)
-						{
-							throw new FatalCompilationException($"Can not have variable of type: '{local.VariableType.Name}'");
-						}
-						yield return type;
-					}
-				}
 			}
 		}
 
