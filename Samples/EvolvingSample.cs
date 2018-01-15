@@ -14,6 +14,7 @@ static class Evolving
 		X = 0xFF;
 		TXS();
 		ClearMemory();
+		NOP();
 		byte backgroundColor = 0;
 		MainLoop:
 		// Vertical blank.

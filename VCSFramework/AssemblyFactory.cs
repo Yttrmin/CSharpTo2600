@@ -273,6 +273,14 @@ namespace VCSFramework.Assembly
             return new AssemblyInstruction("LDY", $"#${Value.ToString("X2")}", 2, 2);
         }
 
+		/// <summary>
+		/// No-op [Implied] (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction NOP()
+		{
+			return new AssemblyInstruction("NOP", 2, 1);
+		}
+
         /// <summary>
         /// Push Accumulator (3 cycles)
         /// </summary>
