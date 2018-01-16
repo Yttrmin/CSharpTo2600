@@ -26,6 +26,13 @@ namespace VCSCompiler
 			FrameworkAttributes = frameworkAttributes;
 		}
 
+		public static async Task<RomInfo> CompileFromText(string source, string frameworkPath, string dasmPath)
+		{
+			var tempFileName = Path.GetTempFileName();
+			File.WriteAllText(tempFileName, source);
+			return await CompileFromFiles(new[] { tempFileName }, frameworkPath, dasmPath);
+		}
+
 		public static async Task<RomInfo> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
