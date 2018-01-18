@@ -28,6 +28,12 @@ namespace VCSCompiler
 
 		public static async Task<RomInfo> CompileFromText(string source, string frameworkPath, string dasmPath)
 		{
+			// TODO - How does Roslyn react to an empty source file?
+			if (source == null)
+			{
+				throw new ArgumentNullException(nameof(source));
+			}
+
 			var tempFileName = Path.GetTempFileName();
 			File.WriteAllText(tempFileName, source);
 			return await CompileFromFiles(new[] { tempFileName }, frameworkPath, dasmPath);
@@ -35,6 +41,26 @@ namespace VCSCompiler
 
 		public static async Task<RomInfo> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
+			if (filePaths == null)
+			{
+				throw new ArgumentNullException(nameof(filePaths));
+			}
+			else if (!filePaths.Any())
+			{
+				throw new ArgumentException("No source files specified.", nameof(filePaths));
+			}
+
+			if (frameworkPath == null)
+			{
+				throw new ArgumentNullException(nameof(frameworkPath));
+			}
+			else if (string.IsNullOrWhiteSpace(frameworkPath))
+			{
+				throw new ArgumentException("VCS framework DLL path must be specified.", nameof(frameworkPath));
+			}
+
+			// TODO - No DASM path should mean the caller just wants the assembly output, not a compiled binary.
+
 			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));

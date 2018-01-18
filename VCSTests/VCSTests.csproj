@@ -12,4 +12,9 @@
     <PackageReference Include="NUnit3TestAdapter" Version="3.9.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\VCSCompiler\VCSCompiler.csproj" />
+    <ProjectReference Include="..\VCSFramework\VCSFramework.csproj" />
+  </ItemGroup>
+
 </Project>
