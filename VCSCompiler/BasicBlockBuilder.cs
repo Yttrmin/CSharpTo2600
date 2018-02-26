@@ -32,6 +32,7 @@ namespace VCSCompiler
 		public static void Build(MethodDefinition method)
 		{
 			var leaders = new List<Instruction>();
+			var graph = new Graph<BasicBlock>();
 
 			foreach(var instruction in method.Body.Instructions)
 			{
@@ -63,7 +64,7 @@ namespace VCSCompiler
 			}
 
 			// Make sure leaders are in order or you'll get strange results.
-			leaders = leaders.OrderBy(i => i.Offset).ToList();
+			leaders = leaders.Distinct().OrderBy(i => i.Offset).ToList();
 			
 			// Pair leaders up and turn them into blocks.
 			// Blocks span from leaderA -> leaderB-1.
@@ -81,6 +82,27 @@ namespace VCSCompiler
 			var finalStart = method.Body.Instructions.IndexOf(leaders.Last());
 			var finalInstructions = method.Body.Instructions.Skip(finalStart);
 			blocks.Add(new BasicBlock(finalInstructions));
+
+			graph.AddRootNode(blocks[0]);
+			if (blocks[0].Instructions.Last().Operand is Instruction target)
+			{
+				graph.AddEdge(blocks[0], blocks.Single(bb => bb.Instructions.First() == target));
+			}
+			for (var i = 1; i < blocks.Count; i++)
+			{
+				var currentBlock = blocks[i];
+				var previousBlock = blocks[i - 1];
+
+				if (currentBlock.Instructions[0].Previous == previousBlock.Instructions.Last())
+				{
+					graph.AddEdge(previousBlock, currentBlock);
+				}
+
+				if (currentBlock.Instructions.Last().Operand is Instruction targetInstruction)
+				{
+					graph.AddEdge(currentBlock, blocks.Single(bb => bb.Instructions.First() == targetInstruction));
+				}
+			}
 		}
     }
 
@@ -91,6 +113,18 @@ namespace VCSCompiler
 		public BasicBlock(IEnumerable<Instruction> instructions)
 		{
 			Instructions = instructions.ToImmutableList();
+		}
+
+		public override string ToString()
+		{
+			if (Instructions.Count == 1)
+			{
+				return Instructions[0].ToString();
+			}
+			else
+			{
+				return $"{Instructions.First()}[...]{Instructions.Last()}";
+			}
 		}
 	}
 }
