@@ -5,6 +5,7 @@ using System.Text;
 
 namespace VCSCompiler
 {
+	// TODO - Make immutable or at least provide an immutable interface.
     internal class Graph<T> where T: class
     {
 		private IList<Node<T>> Nodes = new List<Node<T>>();
@@ -36,6 +37,7 @@ namespace VCSCompiler
 		}
     }
 
+	// TODO - Make immutable or at least provide an immutable interface.
 	internal class Node<T>
 	{
 		public IList<Node<T>> Neighbors { get; } = new List<Node<T>>();

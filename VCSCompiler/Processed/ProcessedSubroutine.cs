@@ -13,14 +13,22 @@ namespace VCSCompiler
 		public IList<ProcessedType> Locals { get; }
 		public IEnumerable<Attribute> FrameworkAttributes { get; }
 		public MethodDefinition MethodDefinition { get; }
+		public Graph<BasicBlock> ControlFlowGraph { get; }
 
 		protected ProcessedSubroutine(ProcessedSubroutine processedSubroutine)
-			: this(processedSubroutine.MethodDefinition, processedSubroutine.ReturnType, processedSubroutine.Parameters, processedSubroutine.Locals, processedSubroutine.FrameworkAttributes)
+			: this(processedSubroutine.MethodDefinition, processedSubroutine.ControlFlowGraph, processedSubroutine.ReturnType, processedSubroutine.Parameters, processedSubroutine.Locals, processedSubroutine.FrameworkAttributes)
 		{ }
 
-		public ProcessedSubroutine(MethodDefinition methodDefinition, ProcessedType returnType, IList<ProcessedType> parameters, IList<ProcessedType> locals, IEnumerable<Attribute> frameworkAttributes)
+		public ProcessedSubroutine(
+			MethodDefinition methodDefinition, 
+			Graph<BasicBlock> controlFlowGraph,
+			ProcessedType returnType, 
+			IList<ProcessedType> parameters, 
+			IList<ProcessedType> locals,
+			IEnumerable<Attribute> frameworkAttributes)
 		{
 			MethodDefinition = methodDefinition;
+			ControlFlowGraph = controlFlowGraph;
 			ReturnType = returnType;
 			Parameters = parameters;
 			Locals = locals;

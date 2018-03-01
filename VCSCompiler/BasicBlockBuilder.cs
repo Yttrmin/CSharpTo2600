@@ -29,7 +29,7 @@ namespace VCSCompiler
 
 		private static readonly OpCode[] AllBranchInstructions = ConditionalBranchInstructions.Concat(UnconditionalBranchInstructions).ToArray();
 
-		public static void Build(MethodDefinition method)
+		public static Graph<BasicBlock> Build(MethodDefinition method)
 		{
 			var leaders = new List<Instruction>();
 			var graph = new Graph<BasicBlock>();
@@ -103,6 +103,8 @@ namespace VCSCompiler
 					graph.AddEdge(currentBlock, blocks.Single(bb => bb.Instructions.First() == targetInstruction));
 				}
 			}
+
+			return graph;
 		}
     }
 
