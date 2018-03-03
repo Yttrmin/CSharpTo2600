@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
+using System.Collections.Immutable;
 
 namespace VCSCompiler
 {
@@ -10,6 +11,8 @@ namespace VCSCompiler
     {
 		private IList<Node<T>> Nodes = new List<Node<T>>();
 		private Node<T> Root;
+
+		public IImmutableList<Node<T>> AllNodes => Nodes.ToImmutableList();
 
 		public void AddRootNode(T root)
 		{

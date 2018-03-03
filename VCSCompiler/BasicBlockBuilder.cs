@@ -8,7 +8,7 @@ using System.Text;
 
 namespace VCSCompiler
 {
-    class BasicBlockBuilder
+    internal class BasicBlockBuilder
     {
 		private static readonly OpCode[] ConditionalBranchInstructions
 			= new[] 
@@ -29,7 +29,7 @@ namespace VCSCompiler
 
 		private static readonly OpCode[] AllBranchInstructions = ConditionalBranchInstructions.Concat(UnconditionalBranchInstructions).ToArray();
 
-		public static Graph<BasicBlock> Build(MethodDefinition method)
+		public static ControlFlowGraph Build(MethodDefinition method)
 		{
 			var leaders = new List<Instruction>();
 			var graph = new Graph<BasicBlock>();
@@ -104,9 +104,20 @@ namespace VCSCompiler
 				}
 			}
 
-			return graph;
+			return new ControlFlowGraph(graph);
 		}
     }
+
+	internal class ControlFlowGraph
+	{
+		private readonly Graph<BasicBlock> Graph;
+		public IEnumerable<BasicBlock> AllBasicBlocks => Graph.AllNodes.Select(n => n.Value);
+
+		public ControlFlowGraph(Graph<BasicBlock> graph)
+		{
+			Graph = graph;
+		}
+	}
 
 	internal class BasicBlock
 	{
