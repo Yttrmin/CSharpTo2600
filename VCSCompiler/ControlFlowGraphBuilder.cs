@@ -8,7 +8,7 @@ using System.Text;
 
 namespace VCSCompiler
 {
-    internal class BasicBlockBuilder
+    internal class ControlFlowGraphBuilder
     {
 		private static readonly OpCode[] ConditionalBranchInstructions
 			= new[] 

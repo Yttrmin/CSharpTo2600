@@ -185,7 +185,7 @@ namespace VCSCompiler
 			{
 				var parameters = method.Parameters.Select(p => Types[p.ParameterType.FullName]).ToList();
 				var locals = method.Body.Variables.Select(l => Types[l.VariableType.FullName]).ToList();
-				var controlFlowGraph = BasicBlockBuilder.Build(method);
+				var controlFlowGraph = ControlFlowGraphBuilder.Build(method);
 				
 				return new ProcessedSubroutine(
 					method,
