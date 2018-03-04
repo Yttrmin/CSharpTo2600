@@ -441,6 +441,27 @@ namespace VCSCompiler
 
 	    private IEnumerable<AssemblyLine> Stloc_S(Instruction instruction) => StoreLocal(instruction);
 
+		private IEnumerable<AssemblyLine> Stfld(Instruction instruction)
+		{
+			// TODO - Prevent Stores to multi-byte types.
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+			var containingType = fieldDefinition.DeclaringType;
+
+			var processedType = Types[containingType.FullName];
+			var processedField = processedType.Fields.Single(pf => pf.FieldDefinition == fieldDefinition);
+
+			var byteOffset = processedType.FieldOffsets[processedField];
+
+			// Put value to store in X.
+			yield return PLA();
+			yield return TAX();
+
+			yield return PLA();
+			yield return TAY();
+
+			yield return STX(byteOffset, Index.Y);
+		}
+
 		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
 		{
 			yield return PLA();

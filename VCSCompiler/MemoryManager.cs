@@ -54,7 +54,7 @@ namespace VCSCompiler
 			var staticVariablesByType = Program.Types.SelectMany(t => t.Fields).GroupBy(f => f.FieldDefinition.DeclaringType);
 			foreach(var fieldGrouping in staticVariablesByType)
 			{
-				foreach(var field in fieldGrouping.OrderBy(f => f.Name))
+				foreach(var field in fieldGrouping.Where(f => f.FieldDefinition.IsStatic).OrderBy(f => f.Name))
 				{
 					yield return DefineSymbol(LabelGenerator.GetFromField(field.FieldDefinition), NextGlobal).WithComment($"{field.FieldType.Name} - {field.FieldType.TotalSize} bytes");
 					AdvanceNextGlobal(field.FieldType.TotalSize);

@@ -13,14 +13,13 @@ namespace VCSCompiler
 
 		public static string GetFromField(FieldDefinition field)
 		{
-			if (field.IsStatic)
+			if (!field.IsStatic)
 			{
-				return $"{field.DeclaringType.Name}_{field.Name}";
+				// Instance fields are tracked as offsets into (value type) objects.
+				throw new ArgumentException($"Instance fields do not have labels.", nameof(field));
 			}
-			else
-			{
-				throw new NotImplementedException("Instance field symbols not supported yet.");
-			}
+
+			return $"{field.DeclaringType.Name}_{field.Name}";
 		}
 
 		public static string GetFromMethod(MethodDefinition method)
