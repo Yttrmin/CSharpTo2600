@@ -79,8 +79,12 @@ An incomplete list of supported features in no particular order.
   * :heavy_check_mark: `byte`
   * :x: `sbyte`
 * :x: Array types
+* :x: Pointer Types
 * :o: Custom Types
-  * :x: Value Types
+  * :o: Value Types
+    * :heavy_check_mark: Single-byte types
+	* :o: Multi-byte types `(can't load/store whole object)`
+	* :x: Composite types (struct-in-struct) `(can't access member structs + can't load/store whole object)`
   * :o: Reference Types
     * :heavy_check_mark: Static reference types
     * :x: Instance reference types
@@ -122,13 +126,17 @@ An incomplete list of supported features in no particular order.
 	  * :heavy_check_mark: Address (`ldsflda`)
 	* :heavy_check_mark: Field (instance) (`ldfld`)
 	  * :x: Address (`ldflda`)
+	* :x: Indirect (`ldind.i`, `ldind.i1`)
 	* :heavy_check_mark: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`)
   * :o: Store
     * :heavy_check_mark: Argument (`starg`, `starg.s`)
 	* :x: Element
 	* :heavy_check_mark: Field (static) (`stsfld`)
 	* :heavy_check_mark: Field (instance) (`stfld`)
+	* :x: Indirect (`stind.i`, `stind.i1`)
 	* :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
+  * :x: Miscellaneous Object Model
+    * :x: Initialize value type (`initobj`)
 
 ### Building
 Load the solution into [Visual Studio Community 2017](https://www.visualstudio.com/) and it should build and run fine.
