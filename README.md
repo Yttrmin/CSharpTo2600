@@ -120,7 +120,8 @@ An incomplete list of supported features in no particular order.
 	* :x: Element
 	* :heavy_check_mark: Field (static) (`ldsfld`)
 	  * :heavy_check_mark: Address (`ldsflda`)
-	* :x: Field (instance) (`ldfld`)
+	* :heavy_check_mark: Field (instance) (`ldfld`)
+	  * :x: Address (`ldflda`)
 	* :heavy_check_mark: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`)
   * :o: Store
     * :heavy_check_mark: Argument (`starg`, `starg.s`)

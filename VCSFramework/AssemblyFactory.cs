@@ -257,6 +257,18 @@ namespace VCSFramework.Assembly
 			return new AssemblyInstruction("LDA", Argument, 3, 2);
 		}
 
+		// <summary>
+		/// Load Accumulator with Memory [Zero-page indexed] (4 cycles)
+		/// </summary>
+		public static AssemblyInstruction LDA(byte Offset, Index IndexRegister)
+		{
+			if (IndexRegister != Index.X)
+			{
+				throw new ArgumentException("LDA zero-page indexed must use X register", nameof(IndexRegister));
+			}
+			return new AssemblyInstruction("LDA", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
+		}
+
 		/// <summary>
 		/// Load X Register [Immediate] (2 cycles)
 		/// </summary>
@@ -371,6 +383,10 @@ namespace VCSFramework.Assembly
         /// </summary>
         public static AssemblyInstruction STA(byte Offset, Index IndexRegister)
         {
+			if (IndexRegister != Index.X)
+			{
+				throw new ArgumentException("STA zero-page indexed must use X register", nameof(IndexRegister));
+			}
             return new AssemblyInstruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
         }
 

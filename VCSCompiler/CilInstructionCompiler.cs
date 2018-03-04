@@ -412,6 +412,26 @@ namespace VCSCompiler
 		/// <remarks>The spec says to push an int32, but that's impractical.</remarks>
 		private IEnumerable<AssemblyLine> Ldc_I4_S(Instruction instruction) => Ldc_I4(instruction);
 
+		private IEnumerable<AssemblyLine> Ldfld(Instruction instruction)
+		{
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+
+			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
+			if (processedField.FieldType.TotalSize != 1)
+			{
+				throw new FatalCompilationException($"Only single-byte loads are currently supported, can not load '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
+			}
+
+			// Put address of instance in X.
+			yield return PLA();
+			yield return TAX();
+
+			var byteOffset = containingType.FieldOffsets[processedField];
+
+			yield return LDA(byteOffset, Index.X);
+			yield return PHA();
+		}
+
 		private IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
 		{
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
@@ -464,6 +484,7 @@ namespace VCSCompiler
 			yield return PLA();
 			yield return TAX();
 
+			// Put address of containing object in Y.
 			yield return PLA();
 			yield return TAY();
 
