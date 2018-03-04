@@ -40,7 +40,8 @@ namespace VCSCompiler
 			var info = ProjectInfo.Create(projectId, VersionStamp.Default, "UserProject", "UserAssembly", "C#",
 				metadataReferences: new[] { CoreLibReference, RuntimeReference, MsCorLibReference, FrameworkReference },
 				compilationOptions: Options,
-				documents: await allDocumentInfo);
+				documents: await allDocumentInfo, 
+				parseOptions: new CSharpParseOptions(LanguageVersion.Latest));
 
 			return info;
 		}
