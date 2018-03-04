@@ -415,6 +415,13 @@ namespace VCSCompiler
 		private IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
 		{
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
+
+			var (_, processedField) = GetProcessedInfo(fieldDefinition);
+			if (processedField.FieldType.TotalSize != 1)
+			{
+				throw new FatalCompilationException($"Only single-byte loads are currently supported, can not load '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
+			}
+
 			yield return LDA(LabelGenerator.GetFromField(fieldDefinition));
 			yield return PHA();
 		}
@@ -441,10 +448,40 @@ namespace VCSCompiler
 
 	    private IEnumerable<AssemblyLine> Stloc_S(Instruction instruction) => StoreLocal(instruction);
 
+		private IEnumerable<AssemblyLine> Stfld(Instruction instruction)
+		{
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+
+			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
+			if (processedField.FieldType.TotalSize != 1)
+			{
+				throw new FatalCompilationException($"Only single-byte stores are currently supported, can not store to '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
+			}
+
+			var byteOffset = containingType.FieldOffsets[processedField];
+
+			// Put value to store in X.
+			yield return PLA();
+			yield return TAX();
+
+			yield return PLA();
+			yield return TAY();
+
+			yield return STX(byteOffset, Index.Y);
+		}
+
 		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
 		{
 			yield return PLA();
+
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
+
+			var (_, processedField) = GetProcessedInfo(fieldDefinition);
+			if (processedField.FieldType.TotalSize != 1)
+			{
+				throw new FatalCompilationException($"Only single-byte stores are currently supported, can not store to '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
+			}
+
 			yield return STA(LabelGenerator.GetFromField(fieldDefinition));
 		}
 
@@ -459,5 +496,14 @@ namespace VCSCompiler
 	    }
 
 		private IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
+
+		private (ProcessedType ContainingType, ProcessedField ProcessedField) GetProcessedInfo(FieldDefinition fieldDefinition)
+		{
+			var containingType = fieldDefinition.DeclaringType;
+			var processedType = Types[containingType.FullName];
+			var processedField = processedType.Fields.Single(pf => pf.FieldDefinition == fieldDefinition);
+
+			return (processedType, processedField);
+		}
 	}
 }

@@ -128,23 +128,23 @@ namespace VCSCompiler
 			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name)).ToImmutableArray();
 
 			var objectType = types.Single(x => x.Name == "Object");
-			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
+			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[objectType.FullName] = objectCompiled;
 
 			var valueType = types.Single(x => x.Name == "ValueType");
-			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
+			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[valueType.FullName] = valueTypeCompiled;
 
 			var voidType = types.Single(x => x.Name == "Void");
-			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
+			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[voidType.FullName] = voidCompiled;
 
 			var byteType = types.Single(x => x.Name == "Byte");
-			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
+			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
 			Types[byteType.FullName] = byteCompiled;
 
 			var boolType = types.Single(x => x.Name == "Boolean");
-			var boolCompiled = new CompiledType(new ProcessedType(boolType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
+			var boolCompiled = new CompiledType(new ProcessedType(boolType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
 			Types[boolType.FullName] = boolCompiled;
 		}
 
@@ -167,27 +167,45 @@ namespace VCSCompiler
 
 		private ProcessedType ProcessType(TypeDefinition typeDefinition)
 		{
-			var processedFields = typeDefinition.Fields.Select(ProcessField);
+			var processedFields = typeDefinition.Fields.Select(ProcessField).ToArray();
+			var fieldOffsets = ProcessFieldOffsets(processedFields);
 
 			var methods = typeDefinition.CompilableMethods();
 			var processedSubroutines = methods.Select(ProcessMethod);
 
 			var baseType = Types[typeDefinition.BaseType.FullName];
 
-			return new ProcessedType(typeDefinition, baseType, processedFields, processedSubroutines);
+			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines);
 
 			ProcessedField ProcessField(FieldDefinition field)
 			{
 				return new ProcessedField(field, Types[field.FieldType.FullName]);
 			}
 
+			IImmutableDictionary<ProcessedField, byte> ProcessFieldOffsets(IEnumerable<ProcessedField> fields)
+			{
+				var instanceFields = fields.Where(pf => !pf.FieldDefinition.IsStatic);
+				var offsets = new Dictionary<ProcessedField, byte>();
+
+				var nextOffset = 0;
+				foreach(var field in instanceFields)
+				{
+					offsets.Add(field, (byte)nextOffset);
+					nextOffset += field.FieldType.TotalSize;
+				}
+
+				return offsets.ToImmutableDictionary();
+			}
+
 			ProcessedSubroutine ProcessMethod(MethodDefinition method)
 			{
 				var parameters = method.Parameters.Select(p => Types[p.ParameterType.FullName]).ToList();
 				var locals = method.Body.Variables.Select(l => Types[l.VariableType.FullName]).ToList();
-
+				var controlFlowGraph = ControlFlowGraphBuilder.Build(method);
+				
 				return new ProcessedSubroutine(
 					method,
+					controlFlowGraph,
 					Types[method.ReturnType.FullName], 
 					parameters,
 					locals,

@@ -374,6 +374,19 @@ namespace VCSFramework.Assembly
             return new AssemblyInstruction("STA", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
         }
 
+		/// <summary>
+		/// Store X Register [Zero-page indexed] (4 cycles)
+		/// </summary>
+		public static AssemblyInstruction STX(byte Offset, Index IndexRegister)
+		{
+			if (IndexRegister != Index.Y)
+			{
+				throw new ArgumentException("STX zero-page indexed must use Y register", nameof(IndexRegister));
+			}
+
+			return new AssemblyInstruction("STX", $"${Offset.ToString("X2")},{IndexRegister}", 4, 2);
+		}
+
         /// <summary>
         /// Transfer Accumulator to X Register (2 cycles)
         /// </summary>
