@@ -104,6 +104,7 @@ An incomplete list of supported features in no particular order.
   * :x: Reuse memory addresses
 * :o: C#
   * :heavy_check_mark: `goto`
+  * :heavy_check_mark: `unsafe`
 * :o: CIL OpCodes
   * :o: Arithmetic
     * :heavy_check_mark: Addition (`add`, no overflow check)

@@ -48,5 +48,19 @@ internal static class Program
 }";
 			Assert.DoesNotThrowAsync(async () => await CompileFromText(source));
 		}
+
+		[Test]
+		public void ClassCanBeUnsafe()
+		{
+			var source =
+				@"
+internal static class Program
+{
+	public static unsafe void Main()
+	{
+	}
+}";
+			Assert.DoesNotThrowAsync(async () => await CompileFromText(source));
+		}
 	}
 }

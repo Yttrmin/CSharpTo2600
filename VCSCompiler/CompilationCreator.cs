@@ -17,7 +17,7 @@ namespace VCSCompiler
 		private static readonly MetadataReference CoreLibReference = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
 		private static readonly MetadataReference MsCorLibReference = MetadataReference.CreateFromFile(Assembly.Load(new AssemblyName("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e")).Location);
 		private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(VCSFramework.NByte).GetTypeInfo().Assembly.Location);
-		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.ConsoleApplication);
+		private static readonly CompilationOptions Options = new CSharpCompilationOptions(OutputKind.ConsoleApplication, allowUnsafe: true);
 
 		private static async Task<DocumentInfo> CreateDocumentInfo(FileInfo file, ProjectId projectId)
 		{
