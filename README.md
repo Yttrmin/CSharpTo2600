@@ -126,7 +126,7 @@ An incomplete list of supported features in no particular order.
 	* :heavy_check_mark: Field (static) (`ldsfld`)
 	  * :heavy_check_mark: Address (`ldsflda`)
 	* :heavy_check_mark: Field (instance) (`ldfld`)
-	  * :x: Address (`ldflda`)
+	  * :heavy_check_mark: Address (`ldflda`)
 	* :x: Indirect (`ldind.i`, `ldind.i1`)
 	* :heavy_check_mark: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`)
   * :o: Store

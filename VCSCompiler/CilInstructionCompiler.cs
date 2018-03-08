@@ -432,6 +432,22 @@ namespace VCSCompiler
 			yield return PHA();
 		}
 
+		private IEnumerable<AssemblyLine> Ldflda(Instruction instruction)
+		{
+			var fieldDefinition = (FieldDefinition)instruction.Operand;
+
+			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
+			var fieldOffset = containingType.FieldOffsets[processedField];
+
+			yield return PLA();
+			if (fieldOffset != 0)
+			{
+				yield return CLC();
+				yield return ADC(fieldOffset);
+			}
+			yield return PHA();
+		}
+
 		private IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
 		{
 			var fieldDefinition = (FieldDefinition)instruction.Operand;

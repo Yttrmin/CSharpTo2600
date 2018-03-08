@@ -37,9 +37,8 @@ namespace Samples
 			MultiByteStruct1.ValueC = 48;
 			
 			MultiByteStruct1.ValueA = MultiByteStruct1.ValueC;
-
-			// This will cause an error since accessing MultiByteStruct1 requires ldflda, which is not implemented yet.
-			// CompositeStruct.MultiByteStruct1.ValueA = 76;
+			
+			CompositeStruct.MultiByteStruct2.ValueA = 76;
 
 			// This will cause an error due to multi-byte loads/stores.
 			// MultiByteStruct1 = MultiByteStruct2;
