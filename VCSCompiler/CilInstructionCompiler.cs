@@ -392,6 +392,21 @@ namespace VCSCompiler
 		/// </summary>
 		private IEnumerable<AssemblyLine> Conv_U1(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
 
+		private IEnumerable<AssemblyLine> Initobj(Instruction instruction)
+		{
+			var typeDefinition = (TypeDefinition)instruction.Operand;
+			var processedType = Types[typeDefinition.FullName];
+
+			yield return PLA();
+			yield return TAX();
+
+			yield return LDA(0);
+			for(byte i = 0; i < processedType.TotalSize; i++)
+			{
+				yield return STA(i, Index.X);
+			}
+		}
+
 	    private IEnumerable<AssemblyLine> Ldarg(Instruction instruction) => LoadArgument(instruction);
 
 	    private IEnumerable<AssemblyLine> Ldarg_S(Instruction instruction) => LoadArgument(instruction);

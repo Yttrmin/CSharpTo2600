@@ -105,6 +105,7 @@ An incomplete list of supported features in no particular order.
 * :o: C#
   * :heavy_check_mark: `goto`
   * :heavy_check_mark: `unsafe`
+  * :heavy_check_mark: `default`
 * :o: CIL OpCodes
   * :o: Arithmetic
     * :heavy_check_mark: Addition (`add`, no overflow check)
@@ -136,8 +137,8 @@ An incomplete list of supported features in no particular order.
 	* :heavy_check_mark: Field (instance) (`stfld`)
 	* :x: Indirect (`stind.i`, `stind.i1`)
 	* :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
-  * :x: Miscellaneous Object Model
-    * :x: Initialize value type (`initobj`)
+  * :o: Miscellaneous Object Model
+    * :heavy_check_mark: Initialize value type (`initobj`)
 
 ### Building
 Load the solution into [Visual Studio Community 2017](https://www.visualstudio.com/) and it should build and run fine.

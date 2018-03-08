@@ -40,6 +40,10 @@ namespace Samples
 			
 			CompositeStruct.MultiByteStruct2.ValueA = 76;
 
+			SingleByteStruct = default;
+
+			CompositeStruct = default;
+
 			// This will cause an error due to multi-byte loads/stores.
 			// MultiByteStruct1 = MultiByteStruct2;
 		}
