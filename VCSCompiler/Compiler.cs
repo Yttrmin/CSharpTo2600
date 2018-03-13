@@ -235,8 +235,7 @@ namespace VCSCompiler
 			foreach(var subroutine in processedType.Subroutines)
 			{
 				Console.WriteLine($"Compiling {subroutine.FullName}");
-				dynamic providedImplementation = subroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(UseProvidedImplementationAttribute).FullName);
-				if (providedImplementation != null)
+				if (subroutine.TryGetFrameworkAttribute<UseProvidedImplementationAttribute>(out var providedImplementation))
 				{
 					var implementationDefinition = processedType.TypeDefinition.Methods.Single(m => m.Name == providedImplementation.ImplementationName);
 					var implementation = FrameworkAssembly.GetType(processedType.FullName, true).GetTypeInfo().GetMethod(implementationDefinition.Name, BindingFlags.Static | BindingFlags.NonPublic);
@@ -255,7 +254,7 @@ namespace VCSCompiler
 				}
 				Console.WriteLine("v  Compile  v");
 				IEnumerable<AssemblyLine> body;
-				if (subroutine.FrameworkAttributes.Any(a => a.GetType().FullName == typeof(IgnoreImplementationAttribute).FullName))
+				if (subroutine.TryGetFrameworkAttribute<IgnoreImplementationAttribute>(out _))
 				{
 					body = Enumerable.Empty<AssemblyLine>();
 					Console.WriteLine($"Skipping CIL compilation due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");

@@ -275,8 +275,7 @@ namespace VCSCompiler
 
 			// Check if this method should be replaced with a direct store to a symbol (generally a TIA register).
 			// Don't directly compare types since we may have received a different Framework assembly than what this library was built against.
-			dynamic overrideStore = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithStoreToSymbolAttribute).FullName);
-			if (overrideStore != null)
+			if (processedSubroutine.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
 			{
 				if (!overrideStore.Strobe)
 				{
@@ -291,9 +290,7 @@ namespace VCSCompiler
 				yield break;
 			}
 
-			// Check if this method should be replaced with a load to a 6502 register.
-			dynamic overrideRegisterLoad = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithLoadToRegisterAttribute).FullName);
-			if (overrideRegisterLoad != null)
+			if (processedSubroutine.TryGetFrameworkAttribute<OverrideWithLoadToRegisterAttribute>(out var overrideRegisterLoad))
 			{
 				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
 				if (method.Parameters.Count != 1)
@@ -301,7 +298,7 @@ namespace VCSCompiler
 					throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithLoadToRegisterAttribute)} must take 1 parameter.");
 				}
 				yield return PLA();
-				switch(overrideRegisterLoad.Register)
+				switch (overrideRegisterLoad.Register)
 				{
 					case "A":
 						break;
@@ -317,8 +314,7 @@ namespace VCSCompiler
 				yield break;
 			}
 
-			dynamic overrideLoad = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(OverrideWithLoadFromSymbolAttribute).FullName);
-			if (overrideLoad != null)
+			if (processedSubroutine.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
 			{
 				if (method.Parameters.Count != 0)
 				{
@@ -340,8 +336,7 @@ namespace VCSCompiler
 				}
 			}
 
-			dynamic alwaysInline = processedSubroutine.FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName);
-			if (alwaysInline != null)
+			if (processedSubroutine.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out _))
 			{
 				//TODO - Assuming the subroutine is already compiled is dangerous.
 				var compiledSubroutine = ((CompiledType)Types[method.DeclaringType.FullName]).Subroutines.Single(s => s.FullName == method.FullName);

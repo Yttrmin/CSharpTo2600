@@ -1,6 +1,7 @@
 ﻿using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace VCSCompiler
 {
@@ -33,6 +34,21 @@ namespace VCSCompiler
 			Parameters = parameters;
 			Locals = locals;
 			FrameworkAttributes = frameworkAttributes;
+		}
+
+		public bool TryGetFrameworkAttribute<T>(out T result) where T : Attribute
+		{
+			dynamic attribute = FrameworkAttributes.SingleOrDefault(a => a.GetType().FullName == typeof(T).FullName);
+			if (attribute != null)
+			{
+				result = AttributeReconstructor.ReconstructFrom<T>(attribute);
+				return true;
+			}
+			else
+			{
+				result = default;
+				return false;
+			}
 		}
 
 		public override string ToString() => $"{FullName} [Processed]";

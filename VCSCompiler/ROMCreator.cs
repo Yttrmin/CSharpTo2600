@@ -81,7 +81,7 @@ namespace VCSCompiler
 			foreach(var method in methods)
 			{
 				// Do not emit subroutines that will never be JSR'd.
-				if (method.FrameworkAttributes.Any(a => a.GetType().FullName == typeof(AlwaysInlineAttribute).FullName))
+				if (method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out _))
 				{
 					continue;
 				}

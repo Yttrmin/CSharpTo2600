@@ -14,6 +14,7 @@ namespace VCSCompiler
     {
 		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, IImmutableDictionary<string, ProcessedType> types)
 		{
+			// TODO - If this is the entry point, automatically initialize memory and invoke static constructor.
 			var instructionCompiler = new CilInstructionCompiler(definition, types);
 			var instructions = definition.Body.Instructions;
 			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions).ToArray();
