@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using VCSFramework;
+using static VCSFramework.Assembly.AssemblyFactory;
+using static VCSFramework.Registers;
 
 namespace Samples
 {
@@ -54,7 +54,32 @@ namespace Samples
 
 		public static void Main()
 		{
-
+		Start:
+			SEI();
+			CLD();
+			X = 0xFF;
+			TXS();
+			Memory.ClearMemory();
+		Initialize:
+			ColuBk = BGColor;
+			ColuPf = PFColor;
+			ColuP0 = P0Color;
+			ColuP1 = P1Color;
+			AudV0 = 0b00001111; // Crank the volume up.
+			AudV1 = 0b00001111;
+			AudF1 = 0b0000_0110;
+		PositionPaddles:
+			byte dummy = default;
+			WSync();
+			// ~22 Machine cycles of horizontal blank.
+			// First we do P0's paddle.
+			// TODO - We need to STA on the 24th cycle, this STAs on the 23rd.
+			dummy = 0;
+			dummy = 0;
+			dummy = 0;
+			dummy = 0;
+			ResP0();
+			// Now for P1's paddle
 		}
     }
 }
