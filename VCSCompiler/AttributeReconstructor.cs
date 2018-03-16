@@ -16,6 +16,8 @@ namespace VCSCompiler
 					return new AlwaysInlineAttribute();
 				case nameof(CompilerImplementedAttribute):
 					return new CompilerImplementedAttribute();
+				case nameof(CompileTimeExecutedMethodAttribute):
+					return new CompileTimeExecutedMethodAttribute(source.ImplementationName);
 				case nameof(IgnoreImplementationAttribute):
 					return new IgnoreImplementationAttribute();
 				case nameof(OverrideWithLoadFromSymbolAttribute):

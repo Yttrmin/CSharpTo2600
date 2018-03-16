@@ -73,11 +73,7 @@ namespace Samples
 			WSync();
 			// ~22 Machine cycles of horizontal blank.
 			// First we do P0's paddle.
-			// TODO - We need to STA on the 24th cycle, this STAs on the 23rd.
-			dummy = 0;
-			dummy = 0;
-			dummy = 0;
-			dummy = 0;
+			Timing.ConsumeCycles(21);
 			ResP0();
 			// Now for P1's paddle
 		}

@@ -261,7 +261,7 @@ namespace VCSCompiler
 				}
 				else
 				{
-					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary());
+					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary(), FrameworkAssembly);
 				}
 				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
