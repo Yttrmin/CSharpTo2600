@@ -92,7 +92,7 @@ namespace VCSCompiler
 				.Single(ti => ti.FullName == methodDefinition.DeclaringType.FullName)
 				.GetMethod(attribute.ImplementationName, BindingFlags.Static | BindingFlags.NonPublic);
 
-			var instructions = method.Invoke(null, arguments.ToArray());
+			var instructions = ((IEnumerable<AssemblyLine>)method.Invoke(null, arguments.ToArray())).ToArray();
 			throw new NotImplementedException();
 		}
 

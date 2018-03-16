@@ -69,7 +69,6 @@ namespace Samples
 			AudV1 = 0b00001111;
 			AudF1 = 0b0000_0110;
 		PositionPaddles:
-			byte dummy = default;
 			WSync();
 			// ~22 Machine cycles of horizontal blank.
 			// First we do P0's paddle.

@@ -134,6 +134,14 @@ namespace VCSFramework.Assembly
 		    return new AssemblyInstruction("BEQ", label, 4, 2);
 	    }
 
+		/// <summary>
+		/// Test BITs (3 cycles)
+		/// </summary>
+		public static AssemblyInstruction BIT(byte address)
+		{
+			return new AssemblyInstruction("BIT", $"${address.ToString("X2")}", 3, 2);
+		}
+
 	    /// <summary>
 	    /// Branch if Not Equal (2-4 cycles)
 	    /// </summary>
