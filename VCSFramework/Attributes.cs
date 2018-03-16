@@ -25,6 +25,24 @@ namespace VCSFramework
 	}
 
 	/// <summary>
+	/// Instructs the compiler to execute the method provided at <c>ImplementationName</c>
+	/// and replace the call site with the results of that execution.
+	/// The implementing method must return IEnumerable<AssemblyLine>.
+	/// The implementing method can take an arbitrary number of constant byte arguments.
+	/// </summary>
+	[DoNotCompile]
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+	public sealed class CompileTimeExecutedMethodAttribute : Attribute
+	{
+		public string ImplementationName { get; }
+
+		public CompileTimeExecutedMethodAttribute(string implementationName)
+		{
+			ImplementationName = implementationName;
+		}
+	}
+
+	/// <summary>
 	/// Instructs compiler not to compile the CIL body of this method.
 	/// Generally used in combination with another attribute to provide an implementation.
 	/// </summary>
