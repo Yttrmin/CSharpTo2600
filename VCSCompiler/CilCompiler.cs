@@ -21,21 +21,18 @@ namespace VCSCompiler
 			var compilationActions = ProcessInstructions(instructions, types, frameworkAssembly);
 			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions).ToArray();
 			var compiledBody = new List<AssemblyLine>();
-			// Iterate over Instruction::Next so we can rewrite instructions while processing.
-			for(var instruction = instructions.First(); instruction != null; instruction = instruction.Next)
+			var compilationContext = new CompilationContext(instructionCompiler);
+			foreach (var action in compilationActions)
 			{
-				Console.WriteLine($"{instruction}  -->");
-				if (instructionsToLabel.Contains(instruction))
+				var needLabel = action.ConsumedInstructions.Where(i => instructionsToLabel.Contains(i)).ToArray();
+				foreach (var toLabel in needLabel)
 				{
-					compiledBody.Add(AssemblyFactory.Label(LabelGenerator.GetFromInstruction(instruction)));
+					compiledBody.Add(AssemblyFactory.Label(LabelGenerator.GetFromInstruction(toLabel)));
 				}
-				var vcsInstructions = instructionCompiler.CompileInstruction(instruction).ToArray();
-				compiledBody.AddRange(vcsInstructions);
-				foreach(var vcsInstruction in vcsInstructions)
-				{
-					Console.WriteLine($"  {vcsInstruction}");
-				}
+
+				compiledBody.AddRange(action.Execute(compilationContext));
 			}
+
 			compiledBody = OptimizeMethod(compiledBody).ToList();
 			return compiledBody;
 		}
