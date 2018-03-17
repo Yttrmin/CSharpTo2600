@@ -74,7 +74,8 @@ namespace Samples
 			// First we do P0's paddle.
 			Timing.ConsumeCycles(21);
 			ResP0();
-			// Now for P1's paddle
+			Timing.ConsumeCycles(42);
+			ResP1();
 		}
     }
 }

@@ -13,19 +13,12 @@ namespace VCSCompiler
 {
     internal class CilCompiler
     {
-		private enum Command
-		{
-			None,
-			Compile,
-			Execute
-		}
-
 		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
 		{
 			// TODO - If this is the entry point, automatically initialize memory and invoke static constructor.
 			var instructionCompiler = new CilInstructionCompiler(definition, types);
 			var instructions = definition.Body.Instructions;
-			ProcessInstructions(instructions, types, frameworkAssembly);
+			var compilationActions = ProcessInstructions(instructions, types, frameworkAssembly);
 			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions).ToArray();
 			var compiledBody = new List<AssemblyLine>();
 			// Iterate over Instruction::Next so we can rewrite instructions while processing.
@@ -47,18 +40,28 @@ namespace VCSCompiler
 			return compiledBody;
 		}
 
-		private static void ProcessInstructions(IEnumerable<Instruction> instructions, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
+		private static IEnumerable<ICompilationAction> ProcessInstructions(IEnumerable<Instruction> instructions, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
 		{
-			var mutableInstructions = instructions.ToList();
-			var compileTimeExecutableCalls = mutableInstructions
-												.Where(i => i.OpCode == OpCodes.Call)
-												.Where(i => i.Operand is MethodReference)
-												.Where(i => IsCompileTimeExecutable((MethodReference)i.Operand));
+			var actions = new List<ICompilationAction>();
 
-			foreach(var q in compileTimeExecutableCalls)
+			foreach(var instruction in instructions.Reverse())
 			{
-				CreateExecuteCommand(q, types, frameworkAssembly);
+				if (actions.Any(a => a.ConsumedInstructions.Contains(instruction)))
+				{
+					continue;
+				}
+
+				if (instruction.OpCode == OpCodes.Call && IsCompileTimeExecutable((MethodReference)instruction.Operand))
+				{
+					actions.Add(CreateExecuteCommand(instruction, types, frameworkAssembly));
+				}
+				else
+				{
+					actions.Add(new CompileCompilationAction(instruction));
+				}
 			}
+
+			return ((IEnumerable<ICompilationAction>)actions).Reverse();
 
 			bool IsCompileTimeExecutable(MethodReference methodDefinition)
 			{
@@ -71,29 +74,14 @@ namespace VCSCompiler
 			}
 		}
 
-		private static (Instruction previous, Instruction next) CreateExecuteCommand(Instruction instruction, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
+		private static ICompilationAction CreateExecuteCommand(Instruction instruction, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
 		{
 			var nextInstruction = instruction.Next;
 			var methodDefinition = (MethodReference)instruction.Operand;
 			var processedType = types[methodDefinition.DeclaringType.FullName];
 			var processedSubroutine = processedType.Subroutines.Single(s => s.MethodDefinition.FullName == methodDefinition.FullName);
-			processedSubroutine.TryGetFrameworkAttribute<VCSFramework.CompileTimeExecutedMethodAttribute>(out var attribute);
 
-			var parameterCount = processedSubroutine.Parameters.Count;
-			var arguments = new List<object>();
-			var previousInstruction = instruction.Previous;
-			for(var i = 0; i < parameterCount; i++)
-			{
-				arguments.Add((Convert.ToByte(previousInstruction.Operand)));
-				previousInstruction = previousInstruction.Previous;
-			}
-
-			var method = frameworkAssembly.DefinedTypes
-				.Single(ti => ti.FullName == methodDefinition.DeclaringType.FullName)
-				.GetMethod(attribute.ImplementationName, BindingFlags.Static | BindingFlags.NonPublic);
-
-			var instructions = ((IEnumerable<AssemblyLine>)method.Invoke(null, arguments.ToArray())).ToArray();
-			throw new NotImplementedException();
+			return new ExecuteCompilationAction(instruction, processedSubroutine, frameworkAssembly);
 		}
 
 	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body)
