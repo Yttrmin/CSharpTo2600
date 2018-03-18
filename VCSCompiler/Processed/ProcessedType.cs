@@ -55,6 +55,23 @@ namespace VCSCompiler
 			ThisSize = size ?? Fields.Sum(pf => pf.FieldType.TotalSize);
 		}
 
+		public ProcessedType ReplaceSubroutine(ProcessedSubroutine oldSubroutine, CompiledSubroutine newSubroutine)
+		{
+			var finalSubroutines = new List<ProcessedSubroutine>(Subroutines);
+			var oldSubroutineToRemove = finalSubroutines.Single(s => s.MethodDefinition == oldSubroutine.MethodDefinition);
+			finalSubroutines.Remove(oldSubroutineToRemove);
+			finalSubroutines.Add(newSubroutine);
+
+			return new ProcessedType(
+				TypeDefinition,
+				BaseType,
+				Fields,
+				FieldOffsets,
+				finalSubroutines,
+				ThisSize,
+				AllowedAsLValue);
+		}
+
 		public override string ToString() => $"{FullName} [Processed]";
 	}
 }

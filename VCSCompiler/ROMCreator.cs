@@ -71,11 +71,11 @@ namespace VCSCompiler
 
 		private static IEnumerable<AssemblyLine> CreateMethods(CompiledProgram program)
 		{
-			var nodes = program.CallGraph.AllNodes().ToArray();
+			var nodes = program.CallGraph.AllNodes;
 			var methods = program.Types.SelectMany(t => t.Subroutines)
 				.Where(s => s != program.EntryPoint)
 				.Where(s => s.Body.Any()) // Don't emit empty methods.
-				.Where(s => nodes.Any(n => n.MethodDefinition == s.MethodDefinition)); // Don't emit methods that are never called.
+				.Where(s => nodes.Any(n => n.Value == s.MethodDefinition)); // Don't emit methods that are never called.
 			yield return Comment("Begin subroutine emit.", 0);
 			yield return BlankLine();
 			foreach(var method in methods)

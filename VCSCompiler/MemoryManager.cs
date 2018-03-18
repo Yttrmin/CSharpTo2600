@@ -26,16 +26,16 @@ namespace VCSCompiler
 
 	    private IEnumerable<Symbol> AllocateLocalAddresses(CallGraph callGraph)
 	    {
-		    foreach (var node in callGraph.AllNodes())
+		    foreach (var node in callGraph.AllNodes)
 		    {
-			    foreach (var parameter in node.MethodDefinition.Parameters)
+			    foreach (var parameter in node.Value.Parameters)
 			    {
 				    yield return DefineSymbol(LabelGenerator.GetFromParameter(parameter), NextGlobal);
 					AdvanceNextGlobal(1);
 			    }
-			    foreach (var local in node.MethodDefinition.Body.Variables)
+			    foreach (var local in node.Value.Body.Variables)
 			    {
-				    yield return DefineSymbol(LabelGenerator.GetFromVariable(node.MethodDefinition, local), NextGlobal);
+				    yield return DefineSymbol(LabelGenerator.GetFromVariable(node.Value, local), NextGlobal);
 					AdvanceNextGlobal(1);
 			    }
 		    }

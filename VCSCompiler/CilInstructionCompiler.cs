@@ -304,8 +304,12 @@ namespace VCSCompiler
 
 			if (processedSubroutine.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out _))
 			{
-				//TODO - Assuming the subroutine is already compiled is dangerous.
-				var compiledSubroutine = ((CompiledType)Types[method.DeclaringType.FullName]).Subroutines.Single(s => s.FullName == method.FullName);
+				var compiledSubroutine = Types[method.DeclaringType.FullName].Subroutines.Single(s => s.FullName == method.FullName) as CompiledSubroutine;
+				if (compiledSubroutine == null)
+				{
+					throw new FatalCompilationException($"Attempted to inline method '{processedSubroutine.Name}' that hasn't been compiled yet. This suggests a bug in determining method compilation order.");
+				}
+
 				foreach (var assemblyLine in compiledSubroutine.Body)
 				{
 					//TODO - If the subroutine contains labels you can end up emitting duplicates if the inline subroutine is called more than once. Make them unique.

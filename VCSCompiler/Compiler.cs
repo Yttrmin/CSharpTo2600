@@ -227,7 +227,8 @@ namespace VCSCompiler
 
 		private IEnumerable<CompiledType> CompileTypes(IEnumerable<ProcessedType> processedTypes)
 		{
-			foreach(var type in processedTypes)
+			// ToArray because we're going to be modifying the underlying Types dictionary.
+			foreach(var type in processedTypes.ToArray())
 			{
 				yield return CompileType(type);
 			}
@@ -276,6 +277,7 @@ namespace VCSCompiler
 
 				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
+				Types[processedType.FullName] = Types[processedType.FullName].ReplaceSubroutine(subroutine, compiledSubroutine);
 				Console.WriteLine($"{subroutine.FullName}, compilation finished");
 			}
 			return new CompiledType(processedType, compiledSubroutines);

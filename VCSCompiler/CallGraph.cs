@@ -8,69 +8,44 @@ using Mono.Cecil.Cil;
 
 namespace VCSCompiler
 {
-	internal sealed class CallGraph
+	internal sealed class CallGraph : Graph<MethodDefinition>
 	{
-		public Node Root { get; }
-
-		private CallGraph(Node root)
-		{
-			Root = root;
-		}
-
 		public static CallGraph CreateFromEntryMethod(ProcessedSubroutine entryPoint)
 		{
-			return new CallGraph(BuildNode(entryPoint.MethodDefinition));
-		}
+			var graph = new CallGraph();
+			graph.AddRootNode(entryPoint.MethodDefinition);
+			AddCalleesToGraph(entryPoint.MethodDefinition);
+			return graph;
 
-		public IEnumerable<Node> AllNodes()
-		{
-			ISet<Node> nodes = new HashSet<Node>();
-			nodes.Add(Root);
-			AddChildren(Root, nodes);
-			return nodes.OrderBy(n => n.MethodDefinition.DeclaringType.Name).ThenBy(n => n.MethodDefinition.Name);
-
-			void AddChildren(Node root, ISet<Node> nodeSet)
+			void AddCalleesToGraph(MethodDefinition method)
 			{
-				foreach (var child in root.Children)
+				var callees = method.Body.Instructions
+					.Where(i => i.OpCode == OpCodes.Call)
+					.Select(i => i.Operand)
+					.OfType<MethodDefinition>();
+
+				foreach (var callee in callees)
 				{
-					nodeSet.Add(child);
-					AddChildren(child, nodeSet);
+					graph.AddEdge(method, callee);
+					AddCalleesToGraph(callee);
 				}
 			}
 		}
 
-		public string Print()
+		public string Print(MethodDefinition start)
 		{
 			var stringBuilder = new StringBuilder();
-			PrintInternal(Root, stringBuilder, 0);
+			var rootNode = AllNodes.Single(n => n.Value == start);
+			PrintInternal(rootNode, stringBuilder, 0);
 			return stringBuilder.ToString();
 
-			void PrintInternal(Node node, StringBuilder builder, int indentLevel)
+			void PrintInternal(Node<MethodDefinition> node, StringBuilder builder, int indentLevel)
 			{
-				builder.AppendLine($"{new string('-', indentLevel)}{node.MethodDefinition.Name}");
-				foreach (var child in node.Children)
+				builder.AppendLine($"{new string('-', indentLevel)}{node.Value.Name}");
+				foreach (var child in node.Neighbors)
 				{
-					PrintInternal(child, builder, indentLevel+1);
+					PrintInternal(child, builder, indentLevel + 1);
 				}
-			}
-		}
-
-		private static Node BuildNode(MethodDefinition methodDefinition)
-		{
-			var calls = methodDefinition.Body.Instructions.Where(i => i.OpCode.Code == Code.Call).Where(i => i.Operand is MethodDefinition);
-			var children = calls.Select(call => BuildNode((MethodDefinition) call.Operand)).ToList();
-			return new Node(methodDefinition, children);
-		}
-
-		public class Node
-		{
-			public MethodDefinition MethodDefinition { get; }
-			public IEnumerable<Node> Children { get; }
-
-			public Node(MethodDefinition methodDefinition, IEnumerable<Node> children)
-			{
-				MethodDefinition = methodDefinition;
-				Children = children;
 			}
 		}
 	}
