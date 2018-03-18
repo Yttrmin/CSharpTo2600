@@ -53,7 +53,11 @@ namespace Samples
 
 		public static void Main()
 		{
-		Initialize:
+			Initialize();
+		}
+		
+		public static void Initialize()
+		{
 			ColuBk = BGColor;
 			ColuPf = PFColor;
 			ColuP0 = P0Color;
@@ -61,14 +65,27 @@ namespace Samples
 			AudV0 = 0b00001111; // Crank the volume up.
 			AudV1 = 0b00001111;
 			AudF1 = 0b0000_0110;
-		PositionPaddles:
+			PositionPaddles:
 			WSync();
 			// ~22 Machine cycles of horizontal blank.
 			// First we do P0's paddle.
 			Timing.ConsumeCycles(21);
 			ResP0();
+			// Now for P1's paddle...
 			Timing.ConsumeCycles(42);
 			ResP1();
+			// Now for more fine-tuned adjustments...
+			HMP1 = 0b0111_0000;
+			WSync();
+			HMove(); // Shift it 7 to the left...
+			HMP1 = 0b0001_0000;
+			WSync();
+			HMove(); // And 1 more to the left and perfect!
+			HmClr();
+			// This could probably be cleaned up without HMOVE, but never touch again. // TODO - Touch again.
+			YPosP0 = BallStartY;
+			YPosP1 = BallStartY;
+			YPosBall = BallStartY;
 		}
     }
 }
