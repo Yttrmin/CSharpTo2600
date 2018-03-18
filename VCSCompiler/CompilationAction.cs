@@ -69,7 +69,7 @@ namespace VCSCompiler
 
 		public IEnumerable<AssemblyLine> Execute(ICompilationContext context)
 		{
-			return (IEnumerable<AssemblyLine>)MethodInfo.Invoke(null, Arguments.CastArray<object>().ToArray());
+			return (IEnumerable<AssemblyLine>)MethodInfo.Invoke(null, Arguments.Cast<object>().ToArray());
 		}
 	}
 

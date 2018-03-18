@@ -15,7 +15,6 @@ namespace VCSCompiler
     {
 		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
 		{
-			// TODO - If this is the entry point, automatically initialize memory and invoke static constructor.
 			var instructionCompiler = new CilInstructionCompiler(definition, types);
 			var instructions = definition.Body.Instructions;
 			var compilationActions = ProcessInstructions(instructions, types, frameworkAssembly);
@@ -41,6 +40,10 @@ namespace VCSCompiler
 		{
 			var actions = new List<ICompilationAction>();
 
+			// We iterate over the instructions backwards since compile time executable methods have constants loaded
+			// prior to the actual call. We don't know they're meant for such a method until we hit the call instruction.
+			// Whereas when going backwards we hit the call first, and then can work out which constant loads to 
+			// avoid processing later on.
 			foreach(var instruction in instructions.Reverse())
 			{
 				if (actions.Any(a => a.ConsumedInstructions.Contains(instruction)))

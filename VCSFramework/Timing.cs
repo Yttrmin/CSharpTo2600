@@ -7,6 +7,12 @@ namespace VCSFramework
 {
 	public static class Timing
     {
+		/// <summary>
+		/// Emits instructions to consume the given number of cycles.
+		/// This call requires the parameter to be a constant. Attempting to pass a local variable, field,
+		/// property, or method return value will result in a compile-time error.
+		/// </summary>
+		/// <param name="cycleCount">A compile-time constant indicating how many cycles to consume.</param>
 		[CompileTimeExecutedMethod(nameof(ConsumeCyclesInternal))]
 		public static void ConsumeCycles(byte cycleCount)
 		{
@@ -16,6 +22,7 @@ namespace VCSFramework
 		[DoNotCompile]
 		internal static IEnumerable<AssemblyLine> ConsumeCyclesInternal(byte cycleCount)
 		{
+			// TODO - There are other instructions that take up only 2 bytes and consume more than 3 cycles.
 			if (cycleCount == 0)
 			{
 				yield break;

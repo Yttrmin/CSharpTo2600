@@ -1,5 +1,4 @@
 ﻿using VCSFramework;
-using static VCSFramework.Assembly.AssemblyFactory;
 using static VCSFramework.Registers;
 
 namespace Samples
@@ -54,12 +53,6 @@ namespace Samples
 
 		public static void Main()
 		{
-		Start:
-			SEI();
-			CLD();
-			X = 0xFF;
-			TXS();
-			Memory.ClearMemory();
 		Initialize:
 			ColuBk = BGColor;
 			ColuPf = PFColor;
