@@ -10,6 +10,7 @@ using System.Collections.Immutable;
 using VCSFramework;
 using Mono.Cecil.Cil;
 using VCSFramework.Assembly;
+using static VCSFramework.Assembly.AssemblyFactory;
 
 namespace VCSCompiler
 {
@@ -17,12 +18,14 @@ namespace VCSCompiler
     {
 		private readonly IDictionary<string, ProcessedType> Types;
 		private readonly Assembly FrameworkAssembly;
+		private readonly AssemblyDefinition UserAssemblyDefinition;
 		private readonly IEnumerable<Type> FrameworkAttributes;
 
-		private Compiler(Assembly frameworkAssembly, IEnumerable<Type> frameworkAttributes)
+		private Compiler(Assembly frameworkAssembly, AssemblyDefinition userAssemblyDefinition, IEnumerable<Type> frameworkAttributes)
 		{
 			Types = new Dictionary<string, ProcessedType>();
 			FrameworkAssembly = frameworkAssembly;
+			UserAssemblyDefinition = userAssemblyDefinition;
 			FrameworkAttributes = frameworkAttributes;
 		}
 
@@ -65,7 +68,7 @@ namespace VCSCompiler
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
-			var compiler = new Compiler(frameworkAssembly, frameworkAttributes.ToArray());
+			var compiler = new Compiler(frameworkAssembly, assemblyDefinition, frameworkAttributes.ToArray());
 			compiler.AddPredefinedTypes();
 			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
 			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
@@ -206,6 +209,7 @@ namespace VCSCompiler
 				return new ProcessedSubroutine(
 					method,
 					controlFlowGraph,
+					method == UserAssemblyDefinition.EntryPoint,
 					Types[method.ReturnType.FullName], 
 					parameters,
 					locals,
@@ -263,11 +267,37 @@ namespace VCSCompiler
 				{
 					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary());
 				}
+
+				if (subroutine.IsEntryPoint)
+				{
+					Console.WriteLine("Injecting entry point code.");
+					body = GetEntryPointPrependedCode().Concat(body);
+				}
+
 				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
 				Console.WriteLine($"{subroutine.FullName}, compilation finished");
 			}
 			return new CompiledType(processedType, compiledSubroutines);
 		}
-    }
+
+		private IEnumerable<AssemblyLine> GetEntryPointPrependedCode()
+		{
+			yield return Comment("Begin injected entry point code.");
+
+			// Clear processor flags, intialize stack pointer to 0xFF.
+			yield return SEI();
+			yield return CLD();
+			yield return LDX(0xFF);
+			yield return TXS();
+
+			// Initialize all memory to 0s (and skip RTS).
+			var clearMemoryLines = Memory.ClearMemoryInternal().ToArray();
+			foreach (var line in clearMemoryLines.Take(clearMemoryLines.Length - 1))
+			{
+				yield return line;
+			}
+			yield return Comment("End injected entry point code.");
+		}
+	}
 }
