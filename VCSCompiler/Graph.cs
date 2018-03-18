@@ -6,7 +6,68 @@ using System.Collections.Immutable;
 
 namespace VCSCompiler
 {
+	/// <summary>
+	/// An immutable directed acyclic graph.
+	/// </summary>
+	internal class ImmutableGraph<T> where T: class
+	{
+		private readonly IImmutableSet<T> Nodes;
+		private readonly IImmutableDictionary<T, IImmutableSet<T>> Edges;
+
+		public static ImmutableGraph<T> Empty { get; } = new ImmutableGraph<T>(ImmutableHashSet<T>.Empty, ImmutableDictionary<T, IImmutableSet<T>>.Empty);
+
+		private ImmutableGraph(IImmutableSet<T> nodes, IImmutableDictionary<T, IImmutableSet<T>> edges)
+		{
+			Nodes = nodes;
+			Edges = edges;
+		}
+
+		public ImmutableGraph<T> AddNode(T node)
+		{
+			if (Nodes.Contains(node))
+			{
+				throw new ArgumentException($"Graph already contains node: {node}");
+			}
+
+			var newNodes = Nodes.Add(node);
+			return new ImmutableGraph<T>(newNodes, Edges);
+		}
+
+		public ImmutableGraph<T> AddEdge(T from, T to)
+		{
+			if (!Nodes.Contains(from))
+			{
+				throw new ArgumentException($"From node: '{from}' not in graph.");
+			}
+			if (!Nodes.Contains(to))
+			{
+				throw new ArgumentException($"To node: '{to}' not in graph.");
+			}
+
+			var newEdges = ImmutableDictionary.CreateBuilder<T, IImmutableSet<T>>();
+			newEdges.AddRange(Edges);
+			if (!newEdges.TryGetKey(from, out _))
+			{
+				newEdges.Add(from, ImmutableHashSet<T>.Empty);
+			}
+
+			newEdges[from] = newEdges[from].Add(to);
+
+			return new ImmutableGraph<T>(Nodes, newEdges.ToImmutable());
+		}
+
+		public IEnumerable<T> GetNeighbors(T node)
+		{
+			if (Edges.TryGetValue(node, out var edges))
+			{
+				return edges;
+			}
+			return Enumerable.Empty<T>();
+		}
+	}
+
 	// TODO - Make immutable or at least provide an immutable interface.
+	[Obsolete("Use ImmutableGraph")]
     internal class Graph<T> where T: class
     {
 		private IList<Node<T>> Nodes = new List<Node<T>>();
@@ -40,6 +101,7 @@ namespace VCSCompiler
 		}
     }
 
+	[Obsolete("Use ImmutableGraph")]
 	// TODO - Make immutable or at least provide an immutable interface.
 	internal class Node<T>
 	{
