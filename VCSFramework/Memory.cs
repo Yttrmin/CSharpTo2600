@@ -28,7 +28,7 @@ namespace VCSFramework
 		}
 
 		[DoNotCompile]
-		private static IEnumerable<AssemblyLine> ClearMemoryInternal()
+		internal static IEnumerable<AssemblyLine> ClearMemoryInternal()
 		{
 			yield return LDA(0);
 			yield return LDX(0xFF);

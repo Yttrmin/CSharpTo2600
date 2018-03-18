@@ -63,30 +63,6 @@ namespace VCSCompiler
 			return dictionary.ToImmutableDictionary();
 		}
 
-	    private bool TryInlineAssemblyCall(Instruction instruction, out IEnumerable<AssemblyLine> assembly)
-	    {
-		    var methodReference = instruction.Operand as MethodReference;
-		    var isFactoryCall = methodReference?.FullName.StartsWith("VCSFramework.Assembly.AssemblyInstruction VCSFramework.Assembly.AssemblyFactory::");
-		    if (methodReference != null && isFactoryCall.Value)
-		    {
-			    if (!methodReference.Parameters.Any())
-			    {
-				    // Skip the pop that follows.
-				    instruction.Next = instruction.Next.Next;
-				    var assemblyMethod = typeof(AssemblyFactory).GetTypeInfo().DeclaredMethods.Single(m => m.Name == methodReference.Name);
-				    assembly = new[] { (AssemblyInstruction)assemblyMethod.Invoke(null, null) };
-				    Console.WriteLine($"{instruction} is an inline assembly call, emitting {assemblyMethod.Name} instead, erasing Pop");
-				    return true;
-			    }
-			    else
-			    {
-				    throw new NotImplementedException($"Can't process inline assembly call '{methodReference.Name}', it must take 0 parameters.");
-			    }
-		    }
-		    assembly = Enumerable.Empty<AssemblyLine>();
-		    return false;
-	    }
-
 	    private IEnumerable<AssemblyLine> LoadArgument(Instruction instruction)
 	    {
 		    if (instruction.Operand != null)
@@ -260,17 +236,7 @@ namespace VCSCompiler
 			// Could be either a MethodDefinition or MethodReference.
 			MethodReference method = (MethodReference)instruction.Operand;
 
-			var methodDeclaringType = (string)method.DeclaringType.FullName;
-			
-			if (TryInlineAssemblyCall(instruction, out var inlineAssembly))
-			{
-				foreach(var assembly in inlineAssembly)
-				{
-					yield return assembly;
-				}
-				yield break;
-			}
-
+			var methodDeclaringType = method.DeclaringType.FullName;
 			var processedSubroutine = Types[methodDeclaringType].Subroutines.Single(s => s.FullName == method.FullName);
 
 			// Check if this method should be replaced with a direct store to a symbol (generally a TIA register).

@@ -1,5 +1,4 @@
 ﻿using static VCSFramework.Registers;
-using static VCSFramework.Assembly.AssemblyFactory;
 using static VCSFramework.Memory;
 
 static class Evolving
@@ -9,12 +8,6 @@ static class Evolving
 
 	public static void Main()
 	{
-		SEI();
-		CLD();
-		X = 0xFF;
-		TXS();
-		ClearMemory();
-		NOP();
 		byte backgroundColor = 0;
 		MainLoop:
 		// Vertical blank.
