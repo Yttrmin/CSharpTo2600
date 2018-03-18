@@ -3,7 +3,7 @@
 namespace VCSFramework.Assembly
 {
 	[DoNotCompile]
-    public static class AssemblyFactory
+    internal static class AssemblyFactory
     {
         #region Trivia
         public static Trivia Comment(string Comment, int IndentationLevel = 1)

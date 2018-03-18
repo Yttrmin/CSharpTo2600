@@ -97,7 +97,7 @@ An incomplete list of supported features in no particular order.
 	* :heavy_check_mark: `void` return
 	* :x: Non-`void` return
 * :o: Inline Assembly
-  * :heavy_check_mark: Implied address mode inline assembly (`TXS`, `SEI`, etc)
+  * :x: Implied address mode inline assembly (`TXS`, `SEI`, etc)
   * :heavy_check_mark: Write-only `A`/`X`/`Y` registers
 * :o: Optimizations
   * :heavy_check_mark: Redundant `PHA`/`PLA` removal
