@@ -56,6 +56,7 @@ namespace Samples
 			Initialize();
 		}
 		
+		[AlwaysInline]
 		public static void Initialize()
 		{
 			ColuBk = BGColor;
@@ -65,7 +66,7 @@ namespace Samples
 			AudV0 = 0b00001111; // Crank the volume up.
 			AudV1 = 0b00001111;
 			AudF1 = 0b0000_0110;
-			PositionPaddles:
+			// Position paddles:
 			WSync();
 			// ~22 Machine cycles of horizontal blank.
 			// First we do P0's paddle.
@@ -86,6 +87,13 @@ namespace Samples
 			YPosP0 = BallStartY;
 			YPosP1 = BallStartY;
 			YPosBall = BallStartY;
+
+			ResetBall();
+		}
+		
+		public static void ResetBall()
+		{
+
 		}
     }
 }
