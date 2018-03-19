@@ -11,8 +11,8 @@ namespace VCSCompiler
     {
 		public new IImmutableList<CompiledSubroutine> Subroutines => base.Subroutines.Cast<CompiledSubroutine>().ToImmutableList();
 
-		public CompiledType(ProcessedType processedType, IEnumerable<CompiledSubroutine> compiledSubroutines)
-			: base(processedType, compiledSubroutines.ToImmutableList())
+		public CompiledType(ProcessedType processedType, IImmutableList<CompiledSubroutine> compiledSubroutines)
+			: base(processedType, compiledSubroutines)
 		{
 			if (compiledSubroutines.Count() != processedType.Subroutines.Count())
 			{
