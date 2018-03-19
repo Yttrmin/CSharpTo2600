@@ -88,6 +88,7 @@ namespace VCSCompiler
 			// TODO - Pass immutable copies of Types around instead of all mutating the field?
 			compiler.ProcessTypes(types);
 			// TODO - Do the above so we don't have to ToArray() to get around the fact we modify Types.
+			// TODO - Come up with determinate order to compile types in, they could have dependencies between each other.
 			var compiledTypes = compiler.CompileTypes(compiler.Types.Values.Where(x => x.GetType() == typeof(ProcessedType))).ToArray();
 			foreach(var compiledType in compiledTypes.Select(t => (FullName: t.FullName, Type: t)))
 			{
@@ -131,23 +132,23 @@ namespace VCSCompiler
 			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name)).ToImmutableArray();
 
 			var objectType = types.Single(x => x.Name == "Object");
-			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
+			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[objectType.FullName] = objectCompiled;
 
 			var valueType = types.Single(x => x.Name == "ValueType");
-			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
+			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[valueType.FullName] = valueTypeCompiled;
 
 			var voidType = types.Single(x => x.Name == "Void");
-			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 0), Enumerable.Empty<CompiledSubroutine>());
+			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 0), Enumerable.Empty<CompiledSubroutine>());
 			Types[voidType.FullName] = voidCompiled;
 
 			var byteType = types.Single(x => x.Name == "Byte");
-			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
+			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 1), Enumerable.Empty<CompiledSubroutine>());
 			Types[byteType.FullName] = byteCompiled;
 
 			var boolType = types.Single(x => x.Name == "Boolean");
-			var boolCompiled = new CompiledType(new ProcessedType(boolType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, Enumerable.Empty<ProcessedSubroutine>(), 1), Enumerable.Empty<CompiledSubroutine>());
+			var boolCompiled = new CompiledType(new ProcessedType(boolType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 1), Enumerable.Empty<CompiledSubroutine>());
 			Types[boolType.FullName] = boolCompiled;
 		}
 
@@ -178,7 +179,7 @@ namespace VCSCompiler
 
 			var baseType = Types[typeDefinition.BaseType.FullName];
 
-			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines);
+			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines.ToImmutableList());
 
 			ProcessedField ProcessField(FieldDefinition field)
 			{
@@ -237,7 +238,9 @@ namespace VCSCompiler
 		private CompiledType CompileType(ProcessedType processedType)
 		{
 			var compiledSubroutines = new List<CompiledSubroutine>();
-			foreach(var subroutine in processedType.Subroutines)
+			var callGraph = CreateCallGraph(processedType);
+			var compilationOrder = callGraph.TopologicalSort();
+			foreach(var subroutine in compilationOrder)
 			{
 				Console.WriteLine($"Compiling {subroutine.FullName}");
 				if (subroutine.TryGetFrameworkAttribute<UseProvidedImplementationAttribute>(out var providedImplementation))
@@ -281,6 +284,33 @@ namespace VCSCompiler
 				Console.WriteLine($"{subroutine.FullName}, compilation finished");
 			}
 			return new CompiledType(processedType, compiledSubroutines);
+		}
+
+		private ImmutableGraph<ProcessedSubroutine> CreateCallGraph(ProcessedType processedType)
+		{
+			var graph = ImmutableGraph<ProcessedSubroutine>.Empty;
+
+			foreach (var subroutine in processedType.Subroutines)
+			{
+				graph = graph.AddNode(subroutine);
+			}
+
+			foreach (var subroutine in processedType.Subroutines)
+			{
+				var calls = subroutine.MethodDefinition.Body.Instructions
+								.Where(i => i.OpCode == OpCodes.Call)
+								.Select(i => i.Operand)
+								.OfType<MethodDefinition>()
+								.Where(md => processedType.Subroutines.Any(s => s.MethodDefinition == md))
+								.Select(md => processedType.Subroutines.Single(s => s.MethodDefinition == md));
+
+				foreach (var call in calls)
+				{
+					graph = graph.AddEdge(subroutine, call);
+				}
+			}
+
+			return graph;
 		}
 
 		private IEnumerable<AssemblyLine> GetEntryPointPrependedCode()

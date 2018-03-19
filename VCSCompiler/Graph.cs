@@ -64,6 +64,44 @@ namespace VCSCompiler
 			}
 			return Enumerable.Empty<T>();
 		}
+
+		public IEnumerable<T> TopologicalSort()
+		{
+			var result = new List<T>();
+			var visitingList = new List<T>();
+
+			foreach (var node in Nodes)
+			{
+				if (!result.Contains(node))
+				{
+					Visit(node);
+				}
+			}
+
+			return result;
+
+			void Visit(T visitingNode)
+			{
+				if (result.Contains(visitingNode))
+				{
+					return;
+				}
+
+				if (visitingList.Contains(visitingNode))
+				{
+					throw new InvalidOperationException($"Node '{visitingNode}' was reached while searching through children, the graph is not acyclic.");
+				}
+				visitingList.Add(visitingNode);
+
+				foreach (var neighbor in GetNeighbors(visitingNode))
+				{
+					Visit(neighbor);
+				}
+
+				result.Add(visitingNode);
+				visitingList.Remove(visitingNode);
+			}
+		}
 	}
 
 	// TODO - Make immutable or at least provide an immutable interface.

@@ -3,15 +3,16 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using System.Collections.Immutable;
 
 namespace VCSCompiler
 {
     internal sealed class CompiledType : ProcessedType
     {
-		public new IEnumerable<CompiledSubroutine> Subroutines => (IEnumerable<CompiledSubroutine>)base.Subroutines;
+		public new IImmutableList<CompiledSubroutine> Subroutines => base.Subroutines.Cast<CompiledSubroutine>().ToImmutableList();
 
 		public CompiledType(ProcessedType processedType, IEnumerable<CompiledSubroutine> compiledSubroutines)
-			: base(processedType, compiledSubroutines)
+			: base(processedType, compiledSubroutines.ToImmutableList())
 		{
 			if (compiledSubroutines.Count() != processedType.Subroutines.Count())
 			{

@@ -17,7 +17,7 @@ namespace VCSCompiler
 		/// Instance field byte offsets.
 		/// </summary>
 		public IImmutableDictionary<ProcessedField, byte> FieldOffsets;
-		public IEnumerable<ProcessedSubroutine> Subroutines { get; }
+		public IImmutableList<ProcessedSubroutine> Subroutines { get; }
 		/// <summary>
 		/// Total size in bytes of an instance of this type.
 		/// </summary>
@@ -33,8 +33,8 @@ namespace VCSCompiler
 		public bool AllowedAsLValue { get; }
 		public bool SystemType => TypeDefinition.Namespace.StartsWith("System");
 
-		protected ProcessedType(ProcessedType processedType, IEnumerable<CompiledSubroutine> compiledSubroutines)
-			: this(processedType.TypeDefinition, processedType.BaseType, processedType.Fields, processedType.FieldOffsets, compiledSubroutines, processedType.ThisSize, processedType.AllowedAsLValue)
+		protected ProcessedType(ProcessedType processedType, IImmutableList<CompiledSubroutine> compiledSubroutines)
+			: this(processedType.TypeDefinition, processedType.BaseType, processedType.Fields, processedType.FieldOffsets, compiledSubroutines.Cast<ProcessedSubroutine>().ToImmutableList(), processedType.ThisSize, processedType.AllowedAsLValue)
 		{ }
 
 		public ProcessedType(
@@ -42,7 +42,7 @@ namespace VCSCompiler
 			ProcessedType baseType,
 			IEnumerable<ProcessedField> fields,
 			IImmutableDictionary<ProcessedField, byte> fieldOffsets,
-			IEnumerable<ProcessedSubroutine> subroutines, 
+			IImmutableList<ProcessedSubroutine> subroutines, 
 			int? size = null, 
 			bool allowedAsLValue = true)
 		{
@@ -67,7 +67,7 @@ namespace VCSCompiler
 				BaseType,
 				Fields,
 				FieldOffsets,
-				finalSubroutines,
+				finalSubroutines.ToImmutableList(),
 				ThisSize,
 				AllowedAsLValue);
 		}
