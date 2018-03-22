@@ -11,62 +11,64 @@ The current goal is to add all the features needed for me to port my [attempt at
 
 ### Example
 There's no collection of samples yet since they may quickly become obsolete. 
-Below is an example of how you could, at the time of writing, write a program to cycle through the NTSC background colors. 
+Below is an example of how you could, at the time of writing, write a [program to cycle through the NTSC background colors](./Samples/NtscBackgroundColorsSample.cs). 
 See the [Features](#features) section below for a more complete list of features.
 
 ```csharp
 using static VCSFramework.Registers;
-using static VCSFramework.Assembly.AssemblyFactory;
-using static VCSFramework.Memory;
 
-static class CycleBackgroundExample
+namespace Samples
 {
-    public static void Main()
+    public static class NtscBackgroundColorsSample
     {
-        SEI();                    // Inline assembly for implied addressing instructions.
-        CLD();
-        X = 0xFF;                 // Write access to A/X/Y registers.
-        TXS();
-        ClearMemory();            // Call methods implemented by the framework.
-        byte backgroundColor = 0; // Local variable support.
-    MainLoop:
-        // Vertical blank.
-        VSync = 0b10;
-        WSync();                  // TIA strobe registers implemented as method calls.
-        WSync();
-        WSync();
-        Tim64T = 43;
-        VSync = 0;                // TIA write-only registers implemented as setter-only properties.
+        private static byte BackgroundColor; // Support for static fields.
 
-        backgroundColor += 2;
-        ColuBk = backgroundColor;
-
-        // Wait for VBlank end.
-        while (InTim != 0) ;      // RIOT read-only registers implemented as getter-only properties.
-
-        WSync();
-        VBlank = 0;
-
-        // Visible image.
-        byte lines = 191;
-        while (lines != 0)        // While loops and support for some comparisons.
+        public static void Main()
         {
-            lines--;
+            // Processor and memory initialization code is automatically injected by the compiler into
+            // the program's entry point, so there's no need to manually do it.
+        MainLoop:
+            // Perform vertical sync.
+            // This is the same logic that would be used in 6502 assembly as well.
+            VSync = 0b10; // TIA write-only registers implemented as setter-only properties.
+            WSync(); // TIA strobe registers implemented as methods.
             WSync();
-        }
-        
-        WSync();
-        VBlank = 0b10;
+            WSync();
+            Tim64T = 43;
+            VSync = 0;
 
-        // Overscan.
-        lines = 30;
-        while (lines != 0)
-        {
-            lines--;
+            // Actual logic to increment and set the background color every frame.
+            // The least significant bit is unused, so incrementing by 1 instead of 2 slows the flashing down.
+            BackgroundColor++;
+            ColuBk = BackgroundColor;
+
+            // Kill time until the vertical blank period is over.
+            while (InTim != 0) ; // PIA read-only registers implemented as getter-only properties.
+
             WSync();
+            VBlank = 0;
+
+            // Visible image
+            byte lines = 191; // Local variable support.
+            while (lines != 0) // Support for while loops and some comparisons.
+            {
+                lines--;
+                WSync();
+            }
+            
+            WSync();
+            VBlank = 0b10;
+
+            // Overscan
+            lines = 30;
+            while (lines != 0)
+            {
+                lines--;
+                WSync();
+            }
+
+            goto MainLoop; // goto support!
         }
-        
-        goto MainLoop;            // goto support!
     }
 }
 ```
