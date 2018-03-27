@@ -41,6 +41,7 @@ namespace Samples
 		private static byte BallEnabled;
 		private static byte YVelBall;
 		private static byte XVelBall;
+		private static byte XPosBall;
 		private static byte DeltaP0;
 		private static byte DeltaP1;
 		private static byte VolleyCount;
@@ -93,7 +94,12 @@ namespace Samples
 		
 		public static void ResetBall()
 		{
-
+			WSync();
+			Timing.ConsumeCycles(45);
+			ResBl();
+			XPosBall = BallStartX;
+			YPosBall = BallStartY;
+			// TODO - Implement starting Y-velocity table.
 		}
     }
 }
