@@ -42,7 +42,7 @@ namespace VCSCompiler
 			return await CompileFromFiles(new[] { tempFileName }, frameworkPath, dasmPath);
 		}
 
-		public static async Task<RomInfo> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
+		public static Task<RomInfo> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
 		{
 			if (filePaths == null)
 			{
@@ -64,7 +64,7 @@ namespace VCSCompiler
 
 			// TODO - No DASM path should mean the caller just wants the assembly output, not a compiled binary.
 
-			var compilation = await CompilationCreator.CreateFromFilePaths(filePaths);
+			var compilation = CompilationCreator.CreateFromFilePaths(filePaths);
 			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
@@ -75,7 +75,7 @@ namespace VCSCompiler
 			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
 			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
 			var romInfo = RomCreator.CreateRom(program, dasmPath);
-			return romInfo;
+			return Task.FromResult(romInfo);
 		}
 
 		private static CompiledAssembly CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
