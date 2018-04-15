@@ -47,7 +47,7 @@ namespace VCSCompiler
 		{
 			var fileText = File.ReadAllText(filename);
 			var sourceText = SourceText.From(fileText);
-			return SyntaxFactory.ParseSyntaxTree(sourceText, CSharpParseOptions.Default, filename);
+			return SyntaxFactory.ParseSyntaxTree(sourceText, new CSharpParseOptions(LanguageVersion.Latest), filename);
 		}
     }
 }

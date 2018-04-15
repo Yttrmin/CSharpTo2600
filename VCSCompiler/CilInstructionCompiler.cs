@@ -433,13 +433,19 @@ namespace VCSCompiler
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 
 			var (_, processedField) = GetProcessedInfo(fieldDefinition);
-			if (processedField.FieldType.TotalSize != 1)
-			{
-				throw new FatalCompilationException($"Only single-byte loads are currently supported, can not load '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
-			}
 
-			yield return LDA(LabelGenerator.GetFromField(fieldDefinition));
-			yield return PHA();
+			if (processedField.FieldType.TotalSize == 1)
+			{
+				yield return LDA(LabelGenerator.GetFromField(fieldDefinition));
+				yield return PHA();
+				yield break;
+			}
+			
+			for (var i = 0; i < processedField.FieldType.TotalSize; i++)
+			{
+				yield return LDA(LabelGenerator.GetFromField(fieldDefinition), i);
+				yield return PHA();
+			}
 		}
 
 		private IEnumerable<AssemblyLine> Ldsflda(Instruction instruction)
@@ -489,17 +495,22 @@ namespace VCSCompiler
 
 		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
 		{
-			yield return PLA();
-
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 
 			var (_, processedField) = GetProcessedInfo(fieldDefinition);
-			if (processedField.FieldType.TotalSize != 1)
-			{
-				throw new FatalCompilationException($"Only single-byte stores are currently supported, can not store to '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
-			}
 
-			yield return STA(LabelGenerator.GetFromField(fieldDefinition));
+			if (processedField.FieldType.TotalSize == 1)
+			{
+				yield return PLA();
+				yield return STA(LabelGenerator.GetFromField(fieldDefinition));
+				yield break;
+			}
+			
+			for (var i = processedField.FieldType.TotalSize - 1; i >= 0; i--)
+			{
+				yield return PLA();
+				yield return STA(LabelGenerator.GetFromField(fieldDefinition), i);
+			}
 		}
 
 	    private IEnumerable<AssemblyLine> Sub(Instruction instruction)

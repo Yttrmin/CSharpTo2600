@@ -85,8 +85,8 @@ An incomplete list of supported features in no particular order.
 * :o: Custom Types
   * :o: Value Types
     * :heavy_check_mark: Single-byte types
-	* :o: Multi-byte types `(can't load/store whole object)`
-	* :x: Composite types (struct-in-struct) `(can't access member structs + can't load/store whole object)`
+	* :o: Multi-byte types
+	* :x: Composite types (struct-in-struct) `(can't access member structs)`
   * :o: Reference Types
     * :heavy_check_mark: Static reference types
     * :x: Instance reference types

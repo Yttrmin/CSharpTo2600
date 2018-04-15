@@ -32,7 +32,7 @@ namespace VCSCompiler
 		public static ControlFlowGraph Build(MethodDefinition method)
 		{
 			var leaders = new List<Instruction>();
-			var graph = new Graph<BasicBlock>();
+			var graph = ImmutableGraph<BasicBlock>.Empty;
 
 			foreach(var instruction in method.Body.Instructions)
 			{
@@ -83,10 +83,10 @@ namespace VCSCompiler
 			var finalInstructions = method.Body.Instructions.Skip(finalStart);
 			blocks.Add(new BasicBlock(finalInstructions));
 
-			graph.AddRootNode(blocks[0]);
+			graph = graph.AddNode(blocks[0]);
 			if (blocks[0].Instructions.Last().Operand is Instruction target)
 			{
-				graph.AddEdge(blocks[0], blocks.Single(bb => bb.Instructions.First() == target));
+				graph = graph.AddEdge(blocks[0], blocks.Single(bb => bb.Instructions.First() == target));
 			}
 			for (var i = 1; i < blocks.Count; i++)
 			{
@@ -95,12 +95,12 @@ namespace VCSCompiler
 
 				if (currentBlock.Instructions[0].Previous == previousBlock.Instructions.Last())
 				{
-					graph.AddEdge(previousBlock, currentBlock);
+					graph = graph.AddEdge(previousBlock, currentBlock);
 				}
 
 				if (currentBlock.Instructions.Last().Operand is Instruction targetInstruction)
 				{
-					graph.AddEdge(currentBlock, blocks.Single(bb => bb.Instructions.First() == targetInstruction));
+					graph = graph.AddEdge(currentBlock, blocks.Single(bb => bb.Instructions.First() == targetInstruction));
 				}
 			}
 
@@ -110,10 +110,9 @@ namespace VCSCompiler
 
 	internal class ControlFlowGraph
 	{
-		private readonly Graph<BasicBlock> Graph;
-		public IEnumerable<BasicBlock> AllBasicBlocks => Graph.AllNodes.Select(n => n.Value);
+		public ImmutableGraph<BasicBlock> Graph { get; }
 
-		public ControlFlowGraph(Graph<BasicBlock> graph)
+		public ControlFlowGraph(ImmutableGraph<BasicBlock> graph)
 		{
 			Graph = graph;
 		}
