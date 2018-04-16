@@ -33,8 +33,7 @@ namespace Samples
 
 		public static void Main()
 		{
-			MultiByteStructB = MultiByteStructA;
-			CompositeStructB = CompositeStructA;
+			CompositeStructB.MultiByteStruct1 = CompositeStructB.MultiByteStruct2;
 		}
 
 		/*public static void Main()

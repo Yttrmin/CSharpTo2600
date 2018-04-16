@@ -397,19 +397,17 @@ namespace VCSCompiler
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 
 			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
-			if (processedField.FieldType.TotalSize != 1)
-			{
-				throw new FatalCompilationException($"Only single-byte loads are currently supported, can not load '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
-			}
 
 			// Put address of instance in X.
 			yield return PLA();
 			yield return TAX();
 
-			var byteOffset = containingType.FieldOffsets[processedField];
-
-			yield return LDA(byteOffset, Index.X);
-			yield return PHA();
+			for (var i = 0; i < processedField.FieldType.TotalSize; i++)
+			{
+				var byteOffset = (byte)(containingType.FieldOffsets[processedField] + i);
+				yield return LDA(byteOffset, Index.X);
+				yield return PHA();
+			}
 		}
 
 		private IEnumerable<AssemblyLine> Ldflda(Instruction instruction)
@@ -475,22 +473,25 @@ namespace VCSCompiler
 			var fieldDefinition = (FieldDefinition)instruction.Operand;
 
 			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
-			if (processedField.FieldType.TotalSize != 1)
-			{
-				throw new FatalCompilationException($"Only single-byte stores are currently supported, can not store to '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
-			}
 
 			var byteOffset = containingType.FieldOffsets[processedField];
 
-			// Put value to store in X.
-			yield return PLA();
-			yield return TAX();
+			if (processedField.FieldType.TotalSize == 1)
+			{
+				// Put value to store in X.
+				yield return PLA();
+				yield return TAX();
 
-			// Put address of containing object in Y.
-			yield return PLA();
-			yield return TAY();
-
-			yield return STX(byteOffset, Index.Y);
+				// Put address of containing object in Y.
+				yield return PLA();
+				yield return TAY();
+				
+				yield return STX(byteOffset, Index.Y);
+			}
+			else
+			{
+				throw new FatalCompilationException($"Only single-byte stores are currently supported, can not store to '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
+			}
 		}
 
 		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
