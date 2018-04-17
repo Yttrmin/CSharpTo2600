@@ -475,8 +475,9 @@ namespace VCSCompiler
 			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
 
 			var byteOffset = containingType.FieldOffsets[processedField];
+			var fieldSize = processedField.FieldType.TotalSize;
 
-			if (processedField.FieldType.TotalSize == 1)
+			if (fieldSize == 1)
 			{
 				// Put value to store in X.
 				yield return PLA();
@@ -490,7 +491,23 @@ namespace VCSCompiler
 			}
 			else
 			{
-				throw new FatalCompilationException($"Only single-byte stores are currently supported, can not store to '{processedField.FieldType.Name}' ({processedField.FieldType.TotalSize} bytes)");
+				// Unfortunately the value comes before the target address, and there isn't any stack-relative addressing on the 6502.
+				// So we'll have to get to the address with some stack pointer arithmetic.
+				yield return TSX();
+				// Offsets are purely additive, so we'll use unchecked to give us a byte that, when added, wraps around to what we want.
+				// The stack pointer points to the location where the next byte will be pushed, so we need to subtract 1 to get to the value.
+				// Then we just subtract the size of the value to get to the address.
+				byte offsetToAddress = unchecked((byte)-(fieldSize + 1));
+				yield return LDY(offsetToAddress, Index.X);
+				// TODO - Depending on size of value might be more time-efficient to just use absolute addressing with the Y register?
+				yield return TYA();
+				yield return TAX();
+
+				for (var offset = fieldSize - 1; offset >= 0; offset--)
+				{
+					yield return PLA();
+					yield return STA((byte)offset, Index.X);
+				}
 			}
 		}
 

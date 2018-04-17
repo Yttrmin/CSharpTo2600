@@ -294,6 +294,18 @@ namespace VCSFramework.Assembly
         }
 
 		/// <summary>
+		/// Load Y Register [Zero-page indexed] (4 cycles)
+		/// </summary>
+		public static AssemblyInstruction LDY(byte offset, Index indexRegister)
+		{
+			if (indexRegister != Index.X)
+			{
+				throw new ArgumentException("LDY zero-page indexed must use X register", nameof(indexRegister));
+			}
+			return new AssemblyInstruction("LDY", $"${offset.ToString("X2")},{indexRegister}", 4, 2);
+		}
+
+		/// <summary>
 		/// No-op [Implied] (2 cycles)
 		/// </summary>
 		public static AssemblyInstruction NOP()
@@ -450,6 +462,14 @@ namespace VCSFramework.Assembly
         {
             return new AssemblyInstruction("TXS", 2, 1);
         }
-        #endregion
-    }
+
+		/// <summary>
+		/// Transfer Y Register to Accumulator (2 cycles)
+		/// </summary>
+		public static AssemblyInstruction TYA()
+		{
+			return new AssemblyInstruction("TYA", 2, 1);
+		}
+		#endregion
+	}
 }
