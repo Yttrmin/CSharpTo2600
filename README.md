@@ -83,10 +83,10 @@ An incomplete list of supported features in no particular order.
 * :x: Array types
 * :x: Pointer Types
 * :o: Custom Types
-  * :o: Value Types
+  * :heavy_check_mark: Value Types
     * :heavy_check_mark: Single-byte types
-	* :o: Multi-byte types
-	* :x: Composite types (struct-in-struct)
+	* :heavy_check_mark: Multi-byte types
+	* :heavy_check_mark: Composite types (struct-in-struct)
   * :o: Reference Types
     * :heavy_check_mark: Static reference types
     * :x: Instance reference types
