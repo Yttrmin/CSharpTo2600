@@ -18,11 +18,11 @@ namespace VCSCompiler
     internal class CilInstructionCompiler
     {
 		private readonly IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> MethodMap;
-		private readonly IImmutableDictionary<string, ProcessedType> Types;
+		private readonly ImmutableTypeMap Types;
 	    private readonly MethodDefinition MethodDefinition;
 	    private int CgtCount;
 
-		public CilInstructionCompiler(MethodDefinition methodDefinition, IImmutableDictionary<string, ProcessedType> types)
+		public CilInstructionCompiler(MethodDefinition methodDefinition, ImmutableTypeMap types)
 		{
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
@@ -236,7 +236,7 @@ namespace VCSCompiler
 			// Could be either a MethodDefinition or MethodReference.
 			MethodReference method = (MethodReference)instruction.Operand;
 
-			var methodDeclaringType = method.DeclaringType.FullName;
+			var methodDeclaringType = method.DeclaringType;
 			var processedSubroutine = Types[methodDeclaringType].Subroutines.Single(s => s.FullName == method.FullName);
 
 			// Check if this method should be replaced with a direct store to a symbol (generally a TIA register).
@@ -304,7 +304,7 @@ namespace VCSCompiler
 
 			if (processedSubroutine.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out _))
 			{
-				var compiledSubroutine = Types[method.DeclaringType.FullName].Subroutines.Single(s => s.FullName == method.FullName) as CompiledSubroutine;
+				var compiledSubroutine = Types[method.DeclaringType].Subroutines.Single(s => s.FullName == method.FullName) as CompiledSubroutine;
 				if (compiledSubroutine == null)
 				{
 					throw new FatalCompilationException($"Attempted to inline method '{processedSubroutine.Name}' that hasn't been compiled yet. This suggests a bug in determining method compilation order.");
@@ -360,7 +360,7 @@ namespace VCSCompiler
 		private IEnumerable<AssemblyLine> Initobj(Instruction instruction)
 		{
 			var typeDefinition = (TypeDefinition)instruction.Operand;
-			var processedType = Types[typeDefinition.FullName];
+			var processedType = Types[typeDefinition];
 
 			yield return PLA();
 			yield return TAX();
@@ -546,7 +546,7 @@ namespace VCSCompiler
 		private (ProcessedType ContainingType, ProcessedField ProcessedField) GetProcessedInfo(FieldDefinition fieldDefinition)
 		{
 			var containingType = fieldDefinition.DeclaringType;
-			var processedType = Types[containingType.FullName];
+			var processedType = Types[containingType];
 			var processedField = processedType.Fields.Single(pf => pf.FieldDefinition == fieldDefinition);
 
 			return (processedType, processedField);

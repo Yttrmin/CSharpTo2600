@@ -13,7 +13,7 @@ namespace VCSCompiler
 {
     internal class CilCompiler
     {
-		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
+		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, ImmutableTypeMap types, Assembly frameworkAssembly)
 		{
 			var instructionCompiler = new CilInstructionCompiler(definition, types);
 			var instructions = definition.Body.Instructions;
@@ -36,7 +36,7 @@ namespace VCSCompiler
 			return compiledBody;
 		}
 
-		private static IEnumerable<ICompilationAction> ProcessInstructions(IEnumerable<Instruction> instructions, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
+		private static IEnumerable<ICompilationAction> ProcessInstructions(IEnumerable<Instruction> instructions, ImmutableTypeMap types, Assembly frameworkAssembly)
 		{
 			var actions = new List<ICompilationAction>();
 
@@ -65,7 +65,7 @@ namespace VCSCompiler
 
 			bool IsCompileTimeExecutable(MethodReference methodDefinition)
 			{
-				if (types.TryGetValue(methodDefinition.DeclaringType.FullName, out var processedType))
+				if (types.TryGetType(methodDefinition.DeclaringType, out var processedType))
 				{
 					var processedSubroutine = processedType.Subroutines.SingleOrDefault(s => s.MethodDefinition.FullName == methodDefinition.FullName);
 					return processedSubroutine?.TryGetFrameworkAttribute<VCSFramework.CompileTimeExecutedMethodAttribute>(out _) == true;
@@ -74,11 +74,11 @@ namespace VCSCompiler
 			}
 		}
 
-		private static ICompilationAction CreateExecuteCommand(Instruction instruction, IImmutableDictionary<string, ProcessedType> types, Assembly frameworkAssembly)
+		private static ICompilationAction CreateExecuteCommand(Instruction instruction, ImmutableTypeMap types, Assembly frameworkAssembly)
 		{
 			var nextInstruction = instruction.Next;
 			var methodDefinition = (MethodReference)instruction.Operand;
-			var processedType = types[methodDefinition.DeclaringType.FullName];
+			var processedType = types[methodDefinition.DeclaringType];
 			var processedSubroutine = processedType.Subroutines.Single(s => s.MethodDefinition.FullName == methodDefinition.FullName);
 
 			return new ExecuteCompilationAction(instruction, processedSubroutine, frameworkAssembly);

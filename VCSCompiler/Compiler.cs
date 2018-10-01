@@ -16,14 +16,14 @@ namespace VCSCompiler
 {
     public sealed class Compiler
     {
-		private readonly IDictionary<string, ProcessedType> Types;
+		private readonly TypeMap Types;
 		private readonly Assembly FrameworkAssembly;
 		private readonly AssemblyDefinition UserAssemblyDefinition;
 		private readonly IEnumerable<Type> FrameworkAttributes;
 
 		private Compiler(Assembly frameworkAssembly, AssemblyDefinition userAssemblyDefinition, IEnumerable<Type> frameworkAttributes)
 		{
-			Types = new Dictionary<string, ProcessedType>();
+			Types = new TypeMap();
 			FrameworkAssembly = frameworkAssembly;
 			UserAssemblyDefinition = userAssemblyDefinition;
 			FrameworkAttributes = frameworkAttributes;
@@ -69,7 +69,6 @@ namespace VCSCompiler
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
 			var compiler = new Compiler(frameworkAssembly, assemblyDefinition, frameworkAttributes.ToArray());
-			compiler.AddPredefinedTypes();
 			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
 			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
 			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
@@ -89,22 +88,21 @@ namespace VCSCompiler
 			compiler.ProcessTypes(types);
 			// TODO - Do the above so we don't have to ToArray() to get around the fact we modify Types.
 			// TODO - Come up with determinate order to compile types in, they could have dependencies between each other.
-			var compiledTypes = compiler.CompileTypes(compiler.Types.Values.Where(x => x.GetType() == typeof(ProcessedType))).ToArray();
+			var compiledTypes = compiler.CompileTypes(compiler.Types.ProcessedTypes).ToArray();
 			foreach(var compiledType in compiledTypes.Select(t => (FullName: t.FullName, Type: t)))
 			{
-				compiler.Types[compiledType.FullName] = compiledType.Type;
+				compiler.Types[compiledType.Type] = compiledType.Type;
 			}
-			var entryPoint = GetEntryPoint(compiler, assemblyDefinition) as CompiledSubroutine;
+			var entryPoint = GetEntryPoint() as CompiledSubroutine;
 			return new CompiledAssembly(compiledTypes, entryPoint);
-		}
 
-	    private static ProcessedSubroutine GetEntryPoint(Compiler compiler, AssemblyDefinition assemblyDefinition)
-	    {
-			var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
-		    var cilEntryType = cilEntryPoint?.DeclaringType;
-		    var entryPoint = cilEntryPoint != null ? compiler.Types[cilEntryType.FullName].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint) : null;
-		    return entryPoint;
-	    }
+            ProcessedSubroutine GetEntryPoint()
+            {
+                var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
+                var cilEntryType = cilEntryPoint?.DeclaringType;
+                return cilEntryPoint != null ? compiler.Types[cilEntryType].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint) : null;
+            }
+        }
 
 		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
 		{
@@ -125,33 +123,6 @@ namespace VCSCompiler
 			return AssemblyDefinition.ReadAssembly(assemblyStream);
 		}
 
-		private void AddPredefinedTypes()
-		{
-			var system = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location);
-			var supportedTypes = new[] { "Object", "ValueType", "Void", "Byte", "Boolean" };
-			var types = system.Modules[0].Types.Where(td => supportedTypes.Contains(td.Name)).ToImmutableArray();
-
-			var objectType = types.Single(x => x.Name == "Object");
-			var objectCompiled = new CompiledType(new ProcessedType(objectType, null, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 0), ImmutableList<CompiledSubroutine>.Empty);
-			Types[objectType.FullName] = objectCompiled;
-
-			var valueType = types.Single(x => x.Name == "ValueType");
-			var valueTypeCompiled = new CompiledType(new ProcessedType(valueType, objectCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 0), ImmutableList<CompiledSubroutine>.Empty);
-			Types[valueType.FullName] = valueTypeCompiled;
-
-			var voidType = types.Single(x => x.Name == "Void");
-			var voidCompiled = new CompiledType(new ProcessedType(voidType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 0), ImmutableList<CompiledSubroutine>.Empty);
-			Types[voidType.FullName] = voidCompiled;
-
-			var byteType = types.Single(x => x.Name == "Byte");
-			var byteCompiled = new CompiledType(new ProcessedType(byteType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 1), ImmutableList<CompiledSubroutine>.Empty);
-			Types[byteType.FullName] = byteCompiled;
-
-			var boolType = types.Single(x => x.Name == "Boolean");
-			var boolCompiled = new CompiledType(new ProcessedType(boolType, valueTypeCompiled, Enumerable.Empty<ProcessedField>(), ImmutableDictionary<ProcessedField, byte>.Empty, ImmutableList<ProcessedSubroutine>.Empty, 1), ImmutableList<CompiledSubroutine>.Empty);
-			Types[boolType.FullName] = boolCompiled;
-		}
-
 		/// <summary>
 		/// Gives the compiler a complete list of types to compile.
 		/// If a type relies on another type not in this list, this method will throw.
@@ -160,12 +131,12 @@ namespace VCSCompiler
 		{
 			foreach (var type in cecilTypes)
 			{
-				if (!TypeChecker.IsValidType(type, Types, out var typeError))
+				if (!TypeChecker.IsValidType(type, Types.ToImmutableTypeMap(), out var typeError))
 				{
 					throw new FatalCompilationException(typeError);
 				}
 				var processedType = ProcessType(type);
-				Types[type.FullName] = processedType;
+				Types[type] = processedType;
 			}
 		}
 
@@ -177,13 +148,13 @@ namespace VCSCompiler
 			var methods = typeDefinition.CompilableMethods();
 			var processedSubroutines = methods.Select(ProcessMethod);
 
-			var baseType = Types[typeDefinition.BaseType.FullName];
+			var baseType = Types[typeDefinition.BaseType];
 
 			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines.ToImmutableList());
 
 			ProcessedField ProcessField(FieldDefinition field)
 			{
-				return new ProcessedField(field, Types[field.FieldType.FullName]);
+				return new ProcessedField(field, Types[field.FieldType]);
 			}
 
 			IImmutableDictionary<ProcessedField, byte> ProcessFieldOffsets(IEnumerable<ProcessedField> fields)
@@ -203,15 +174,15 @@ namespace VCSCompiler
 
 			ProcessedSubroutine ProcessMethod(MethodDefinition method)
 			{
-				var parameters = method.Parameters.Select(p => Types[p.ParameterType.FullName]).ToList();
-				var locals = method.Body.Variables.Select(l => Types[l.VariableType.FullName]).ToList();
+				var parameters = method.Parameters.Select(p => Types[p.ParameterType]).ToList();
+				var locals = method.Body.Variables.Select(l => Types[l.VariableType]).ToList();
 				var controlFlowGraph = ControlFlowGraphBuilder.Build(method);
 				
 				return new ProcessedSubroutine(
 					method,
 					controlFlowGraph,
 					method == UserAssemblyDefinition.EntryPoint,
-					Types[method.ReturnType.FullName], 
+					Types[method.ReturnType], 
 					parameters,
 					locals,
 					method.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName)).Select(CreateFrameworkAttribute).ToArray());
@@ -269,7 +240,7 @@ namespace VCSCompiler
 				}
 				else
 				{
-					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableDictionary(), FrameworkAssembly);
+					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly);
 				}
 
 				if (subroutine.IsEntryPoint)
@@ -280,7 +251,7 @@ namespace VCSCompiler
 
 				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
-				Types[processedType.FullName] = Types[processedType.FullName].ReplaceSubroutine(subroutine, compiledSubroutine);
+				Types[processedType] = Types[processedType].ReplaceSubroutine(subroutine, compiledSubroutine);
 				Console.WriteLine($"{subroutine.FullName}, compilation finished");
 			}
 			return new CompiledType(processedType, compiledSubroutines.ToImmutableList());

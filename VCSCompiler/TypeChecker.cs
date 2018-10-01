@@ -9,7 +9,7 @@ namespace VCSCompiler
 {
     internal static class TypeChecker
     {
-		public static bool IsValidType(TypeDefinition type, IDictionary<string, ProcessedType> types, out string error)
+		public static bool IsValidType(TypeDefinition type, ImmutableTypeMap types, out string error)
 		{
 			error = string.Empty;
 
@@ -20,7 +20,7 @@ namespace VCSCompiler
 				return false;
 			}
 
-			if (!types.ContainsKey(type.BaseType.FullName))
+			if (!types.Contains(type.BaseType))
 			{
 				error = $"{typeErrorHeader} has an unknown base type: '{type.BaseType.FullName}'";
 				return false;
@@ -47,11 +47,11 @@ namespace VCSCompiler
 			return true;
 		}
 
-		public static bool IsValidField(FieldDefinition field, IDictionary<string, ProcessedType> types, out string error)
+		public static bool IsValidField(FieldDefinition field, ImmutableTypeMap types, out string error)
 		{
 			error = string.Empty;
 
-			if (!types.ContainsKey(field.FieldType.FullName))
+			if (!types.Contains(field.FieldType))
 			{
 				error = $"Field '{field.FullName}' is of an unknown type: {field.FieldType.FullName}";
 				return false;
@@ -66,12 +66,12 @@ namespace VCSCompiler
 			return true;
 		}
 
-		public static bool IsValidMethod(MethodDefinition method, IDictionary<string, ProcessedType> types, out string error)
+		public static bool IsValidMethod(MethodDefinition method, ImmutableTypeMap types, out string error)
 		{
 			error = string.Empty;
 
 			var methodErrorHeader = $"Method '{method.FullName}'";
-			if (!types.ContainsKey(method.ReturnType.FullName))
+			if (!types.Contains(method.ReturnType))
 			{
 				error = $"{methodErrorHeader} has an unknown return type: {method.ReturnType.FullName}";
 				return false;
@@ -107,18 +107,18 @@ namespace VCSCompiler
 			return true;
 		}
 
-	    public static bool IsValidParameter(ParameterDefinition parameter, IDictionary<string, ProcessedType> types, out string error)
+	    public static bool IsValidParameter(ParameterDefinition parameter, ImmutableTypeMap types, out string error)
 	    {
 			error = string.Empty;
 
 			var parameterErrorHeader = $"Parameter {parameter.Index} ('{parameter.Name}') has";
-			if (!types.ContainsKey(parameter.ParameterType.FullName))
+			if (!types.Contains(parameter.ParameterType))
 			{
 				error = $"{parameterErrorHeader} an unknown type: '{parameter.ParameterType.Name}'";
 				return false;
 			}
 
-			var type = types[parameter.ParameterType.FullName];
+			var type = types[parameter.ParameterType];
 			if (!type.AllowedAsLValue)
 			{
 				error = $"{parameterErrorHeader} a type that can't be used as a variable: '{parameter.ParameterType.Name}'";
@@ -128,18 +128,18 @@ namespace VCSCompiler
 			return true;
 		}
 
-	    public static bool IsValidLocal(VariableReference local, IDictionary<string, ProcessedType> types, out string error)
+	    public static bool IsValidLocal(VariableReference local, ImmutableTypeMap types, out string error)
 	    {
 			error = string.Empty;
 
 			var localErrorHeader = $"Local {local.Index} has";
-			if (!types.ContainsKey(local.VariableType.FullName))
+			if (!types.Contains(local.VariableType))
 			{
 				error = $"{localErrorHeader} unknown type: '{local.VariableType.Name}'";
 				return false;
 			}
 
-			var type = types[local.VariableType.FullName];
+			var type = types[local.VariableType];
 			if (!type.AllowedAsLValue)
 			{
 				error = $"{localErrorHeader} a type that can't be used as a variable: '{local.VariableType.Name}'";
