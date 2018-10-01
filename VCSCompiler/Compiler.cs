@@ -69,12 +69,19 @@ namespace VCSCompiler
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
 			var compiler = new Compiler(frameworkAssembly, assemblyDefinition, frameworkAttributes.ToArray());
-			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
-			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
-			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
-			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
-			var romInfo = RomCreator.CreateRom(program, dasmPath);
-			return Task.FromResult(romInfo);
+            try
+            {
+                var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
+                var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
+                var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
+                var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
+                var romInfo = RomCreator.CreateRom(program, dasmPath);
+                return Task.FromResult(romInfo);
+            }
+            finally
+            {
+                AuditorManager.Instance.WriteLog(Path.Combine(Directory.GetCurrentDirectory(), "outlog.html"));
+            }
 		}
 
 		private static CompiledAssembly CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
@@ -142,6 +149,7 @@ namespace VCSCompiler
 
 		private ProcessedType ProcessType(TypeDefinition typeDefinition)
 		{
+            var auditor = AuditorManager.Instance.GetAuditor(typeDefinition.Name, AuditTag.TypeProcessing);
 			var processedFields = typeDefinition.Fields.Select(ProcessField).ToArray();
 			var fieldOffsets = ProcessFieldOffsets(processedFields);
 
@@ -149,11 +157,12 @@ namespace VCSCompiler
 			var processedSubroutines = methods.Select(ProcessMethod);
 
 			var baseType = Types[typeDefinition.BaseType];
-
+            
 			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines.ToImmutableList());
 
 			ProcessedField ProcessField(FieldDefinition field)
 			{
+                auditor.RecordEntry($"Processing field {field.FieldType.Name} {field.Name}...");
 				return new ProcessedField(field, Types[field.FieldType]);
 			}
 
@@ -166,7 +175,8 @@ namespace VCSCompiler
 				foreach(var field in instanceFields)
 				{
 					offsets.Add(field, (byte)nextOffset);
-					nextOffset += field.FieldType.TotalSize;
+                    auditor.RecordEntry($"Recorded field offset of {nextOffset} bytes for '{field.Name}'.");
+                    nextOffset += field.FieldType.TotalSize;
 				}
 
 				return offsets.ToImmutableDictionary();
@@ -174,10 +184,11 @@ namespace VCSCompiler
 
 			ProcessedSubroutine ProcessMethod(MethodDefinition method)
 			{
+                auditor.RecordEntry($"Processing method {method.ReturnType.Name} {method.Name}...");
 				var parameters = method.Parameters.Select(p => Types[p.ParameterType]).ToList();
 				var locals = method.Body.Variables.Select(l => Types[l.VariableType]).ToList();
 				var controlFlowGraph = ControlFlowGraphBuilder.Build(method);
-				
+                
 				return new ProcessedSubroutine(
 					method,
 					controlFlowGraph,

@@ -10,6 +10,7 @@ namespace VCSCompiler
     internal class TypeMap
     {
         private readonly IDictionary<string, ProcessedType> Types;
+        private readonly Auditor Auditor = AuditorManager.Instance.GetTypeMapAuditor();
         
         protected TypeMap(IDictionary<string, ProcessedType> source)
         {
@@ -82,6 +83,15 @@ namespace VCSCompiler
 
         private void SetValue(string key, ProcessedType value)
         {
+            if (Types.TryGetValue(key, out var existingValue))
+            {
+                Auditor.RecordEntry($"Replacing {existingValue.GetType().Name} {existingValue.Name} with {value.GetType().Name} {value.Name}.");
+            }
+            else
+            {
+                Auditor.RecordEntry($"Adding {value.GetType().Name} {value.Name}.");
+            }
+
             Types[key] = value;
         }
     }
