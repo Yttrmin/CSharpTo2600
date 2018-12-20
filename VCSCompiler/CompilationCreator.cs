@@ -6,6 +6,7 @@ using System.IO;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Reflection;
 using System.Text;
+using System;
 
 namespace VCSCompiler
 {
@@ -29,19 +30,13 @@ namespace VCSCompiler
 			{
                 var stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine("Roslyn compilation failed! Errors:");
-				foreach (var error in errors)
-				{
-					stringBuilder.AppendLine(error.ToString());
-				}
+                stringBuilder.AppendLine(string.Join(Environment.NewLine, errors));
                 auditor.RecordEntry(stringBuilder.ToString());
 
                 stringBuilder.Clear();
 				stringBuilder.AppendLine("All other messages:");
 				var remaining = compilation.GetDiagnostics().Where(d => d.Severity != DiagnosticSeverity.Error).OrderByDescending(d => d.Severity);
-				foreach (var message in remaining)
-				{
-					stringBuilder.AppendLine(message.ToString());
-				}
+                stringBuilder.AppendLine(string.Join(Environment.NewLine, remaining));
                 auditor.RecordEntry(stringBuilder.ToString());
 				throw new FatalCompilationException("Roslyn compilation must succeed in order to compile for VCS.");
 			}

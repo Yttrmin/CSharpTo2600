@@ -35,10 +35,7 @@ namespace VCSCompiler
 			compiledBody = OptimizeMethod(compiledBody, auditor).ToList();
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("Final assembly:");
-            foreach (var line in compiledBody)
-            {
-                stringBuilder.AppendLine(line.ToString());
-            }
+            stringBuilder.AppendLine(string.Join(Environment.NewLine, compiledBody));
             auditor.RecordEntry(stringBuilder.ToString());
 
 			return compiledBody;

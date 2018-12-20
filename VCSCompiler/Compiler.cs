@@ -187,7 +187,7 @@ namespace VCSCompiler
 				var parameters = method.Parameters.Select(p => Types[p.ParameterType]).ToList();
 				var locals = method.Body.Variables.Select(l => Types[l.VariableType]).ToList();
                 var methodAuditor = AuditorManager.Instance.GetAuditor(method.FullName, AuditTag.MethodProcessing);
-                var graphAuditor = AuditorManager.Instance.GetAuditor(nameof(ControlFlowGraph), AuditTag.MethodProcessing);
+                var graphAuditor = AuditorManager.Instance.GetAuditor($"{nameof(ControlFlowGraph)} Generation", AuditTag.MethodProcessing);
 				var controlFlowGraph = ControlFlowGraphBuilder.Build(method, graphAuditor);
                 methodAuditor.RecordAuditor(graphAuditor);
                 methodAuditor.RecordEntry("Finished processing.");
@@ -248,11 +248,11 @@ namespace VCSCompiler
 				}
 				else
 				{
-                    var lineAuditor = AuditorManager.Instance.GetAuditor($"[CIL]", AuditTag.MethodCompiling);
-                    lineAuditor.RecordEntry(string.Join(Environment.NewLine, subroutine.MethodDefinition.Body.Instructions));
+                    var lineAuditor = AuditorManager.Instance.GetAuditor($"CIL", AuditTag.MethodCompiling);
+                    lineAuditor.RecordEntry(string.Join(Environment.NewLine, subroutine.MethodDefinition.Body.Instructions), false);
                     subroutineAuditor.RecordAuditor(lineAuditor);
 
-                    var assemblyAuditor = AuditorManager.Instance.GetAuditor($"[6502 Assembly]", AuditTag.MethodCompiling);
+                    var assemblyAuditor = AuditorManager.Instance.GetAuditor($"6502 Assembly", AuditTag.MethodCompiling);
 					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly, assemblyAuditor);
                     subroutineAuditor.RecordAuditor(assemblyAuditor);
 				}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 
 namespace VCSCompiler
@@ -31,7 +32,8 @@ namespace VCSCompiler
             Auditors.Add(auditor);
             return auditor;
         }
-
+        
+        // TODO - Provide a way to get the HTML string, writing to a file won't be best for an online implementation.
         public void WriteLog(string filePath)
         {
             using (var writer = File.CreateText(filePath))
@@ -53,7 +55,7 @@ div { margin-left: 1em; }
             string GetAuditorString(Auditor auditor)
             {
                 var stringBuilder = new StringBuilder();
-                stringBuilder.AppendLine($"<details><summary>[{auditor.Tag}] {auditor.Name}</summary>");
+                stringBuilder.AppendLine($"<details><summary>[{auditor.Tag}] {WebUtility.HtmlEncode(auditor.Name)}</summary>");
                 foreach (var (timestamp, content) in auditor.AllEntries)
                 {
                     if (content is string text)
@@ -64,7 +66,7 @@ div { margin-left: 1em; }
                             var milliseconds = ((double)ticks / Stopwatch.Frequency) * 1000;
                             prefix = $"{milliseconds.ToString("00000.0000")}ms - ";
                         }
-                        stringBuilder.AppendLine($"<pre>{prefix}{text}</pre>");
+                        stringBuilder.AppendLine($"<pre>{prefix}{WebUtility.HtmlEncode(text)}</pre>");
                     }
                     else if (content is Auditor subAuditor)
                     {
@@ -89,7 +91,7 @@ div { margin-left: 1em; }
 
         public string Name { get; }
         public AuditTag Tag { get; }
-        public IEnumerable<(long? Timestamp, object Content)> AllEntries => Entries.OrderBy(e => e.Timestamp);
+        public IEnumerable<(long? Timestamp, object Content)> AllEntries => Entries.ToArray();
         public bool HasEntries => Entries.Any();
 
         public Auditor(string name, AuditTag tag, Func<long> getTicks)
@@ -101,12 +103,12 @@ div { margin-left: 1em; }
 
         public void RecordEntry(string text, bool logTimestamp = true)
         {
-            // TODO - Should probably sanitize input before an online version is made.
             Entries.Add((logTimestamp ? GetTicks() : (long?)null, text));
         }
 
         public void RecordAuditor(Auditor auditor)
         {
+            // TODO - May want to move this into WriteLog(), to cover the case of pre-emptively recording an auditor before it has entires so it can be included in a crash.
             if (auditor.HasEntries)
             {
                 Entries.Add((GetTicks(), auditor));
