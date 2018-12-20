@@ -135,12 +135,15 @@ namespace VCSCompiler
 				}
 			};
 
-			assemblerProcess.Start();
+            var auditor = AuditorManager.Instance.GetAuditor("Assembler", AuditTag.Compiler);
+            auditor.RecordEntry($"Starting assembler ({assemblerFullPath}) with arguments: {assemblerProcess.StartInfo.Arguments}...");
+            assemblerProcess.Start();
 		    assemblerProcess.WaitForExit();
 		    var output = assemblerProcess.StandardOutput.ReadToEnd();
 		    var success = assemblerProcess.ExitCode == 0;
-			Console.WriteLine("Assembler STDOUT:");
-			Console.WriteLine(output);
+			auditor.RecordEntry($@"Assembler STDOUT:
+{output}");
+            auditor.RecordEntry($"Assembler execution successful? {success}");
 		    return success;
 	    }
 	}

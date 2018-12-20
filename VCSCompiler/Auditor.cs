@@ -10,12 +10,12 @@ namespace VCSCompiler
     internal class AuditorManager
     {
         public static AuditorManager Instance { get; } = new AuditorManager();
-        private readonly IList<(Auditor Auditor, AuditTag Tag, string Name)> Auditors = new List<(Auditor Auditor, AuditTag Tag, string Name)>();
+        private readonly IList<Auditor> Auditors = new List<Auditor>();
         private readonly DateTimeOffset StartTime = DateTimeOffset.Now;
 
         public Auditor GetTypeMapAuditor()
         {
-            if (Auditors.SingleOrDefault(a => a.Tag == AuditTag.TypeMap).Auditor is Auditor auditor)
+            if (Auditors.SingleOrDefault(a => a.Tag == AuditTag.TypeMap) is Auditor auditor)
             {
                 return auditor;
             }
@@ -25,8 +25,8 @@ namespace VCSCompiler
 
         public Auditor GetAuditor(string name, AuditTag tag)
         {
-            var auditor = new Auditor();
-            Auditors.Add((auditor, tag, name));
+            var auditor = new Auditor(name, tag);
+            Auditors.Add(auditor);
             return auditor;
         }
 
@@ -36,42 +36,77 @@ namespace VCSCompiler
             {
                 writer.WriteLine("<!DOCTYPE HTML><html><body>");
                 writer.WriteLine($"<p>Log output from {StartTime.ToString("yyyy/MM/dd HH:mm:ss.fff")} to {DateTimeOffset.Now.ToString("HH:mm:ss.fff")}</p>");
-                foreach (var (auditor, tag, name) in GetOrderedAuditors())
+                foreach (var auditor in GetOrderedAuditors())
                 {
-                    writer.WriteLine($"<details><summary>[{tag}] {name}</summary>");
-                    foreach (var (timestamp, text) in auditor.AllEntries)
-                    {
-                        writer.WriteLine($"<pre>{timestamp.ToString("HH:mm:ss.fff")} - {text}</pre>");
-                    }
-                    writer.WriteLine("</details>");
+                    writer.WriteLine(GetAuditorString(auditor));
                 }
                 writer.WriteLine("</body></html>");
             }
+
+            string GetAuditorString(Auditor auditor)
+            {
+                var stringBuilder = new StringBuilder();
+                stringBuilder.AppendLine($"<details><summary>[{auditor.Tag}] {auditor.Name}</summary>");
+                foreach (var (timestamp, content) in auditor.AllEntries)
+                {
+                    if (content is string text)
+                    {
+                        stringBuilder.AppendLine($"<pre style=\"margin-top: 0em; margin-bottom: 0em; margin-left: 1em;\">{timestamp.ToString("HH:mm:ss.fff")} - {text}</pre>");
+                    }
+                    else if (content is Auditor subAuditor)
+                    {
+                        stringBuilder.AppendLine($"<div style=\"margin-left: 1em;\">{GetAuditorString(subAuditor)}</div>");
+                    }
+                }
+                stringBuilder.AppendLine("</details>");
+                return stringBuilder.ToString();
+            }
         }
 
-        private IEnumerable<(Auditor Auditor, AuditTag Tag, string Name)> GetOrderedAuditors()
+        private IEnumerable<Auditor> GetOrderedAuditors()
         {
-            return Auditors;
+            return Auditors.Where(a => a.Tag != AuditTag.MethodCompiling && a.Tag != AuditTag.MethodProcessing);
         }
     }
 
-    internal class Auditor
+    internal sealed class Auditor
     {
-        private readonly IList<(DateTimeOffset Timestamp, string Text)> Entries = new List<(DateTimeOffset, string)>();
-        public IEnumerable<(DateTimeOffset Timestamp, string Text)> AllEntries => Entries.OrderBy(e => e.Timestamp);
+        private readonly IList<(DateTimeOffset Timestamp, object Content)> Entries = new List<(DateTimeOffset, object)>();
+
+        public string Name { get; }
+        public AuditTag Tag { get; }
+        public IEnumerable<(DateTimeOffset Timestamp, object Content)> AllEntries => Entries.OrderBy(e => e.Timestamp);
+        public bool HasEntries => Entries.Any();
+
+        public Auditor(string name, AuditTag tag)
+        {
+            Name = name;
+            Tag = tag;
+        }
 
         public void RecordEntry(string text)
         {
+            // TODO - Should probably sanitize input before an online version is made.
             Entries.Add((DateTimeOffset.Now, text));
+        }
+
+        public void RecordAuditor(Auditor auditor)
+        {
+            if (auditor.HasEntries)
+            {
+                Entries.Add((DateTimeOffset.Now, auditor));
+            }
         }
     }
 
     internal enum AuditTag
     {
         None,
+        Compiler,
         TypeMap,
         TypeProcessing,
         TypeCompiling,
-        Compiler
+        MethodProcessing,
+        MethodCompiling
     }
 }

@@ -184,10 +184,14 @@ namespace VCSCompiler
 
 			ProcessedSubroutine ProcessMethod(MethodDefinition method)
 			{
-                auditor.RecordEntry($"Processing method {method.ReturnType.Name} {method.Name}...");
 				var parameters = method.Parameters.Select(p => Types[p.ParameterType]).ToList();
 				var locals = method.Body.Variables.Select(l => Types[l.VariableType]).ToList();
-				var controlFlowGraph = ControlFlowGraphBuilder.Build(method);
+                var methodAuditor = AuditorManager.Instance.GetAuditor(method.FullName, AuditTag.MethodProcessing);
+                var graphAuditor = AuditorManager.Instance.GetAuditor(nameof(ControlFlowGraph), AuditTag.MethodProcessing);
+				var controlFlowGraph = ControlFlowGraphBuilder.Build(method, graphAuditor);
+                methodAuditor.RecordAuditor(graphAuditor);
+                methodAuditor.RecordEntry("Finished processing.");
+                auditor.RecordAuditor(methodAuditor);
                 
 				return new ProcessedSubroutine(
 					method,
@@ -219,51 +223,50 @@ namespace VCSCompiler
 
 		private CompiledType CompileType(ProcessedType processedType)
 		{
+            var auditor = AuditorManager.Instance.GetAuditor(processedType.FullName, AuditTag.TypeCompiling);
 			var compiledSubroutines = new List<CompiledSubroutine>();
 			var callGraph = CreateCallGraph(processedType);
 			var compilationOrder = callGraph.TopologicalSort();
 			foreach(var subroutine in compilationOrder)
 			{
-				Console.WriteLine($"Compiling {subroutine.FullName}");
+                var subroutineAuditor = AuditorManager.Instance.GetAuditor(subroutine.FullName, AuditTag.MethodCompiling);
 				if (subroutine.TryGetFrameworkAttribute<UseProvidedImplementationAttribute>(out var providedImplementation))
 				{
 					var implementationDefinition = processedType.TypeDefinition.Methods.Single(m => m.Name == providedImplementation.ImplementationName);
 					var implementation = FrameworkAssembly.GetType(processedType.FullName, true).GetTypeInfo().GetMethod(implementationDefinition.Name, BindingFlags.Static | BindingFlags.NonPublic);
 					var compiledBody = (IEnumerable<AssemblyLine>)implementation.Invoke(null, null);
 					compiledSubroutines.Add(new CompiledSubroutine(subroutine, compiledBody));
-					Console.WriteLine($"Implementation provided by '{implementationDefinition.FullName}':");
-					foreach(var line in compiledBody)
-					{
-						Console.WriteLine(line);
-					}
+					auditor.RecordEntry($"Implementation provided by '{implementationDefinition.FullName}':{Environment.NewLine}{string.Join(Environment.NewLine, compiledBody)}");
 					continue;
 				}
-				foreach (var line in subroutine.MethodDefinition.Body.Instructions)
-				{
-					Console.WriteLine(line);
-				}
-				Console.WriteLine("v  Compile  v");
+                
 				IEnumerable<AssemblyLine> body;
 				if (subroutine.TryGetFrameworkAttribute<IgnoreImplementationAttribute>(out _))
 				{
 					body = Enumerable.Empty<AssemblyLine>();
-					Console.WriteLine($"Skipping CIL compilation due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");
+                    auditor.RecordEntry($"Skipping CIL compilation of {subroutine.FullName} due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");
 				}
 				else
 				{
-					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly);
+                    var lineAuditor = AuditorManager.Instance.GetAuditor($"[CIL]", AuditTag.MethodCompiling);
+                    lineAuditor.RecordEntry(string.Join(Environment.NewLine, subroutine.MethodDefinition.Body.Instructions));
+                    subroutineAuditor.RecordAuditor(lineAuditor);
+
+                    var assemblyAuditor = AuditorManager.Instance.GetAuditor($"[6502 Assembly]", AuditTag.MethodCompiling);
+					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly, assemblyAuditor);
+                    subroutineAuditor.RecordAuditor(assemblyAuditor);
 				}
 
 				if (subroutine.IsEntryPoint)
 				{
-					Console.WriteLine("Injecting entry point code.");
+                    subroutineAuditor.RecordEntry("Injecting entry point code.");
 					body = GetEntryPointPrependedCode().Concat(body);
 				}
 
 				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
 				Types[processedType] = Types[processedType].ReplaceSubroutine(subroutine, compiledSubroutine);
-				Console.WriteLine($"{subroutine.FullName}, compilation finished");
+                auditor.RecordAuditor(subroutineAuditor);
 			}
 			return new CompiledType(processedType, compiledSubroutines.ToImmutableList());
 		}
