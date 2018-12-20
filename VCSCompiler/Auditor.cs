@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,6 +9,8 @@ namespace VCSCompiler
 {
     internal class AuditorManager
     {
+        private static readonly Stopwatch Stopwatch = Stopwatch.StartNew();
+        private static readonly Func<long> GetTicks = () => Stopwatch.ElapsedTicks;
         public static AuditorManager Instance { get; } = new AuditorManager();
         private readonly IList<Auditor> Auditors = new List<Auditor>();
         private readonly DateTimeOffset StartTime = DateTimeOffset.Now;
@@ -25,7 +27,7 @@ namespace VCSCompiler
 
         public Auditor GetAuditor(string name, AuditTag tag)
         {
-            var auditor = new Auditor(name, tag);
+            var auditor = new Auditor(name, tag, GetTicks);
             Auditors.Add(auditor);
             return auditor;
         }
@@ -56,7 +58,13 @@ div { margin-left: 1em; }
                 {
                     if (content is string text)
                     {
-                        stringBuilder.AppendLine($"<pre>{timestamp.ToString("HH:mm:ss.fff")} - {text}</pre>");
+                        string prefix = string.Empty;
+                        if (timestamp is long ticks)
+                        {
+                            var milliseconds = ((double)ticks / Stopwatch.Frequency) * 1000;
+                            prefix = $"{milliseconds.ToString("00000.0000")}ms - ";
+                        }
+                        stringBuilder.AppendLine($"<pre>{prefix}{text}</pre>");
                     }
                     else if (content is Auditor subAuditor)
                     {
@@ -76,30 +84,32 @@ div { margin-left: 1em; }
 
     internal sealed class Auditor
     {
-        private readonly IList<(DateTimeOffset Timestamp, object Content)> Entries = new List<(DateTimeOffset, object)>();
+        private readonly IList<(long? Timestamp, object Content)> Entries = new List<(long?, object)>();
+        private readonly Func<long> GetTicks;
 
         public string Name { get; }
         public AuditTag Tag { get; }
-        public IEnumerable<(DateTimeOffset Timestamp, object Content)> AllEntries => Entries.OrderBy(e => e.Timestamp);
+        public IEnumerable<(long? Timestamp, object Content)> AllEntries => Entries.OrderBy(e => e.Timestamp);
         public bool HasEntries => Entries.Any();
 
-        public Auditor(string name, AuditTag tag)
+        public Auditor(string name, AuditTag tag, Func<long> getTicks)
         {
             Name = name;
             Tag = tag;
+            GetTicks = getTicks;
         }
 
-        public void RecordEntry(string text)
+        public void RecordEntry(string text, bool logTimestamp = true)
         {
             // TODO - Should probably sanitize input before an online version is made.
-            Entries.Add((DateTimeOffset.Now, text));
+            Entries.Add((logTimestamp ? GetTicks() : (long?)null, text));
         }
 
         public void RecordAuditor(Auditor auditor)
         {
             if (auditor.HasEntries)
             {
-                Entries.Add((DateTimeOffset.Now, auditor));
+                Entries.Add((GetTicks(), auditor));
             }
         }
     }
