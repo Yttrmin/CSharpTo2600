@@ -34,7 +34,12 @@ namespace VCSCompiler
         {
             using (var writer = File.CreateText(filePath))
             {
-                writer.WriteLine("<!DOCTYPE HTML><html><body>");
+                writer.WriteLine("<!DOCTYPE HTML><html>");
+                writer.WriteLine(@"<style>
+pre { margin-top: 0em; margin-bottom: 0em; margin-left: 1em; }
+div { margin-left: 1em; }
+</style>");
+                writer.WriteLine("<body>");
                 writer.WriteLine($"<p>Log output from {StartTime.ToString("yyyy/MM/dd HH:mm:ss.fff")} to {DateTimeOffset.Now.ToString("HH:mm:ss.fff")}</p>");
                 foreach (var auditor in GetOrderedAuditors())
                 {
@@ -51,11 +56,11 @@ namespace VCSCompiler
                 {
                     if (content is string text)
                     {
-                        stringBuilder.AppendLine($"<pre style=\"margin-top: 0em; margin-bottom: 0em; margin-left: 1em;\">{timestamp.ToString("HH:mm:ss.fff")} - {text}</pre>");
+                        stringBuilder.AppendLine($"<pre>{timestamp.ToString("HH:mm:ss.fff")} - {text}</pre>");
                     }
                     else if (content is Auditor subAuditor)
                     {
-                        stringBuilder.AppendLine($"<div style=\"margin-left: 1em;\">{GetAuditorString(subAuditor)}</div>");
+                        stringBuilder.AppendLine($"<div>{GetAuditorString(subAuditor)}</div>");
                     }
                 }
                 stringBuilder.AppendLine("</details>");
