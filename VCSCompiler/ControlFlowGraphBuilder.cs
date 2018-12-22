@@ -29,18 +29,20 @@ namespace VCSCompiler
 
 		private static readonly OpCode[] AllBranchInstructions = ConditionalBranchInstructions.Concat(UnconditionalBranchInstructions).ToArray();
 
-		public static ControlFlowGraph Build(MethodDefinition method)
+		public static ControlFlowGraph Build(MethodDefinition method, Auditor auditor)
 		{
 			var leaders = new List<Instruction>();
 			var graph = ImmutableGraph<BasicBlock>.Empty;
+            auditor.RecordEntry("Begin control flow analysis...");
 
+            var instructionLog = new StringBuilder();
 			foreach(var instruction in method.Body.Instructions)
 			{
 				// The first instruction in a method is always a leader.
 				if (method.Body.Instructions.First() == instruction)
 				{
 					leaders.Add(instruction);
-					Console.Write("LEADER >>");
+                    instructionLog.Append("LEADER >>");
 				}
 
 				// The targets of branches are leaders.
@@ -49,7 +51,7 @@ namespace VCSCompiler
 					if (instruction.Operand is Instruction targetInstruction)
 					{
 						leaders.Add(targetInstruction);
-						Console.Write($"LEADERIFY {targetInstruction} <<");
+                        instructionLog.Append($"LEADERIFY {targetInstruction} <<");
 					}
 				}
 
@@ -57,10 +59,12 @@ namespace VCSCompiler
 				if (AllBranchInstructions.Contains(instruction.Previous?.OpCode ?? default(OpCode)))
 				{
 					leaders.Add(instruction);
-					Console.Write("LEADER >>");
+                    instructionLog.Append("LEADER >>");
 				}
 
-				Console.WriteLine(instruction);
+                instructionLog.AppendLine(instruction.ToString());
+                auditor.RecordEntry(instructionLog.ToString(), false);
+                instructionLog.Clear();
 			}
 
 			// Make sure leaders are in order or you'll get strange results.
@@ -104,6 +108,7 @@ namespace VCSCompiler
 				}
 			}
 
+            auditor.RecordEntry("Finished");
 			return new ControlFlowGraph(graph);
 		}
     }

@@ -13,12 +13,12 @@ namespace VCSCompiler
 {
     internal class CilCompiler
     {
-		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, ImmutableTypeMap types, Assembly frameworkAssembly)
+		public static IEnumerable<AssemblyLine> CompileMethod(MethodDefinition definition, ImmutableTypeMap types, Assembly frameworkAssembly, Auditor auditor)
 		{
 			var instructionCompiler = new CilInstructionCompiler(definition, types);
 			var instructions = definition.Body.Instructions;
 			var compilationActions = ProcessInstructions(instructions, types, frameworkAssembly);
-			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions).ToArray();
+			var instructionsToLabel = GetInstructionsToEmitLabelsFor(instructions, auditor).ToArray();
 			var compiledBody = new List<AssemblyLine>();
 			var compilationContext = new CompilationContext(instructionCompiler);
 			foreach (var action in compilationActions)
@@ -32,7 +32,12 @@ namespace VCSCompiler
 				compiledBody.AddRange(action.Execute(compilationContext));
 			}
 
-			compiledBody = OptimizeMethod(compiledBody).ToList();
+			compiledBody = OptimizeMethod(compiledBody, auditor).ToList();
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("Final assembly:");
+            stringBuilder.AppendLine(string.Join(Environment.NewLine, compiledBody));
+            auditor.RecordEntry(stringBuilder.ToString());
+
 			return compiledBody;
 		}
 
@@ -84,7 +89,7 @@ namespace VCSCompiler
 			return new ExecuteCompilationAction(instruction, processedSubroutine, frameworkAssembly);
 		}
 
-	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body)
+	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body, Auditor auditor)
 	    {
 		    var mutableBody = body.ToList();
 
@@ -98,7 +103,7 @@ namespace VCSCompiler
 				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item2));
 			}
 			
-			Console.WriteLine($"Eliminated {phaPlaPairs.Length} redundant PHA/PLA pairs.");
+			auditor.RecordEntry($"Eliminated {phaPlaPairs.Length} redundant PHA/PLA pairs.");
 
 			// Remove LDAs following a STA to the same argument.
 			pairs = mutableBody.OfType<AssemblyInstruction>().Zip(mutableBody.OfType<AssemblyInstruction>().Skip(1), Tuple.Create);
@@ -112,14 +117,14 @@ namespace VCSCompiler
 				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item2));
 			}
 			
-			Console.WriteLine($"Eliminated {staLdaPairs.Length} redundant LDAs.");
+			auditor.RecordEntry($"Eliminated {staLdaPairs.Length} redundant LDAs.");
 			return mutableBody;
 	    }
 		
 		/// <summary>
 		/// Gets instructions that need to be labeled, generally for branching instructions.
 		/// </summary>
-		private static IEnumerable<Instruction> GetInstructionsToEmitLabelsFor(IEnumerable<Instruction> instructions)
+		private static IEnumerable<Instruction> GetInstructionsToEmitLabelsFor(IEnumerable<Instruction> instructions, Auditor auditor)
 		{
 			foreach(var instruction in instructions)
 			{
@@ -127,7 +132,7 @@ namespace VCSCompiler
 				var targetInstruction = instruction.Operand as Instruction;
 				if (targetInstruction != null)
 				{
-					Console.WriteLine($"{instruction} references {targetInstruction}, marking to emit label.");
+					auditor.RecordEntry($"{instruction} references {targetInstruction}, marking to emit label.");
 					yield return targetInstruction;
 				}
 			}

@@ -69,12 +69,19 @@ namespace VCSCompiler
 			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
 			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
 			var compiler = new Compiler(frameworkAssembly, assemblyDefinition, frameworkAttributes.ToArray());
-			var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
-			var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
-			var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
-			var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
-			var romInfo = RomCreator.CreateRom(program, dasmPath);
-			return Task.FromResult(romInfo);
+            try
+            {
+                var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
+                var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
+                var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
+                var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
+                var romInfo = RomCreator.CreateRom(program, dasmPath);
+                return Task.FromResult(romInfo);
+            }
+            finally
+            {
+                AuditorManager.Instance.WriteLog(Path.Combine(Directory.GetCurrentDirectory(), "outlog.html"));
+            }
 		}
 
 		private static CompiledAssembly CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
@@ -142,6 +149,7 @@ namespace VCSCompiler
 
 		private ProcessedType ProcessType(TypeDefinition typeDefinition)
 		{
+            var auditor = AuditorManager.Instance.GetAuditor(typeDefinition.Name, AuditTag.TypeProcessing);
 			var processedFields = typeDefinition.Fields.Select(ProcessField).ToArray();
 			var fieldOffsets = ProcessFieldOffsets(processedFields);
 
@@ -149,11 +157,12 @@ namespace VCSCompiler
 			var processedSubroutines = methods.Select(ProcessMethod);
 
 			var baseType = Types[typeDefinition.BaseType];
-
+            
 			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines.ToImmutableList());
 
 			ProcessedField ProcessField(FieldDefinition field)
 			{
+                auditor.RecordEntry($"Processing field {field.FieldType.Name} {field.Name}...");
 				return new ProcessedField(field, Types[field.FieldType]);
 			}
 
@@ -166,7 +175,8 @@ namespace VCSCompiler
 				foreach(var field in instanceFields)
 				{
 					offsets.Add(field, (byte)nextOffset);
-					nextOffset += field.FieldType.TotalSize;
+                    auditor.RecordEntry($"Recorded field offset of {nextOffset} bytes for '{field.Name}'.");
+                    nextOffset += field.FieldType.TotalSize;
 				}
 
 				return offsets.ToImmutableDictionary();
@@ -176,8 +186,13 @@ namespace VCSCompiler
 			{
 				var parameters = method.Parameters.Select(p => Types[p.ParameterType]).ToList();
 				var locals = method.Body.Variables.Select(l => Types[l.VariableType]).ToList();
-				var controlFlowGraph = ControlFlowGraphBuilder.Build(method);
-				
+                var methodAuditor = AuditorManager.Instance.GetAuditor(method.FullName, AuditTag.MethodProcessing);
+                var graphAuditor = AuditorManager.Instance.GetAuditor($"{nameof(ControlFlowGraph)} Generation", AuditTag.MethodProcessing);
+				var controlFlowGraph = ControlFlowGraphBuilder.Build(method, graphAuditor);
+                methodAuditor.RecordAuditor(graphAuditor);
+                methodAuditor.RecordEntry("Finished processing.");
+                auditor.RecordAuditor(methodAuditor);
+                
 				return new ProcessedSubroutine(
 					method,
 					controlFlowGraph,
@@ -208,51 +223,50 @@ namespace VCSCompiler
 
 		private CompiledType CompileType(ProcessedType processedType)
 		{
+            var auditor = AuditorManager.Instance.GetAuditor(processedType.FullName, AuditTag.TypeCompiling);
 			var compiledSubroutines = new List<CompiledSubroutine>();
 			var callGraph = CreateCallGraph(processedType);
 			var compilationOrder = callGraph.TopologicalSort();
 			foreach(var subroutine in compilationOrder)
 			{
-				Console.WriteLine($"Compiling {subroutine.FullName}");
+                var subroutineAuditor = AuditorManager.Instance.GetAuditor(subroutine.FullName, AuditTag.MethodCompiling);
 				if (subroutine.TryGetFrameworkAttribute<UseProvidedImplementationAttribute>(out var providedImplementation))
 				{
 					var implementationDefinition = processedType.TypeDefinition.Methods.Single(m => m.Name == providedImplementation.ImplementationName);
 					var implementation = FrameworkAssembly.GetType(processedType.FullName, true).GetTypeInfo().GetMethod(implementationDefinition.Name, BindingFlags.Static | BindingFlags.NonPublic);
 					var compiledBody = (IEnumerable<AssemblyLine>)implementation.Invoke(null, null);
 					compiledSubroutines.Add(new CompiledSubroutine(subroutine, compiledBody));
-					Console.WriteLine($"Implementation provided by '{implementationDefinition.FullName}':");
-					foreach(var line in compiledBody)
-					{
-						Console.WriteLine(line);
-					}
+					auditor.RecordEntry($"Implementation provided by '{implementationDefinition.FullName}':{Environment.NewLine}{string.Join(Environment.NewLine, compiledBody)}");
 					continue;
 				}
-				foreach (var line in subroutine.MethodDefinition.Body.Instructions)
-				{
-					Console.WriteLine(line);
-				}
-				Console.WriteLine("v  Compile  v");
+                
 				IEnumerable<AssemblyLine> body;
 				if (subroutine.TryGetFrameworkAttribute<IgnoreImplementationAttribute>(out _))
 				{
 					body = Enumerable.Empty<AssemblyLine>();
-					Console.WriteLine($"Skipping CIL compilation due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");
+                    auditor.RecordEntry($"Skipping CIL compilation of {subroutine.FullName} due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");
 				}
 				else
 				{
-					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly);
+                    var lineAuditor = AuditorManager.Instance.GetAuditor($"CIL", AuditTag.MethodCompiling);
+                    lineAuditor.RecordEntry(string.Join(Environment.NewLine, subroutine.MethodDefinition.Body.Instructions), false);
+                    subroutineAuditor.RecordAuditor(lineAuditor);
+
+                    var assemblyAuditor = AuditorManager.Instance.GetAuditor($"6502 Assembly", AuditTag.MethodCompiling);
+					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly, assemblyAuditor);
+                    subroutineAuditor.RecordAuditor(assemblyAuditor);
 				}
 
 				if (subroutine.IsEntryPoint)
 				{
-					Console.WriteLine("Injecting entry point code.");
+                    subroutineAuditor.RecordEntry("Injecting entry point code.");
 					body = GetEntryPointPrependedCode().Concat(body);
 				}
 
 				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
 				compiledSubroutines.Add(compiledSubroutine);
 				Types[processedType] = Types[processedType].ReplaceSubroutine(subroutine, compiledSubroutine);
-				Console.WriteLine($"{subroutine.FullName}, compilation finished");
+                auditor.RecordAuditor(subroutineAuditor);
 			}
 			return new CompiledType(processedType, compiledSubroutines.ToImmutableList());
 		}
