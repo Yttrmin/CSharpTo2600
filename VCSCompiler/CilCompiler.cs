@@ -32,7 +32,7 @@ namespace VCSCompiler
 				compiledBody.AddRange(action.Execute(compilationContext));
 			}
 
-			compiledBody = OptimizeMethod(compiledBody, auditor).ToList();
+			compiledBody = OptimizeMethod(compiledBody).ToList();
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("Final assembly:");
             stringBuilder.AppendLine(string.Join(Environment.NewLine, compiledBody));
@@ -89,36 +89,24 @@ namespace VCSCompiler
 			return new ExecuteCompilationAction(instruction, processedSubroutine, frameworkAssembly);
 		}
 
-	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body, Auditor auditor)
+	    private static IEnumerable<AssemblyLine> OptimizeMethod(IEnumerable<AssemblyLine> body)
 	    {
-		    var mutableBody = body.ToList();
+			// Pair up instructions.
+			var pairedInstructions = body.Zip(body.Skip(1).Append(null), (lineA, lineB) => (lineA, lineB)).ToList();
 
-			// Remove redundant PHA/PLA pairs.
-			var pairs = mutableBody.OfType<AssemblyInstruction>().Zip(mutableBody.OfType<AssemblyInstruction>().Skip(1), Tuple.Create);
-			var phaPlaPairs = pairs.Where(p => p.Item1.OpCode == "PHA" && p.Item2.OpCode == "PLA").ToArray();
-
-			foreach(var pair in phaPlaPairs)
+			for (var i = 0; i < pairedInstructions.Count;)
 			{
-				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item1));
-				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item2));
+				var pair = pairedInstructions[i];
+				// Skip over certain redundant instruction pairs.
+				var toSkip = pair switch
+				{
+					(AssemblyInstruction("PHA", _), AssemblyInstruction("PLA", _)) => 2,
+					(AssemblyInstruction("STA", var stArg), AssemblyInstruction("LDA", var ldArg)) when stArg == ldArg => 2,
+					_ => 0
+				};
+				i += Math.Max(1, toSkip);
+				if (toSkip == 0) yield return pair.lineA;
 			}
-			
-			auditor.RecordEntry($"Eliminated {phaPlaPairs.Length} redundant PHA/PLA pairs.");
-
-			// Remove LDAs following a STA to the same argument.
-			pairs = mutableBody.OfType<AssemblyInstruction>().Zip(mutableBody.OfType<AssemblyInstruction>().Skip(1), Tuple.Create);
-			var staLdaPairs = pairs
-				.Where(p => p.Item1.OpCode == "STA" && p.Item2.OpCode == "LDA")
-				.Where(p => p.Item1.Argument == p.Item2.Argument)
-				.ToArray();
-
-			foreach(var pair in staLdaPairs)
-			{
-				mutableBody.RemoveAll(line => ReferenceEquals(line, pair.Item2));
-			}
-			
-			auditor.RecordEntry($"Eliminated {staLdaPairs.Length} redundant LDAs.");
-			return mutableBody;
 	    }
 		
 		/// <summary>

@@ -111,6 +111,12 @@ namespace VCSFramework.Assembly
         {
             return (AssemblyInstruction)WithCommentInternal(Comment);
         }
+
+        public void Deconstruct(out string opCode, out string argument)
+        {
+            opCode = OpCode;
+            argument = Argument;
+        }
     }
 
 	[DoNotCompile]
