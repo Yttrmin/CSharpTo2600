@@ -9,6 +9,7 @@ using VCSFramework.Assembly;
 using static VCSFramework.Assembly.AssemblyFactory;
 using Mono.Cecil;
 using VCSFramework;
+using Index = VCSFramework.Assembly.AssemblyFactory.Index;
 
 namespace VCSCompiler
 {
