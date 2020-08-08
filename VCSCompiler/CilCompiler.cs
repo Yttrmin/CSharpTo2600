@@ -32,8 +32,7 @@ namespace VCSCompiler
 				compiledBody.AddRange(action.Execute(compilationContext));
 			}
 
-			// @TODO - Apparently broke this!
-			//compiledBody = OptimizeMethod(compiledBody).ToList();
+			compiledBody = OptimizeMethod(compiledBody).ToList();
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("Final assembly:");
             stringBuilder.AppendLine(string.Join(Environment.NewLine, compiledBody));
@@ -99,14 +98,18 @@ namespace VCSCompiler
 			{
 				var pair = pairedInstructions[i];
 				// Skip over certain redundant instruction pairs.
-				var toSkip = pair switch
+				var (offset, toSkip) = pair switch
 				{
-					(AssemblyInstruction("PHA", _), AssemblyInstruction("PLA", _)) => 2,
-					(AssemblyInstruction("STA", var stArg), AssemblyInstruction("LDA", var ldArg)) when stArg == ldArg => 2,
-					_ => 0
+					(AssemblyInstruction("PHA", _), AssemblyInstruction("PLA", _)) => (0, 2),
+					(AssemblyInstruction("STA", var stArg), AssemblyInstruction("LDA", var ldArg)) when stArg == ldArg => (1, 1),
+					_ => (0, 0)
 				};
-				i += Math.Max(1, toSkip);
-				if (toSkip == 0) yield return pair.lineA;
+				if (offset + toSkip > 2)
+                {
+					throw new InvalidOperationException("Not allowed to optimize outside the bounds of the instruction pair.");
+                }
+				i += Math.Max(1, offset + toSkip);
+				if (offset != 0 || toSkip == 0) yield return pair.lineA;
 			}
 	    }
 		
