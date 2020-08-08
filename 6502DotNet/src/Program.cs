@@ -9,9 +9,9 @@ using System;
 
 namespace Core6502DotNet
 {
-    internal class Core6502DotNet
+    public class Core6502DotNet
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             Assembler.Initialize(args);
 

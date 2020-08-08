@@ -12,7 +12,8 @@ namespace VCSCompiler
 {
     internal static class RomCreator
     {
-		private const string EntryPoint = "__EntryPoint";
+		// @TODO - Name
+		private const string EntryPoint = "aaEntryPoint";
 		private const string AssemblyFileName = "out.asm";
 		private const string BinaryFileName = "out.bin";
 		private const string SymbolsFileName = "out.sym";
@@ -42,6 +43,7 @@ namespace VCSCompiler
 			yield return Comment("Beginning of compiler-generated source file.", 0);
 			yield return Comment($"Date of generation: {DateTime.UtcNow}", 0);
 			yield return Processor();
+			yield return Format();
 			yield return Include("vcs.h");
 			yield return Org(0xF000);
 			yield return BlankLine();
@@ -65,6 +67,7 @@ namespace VCSCompiler
 			{
 				yield return line;
 			}
+			yield return EndBlock();
 			yield return Comment("End entry point code.", 0);
 			yield return BlankLine();
 		}
@@ -115,36 +118,16 @@ namespace VCSCompiler
 
 	    private static bool AssembleOutput(string assemblerPath)
 	    {
-		    var assemblerFullPath = Path.GetFullPath(assemblerPath);
-
-			if (!File.Exists(assemblerFullPath))
-		    {
-			    throw new FatalCompilationException($"Could not find assembler at: {assemblerFullPath}");
-		    }
-
-			var assemblerProcess = new Process
+			// @TODO - Obviously some remaining work to properly support this and 
+			// clean up all the DASM assumptions.
+			var args = new string[]
 			{
-				StartInfo = new ProcessStartInfo
-				{
-					FileName = assemblerFullPath,
-					UseShellExecute = false,
-					RedirectStandardOutput = true,
-					CreateNoWindow = true,
-					WorkingDirectory = Path.GetDirectoryName(assemblerPath),
-					Arguments = $@"""{Path.GetFullPath(AssemblyFileName)}"" -f3 -o{BinaryFileName} -s{SymbolsFileName} -l{ListFileName}"
-				}
+				Path.GetFullPath(Path.GetFullPath(AssemblyFileName)),
+				$"--output={BinaryFileName}",
+				$"--list={ListFileName}"
 			};
-
-            var auditor = AuditorManager.Instance.GetAuditor("Assembler", AuditTag.Compiler);
-            auditor.RecordEntry($"Starting assembler ({assemblerFullPath}) with arguments: {assemblerProcess.StartInfo.Arguments}...");
-            assemblerProcess.Start();
-		    assemblerProcess.WaitForExit();
-		    var output = assemblerProcess.StandardOutput.ReadToEnd();
-		    var success = assemblerProcess.ExitCode == 0;
-			auditor.RecordEntry($@"Assembler STDOUT:
-{output}");
-            auditor.RecordEntry($"Assembler execution successful? {success}");
-		    return success;
+			Core6502DotNet.Core6502DotNet.Main(args);
+			return false;
 	    }
 	}
 }

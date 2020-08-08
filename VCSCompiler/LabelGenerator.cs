@@ -47,7 +47,9 @@ namespace VCSCompiler
 		public static string GetFromInstruction(Instruction instruction)
 		{
 			// We assume all instructions are contained in subroutine psuedo-ops
-			return $".{instruction.ToString().Substring(0, 7)}";
+			// @TODO - 6502.Net doesn't prefix subroutine labels with .
+			// See if this affects anything else.
+			return $"{instruction.ToString().Substring(0, 7)}";
 		}
 	}
 }

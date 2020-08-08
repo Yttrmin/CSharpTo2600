@@ -8,7 +8,7 @@ namespace VCSFramework.Assembly
         #region Trivia
         public static Trivia Comment(string Comment, int IndentationLevel = 1)
         {
-            return new Trivia($"{new string('\t', IndentationLevel)}; {Comment}");
+            return new Trivia($"{new string('\t', IndentationLevel)}// {Comment}");
         }
         public static Trivia BlankLine()
         {
@@ -34,9 +34,15 @@ namespace VCSFramework.Assembly
         #region PsuedoOps
         public static PsuedoOp Processor()
         {
-            return new PsuedoOp("\tprocessor 6502");
+            return new PsuedoOp("\t.cpu \"6502\"");
         }
 
+        public static PsuedoOp Format()
+        {
+            return new PsuedoOp("\t.target \"flat\"");
+        }
+
+        // @TODO - Rename
         public static PsuedoOp Org(int Address)
         {
             //@TODO - Min?
@@ -44,7 +50,7 @@ namespace VCSFramework.Assembly
             {
                 throw new ArgumentException($"org address is out of range: 0x{Address.ToString("X4")}");
             }
-            return new PsuedoOp($"\torg ${Address.ToString("X4")}");
+            return new PsuedoOp($"\t * = ${Address.ToString("X4")}");
         }
 
         public static PsuedoOp Repeat(int Count)
@@ -62,14 +68,20 @@ namespace VCSFramework.Assembly
             return new PsuedoOp($"{Label.Name} subroutine");
         }
 
+        // @TODO - Rename me
 		public static PsuedoOp Subroutine(string Label)
 		{
-			return new PsuedoOp($"{Label} subroutine");
+			return new PsuedoOp($"{Label} .block");
 		}
+
+        public static PsuedoOp EndBlock()
+        {
+            return new PsuedoOp(".endblock");
+        }
 
 		public static PsuedoOp Include(string FileName)
         {
-            return new PsuedoOp($"\tinclude \"{FileName}\"");
+            return new PsuedoOp($"\t.include \"{FileName}\"");
         }
 
         public static PsuedoOp Word(Symbol Label)

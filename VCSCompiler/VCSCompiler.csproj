@@ -12,7 +12,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\6502DotNet\6502DotNet.csproj" />
     <ProjectReference Include="..\VCSFramework\VCSFramework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="vcs.h">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

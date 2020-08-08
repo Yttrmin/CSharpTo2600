@@ -32,7 +32,8 @@ namespace VCSCompiler
 				compiledBody.AddRange(action.Execute(compilationContext));
 			}
 
-			compiledBody = OptimizeMethod(compiledBody).ToList();
+			// @TODO - Apparently broke this!
+			//compiledBody = OptimizeMethod(compiledBody).ToList();
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("Final assembly:");
             stringBuilder.AppendLine(string.Join(Environment.NewLine, compiledBody));
