@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using VCSFramework.Assembly;
 using static VCSFramework.Assembly.AssemblyFactory;
+using Index = VCSFramework.Assembly.AssemblyFactory.Index;
 
 namespace VCSFramework
 {
