@@ -242,6 +242,14 @@ compareGreaterThanFromGlobalAndConstantToLocal .macro address, constant, local /
 	.endif
 .endmacro
 
+// compareGreaterThanFromGlobalAndConstantToLocal + branchTrueFromLocal iff same locals
+branchIfGreaterThanFromGlobalAndConstantToLocal .macro address, constant, local, branchTarget
+	.compareGreaterThanFromGlobalAndConstantToLocal \address, \constant, \local
+	// This saves 1 instruction, but more importantly, the presence of this macro could
+	// mean that the local can be enregistered (if no other uses).
+	BNE \branchTarget
+.endmacro
+
 // pushLocal + pushConstant + compareGreaterThanFromStack
 compareGreaterThanFromLocalAndConstant .macro local, constant //@TODO SIZE PARAMS
 	.compareGreaterThanFromGlobalAndConstant \local, \constant
@@ -271,6 +279,14 @@ compareGreaterThanFromLocalAndConstantToLocal .macro local, constant, targetLoca
 	_end
 		STA \targetLocal
 	.endif
+.endmacro
+
+// compareGreaterThanFromLocalAndConstantToLocal + branchTrueFromLocal iff same locals
+branchIfGreaterThanFromLocalAndConstantToLocal .macro local, constant, targetLocal, branchTarget
+	.compareGreaterThanFromLocalAndConstantToLocal \local, \constant, \targetLocal
+	// This saves 1 instruction, but more importantly, the presence of this macro could
+	// mean that the local can be enregistered (if no other uses).
+	BNE \branchTarget
 .endmacro
 
 // Primitive

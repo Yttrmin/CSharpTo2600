@@ -52,8 +52,7 @@ Main__IL_0007
 	.storeTo COLUBK
 
 Main__IL_004e
-	.compareGreaterThanFromGlobalAndConstantToLocal INTIM, 0, LOCAL_Main_01
-	.branchTrueFromLocal LOCAL_Main_01, Main__IL_004e
+	.branchIfGreaterThanFromGlobalAndConstantToLocal INTIM, 0, LOCAL_Main_01, Main__IL_004e
 
 	.storeTo WSYNC
 	.assignConstantToGlobal 0, VBLANK, INT_Byte_SIZE
@@ -66,8 +65,7 @@ Main__IL_0070
 	.storeTo WSYNC
 
 Main__IL_007d
-	.compareGreaterThanFromLocalAndConstantToLocal LOCAL_Main_00, 0, LOCAL_Main_02 // SIZE PARAMS
-	.branchTrueFromLocal LOCAL_Main_02, MAIN__IL_0070
+	.branchIfGreaterThanFromLocalAndConstantToLocal LOCAL_Main_00, 0, LOCAL_Main_02, MAIN__IL_0070
 
 	.storeTo WSYNC
 	.assignConstantToGlobal 2, VBLANK, INT_Byte_SIZE
@@ -79,9 +77,7 @@ Main__IL_0097
 	.storeTo WSYNC
 
 Main__IL_00a4
-	.compareGreaterThanFromLocalAndConstantToLocal LOCAL_Main_00, 0, LOCAL_Main_03
-	.pushLocal LOCAL_Main_03, SIZE_LOCAL_Main_03
-	.branchTrueFromStack Main__IL_0097
+	.branchIfGreaterThanFromLocalAndConstantToLocal LOCAL_Main_00, 0, LOCAL_Main_03, Main__IL_0097
 
 	.branch Main__IL_0007
 
