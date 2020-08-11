@@ -39,8 +39,7 @@ Start
 	.initialize
 	.clearMemory
 
-	.pushConstant $1, INT_Byte_SIZE
-	.popToGlobal Increment, INT_Byte_SIZE
+	.assignConstantToGlobal $1, Increment, INT_Byte_SIZE
 Main__IL_0007
 	.assignConstantToGlobal $2, VSYNC, INT_Byte_SIZE
 	.storeTo WSYNC
@@ -63,9 +62,7 @@ Main__IL_004e
 	.branch Main__IL_007d
 
 Main__IL_0070
-	.subFromLocalAndConstant LOCAL_Main_00, 1
-	.convertToByte // PARAMS
-	.popToLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
+	.subLocalByConstant LOCAL_Main_00, 1
 	.storeTo WSYNC
 
 Main__IL_007d
@@ -75,12 +72,10 @@ Main__IL_007d
 	.storeTo WSYNC
 	.assignConstantToGlobal 2, VBLANK, INT_Byte_SIZE
 	.assignConstantToLocal 30, LOCAL_Main_00, INT_Byte_SIZE
-	.branchTo Main__IL_00a4
+	.branch Main__IL_00a4
 
 Main__IL_0097
-	.subFromLocalAndConstant LOCAL_Main_00, 1
-	.convertToByte // PARAMS
-	.popToLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
+	.subLocalByConstant LOCAL_Main_00, 1
 	.storeTo WSYNC
 
 Main__IL_00a4

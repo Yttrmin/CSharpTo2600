@@ -65,6 +65,7 @@ copyTo .macro fromAddress, toAddress, size
 	.next
 .endmacro
 
+// Primitive
 addFromStack .macro
 	//.assert OPERAND_1 > 0, "OPERAND_1 size not valid, this is very bad."
 	//.assert OPERAND_2 > 0, "OPERAND_2 size not valid, this is very bad."
@@ -103,6 +104,7 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 	.endif
 .endmacro
 
+// Primitive
 subFromStack .macro // @TODO sizes
 	PLA
 	STA INT_RESERVED_1
@@ -121,12 +123,43 @@ subFromLocalAndConstant .macro local, constant //@TODO SIZES
 	PHA
 .endmacro
 
+// subFromLocalAndConstant + [convertToByte](?) + popToLocal 
+//  iff subFromLocalAndConstant and popToLocal use same local.
+subLocalByConstant .macro local, constant // @TODO SIZES
+	// 10 cycles to do full LDA/SEC/SBC/STA chain.
+	// DEC = 5 cycles
+	// For some reason assembler doesn't like this.
+		//.repeat \constant
+		//	DEC \local
+		//.endrepeat
+	// Also for some reason, a .elif chain ended up always evaluating the .else.
+	.if \constant == 0
+		NOP
+	.endif
+	.if \constant == 1
+		DEC \local
+	.endif
+	.if \constant == 2
+		DEC \local
+		DEC \local
+	.endif
+	.if \constant > 2
+		LDA \local
+		SEC
+		SBC #\constant
+		STA \local
+	.endif
+.endmacro
+
+// Primitive, also optimizable.
+// addFromAddressesToAddress + copyTo = addFromAddressesToAddress + storeTo iff ToAddress target == copyTo source.
 storeTo .macro address
 	STA \address
 .endmacro
 
 //
 
+// Primitive
 branch .macro address
 	JMP \address
 .endmacro
@@ -135,6 +168,7 @@ convertToByte .macro
 	// @TODO
 .endmacro
 
+// Primitive
 compareGreaterThanFromStack .macro // @TODO SIZE PARAMS
 	PLA
 	STA INT_RESERVED_1
@@ -239,6 +273,7 @@ compareGreaterThanFromLocalAndConstantToLocal .macro local, constant, targetLoca
 	.endif
 .endmacro
 
+// Primitive
 branchTrueFromStack .macro address
 	PLA
 	BNE \address
@@ -248,10 +283,6 @@ branchTrueFromStack .macro address
 branchTrueFromLocal .macro local, address
 	LDA \local
 	BNE \address
-.endmacro
-
-branchTo .macro address
-	JMP \address
 .endmacro
 
 //@TODO Check if messed up endianness.
@@ -264,10 +295,12 @@ pushConstant .macro value, size
 	.next
 .endmacro
 
+// Primitive
 pushLocal .macro address, size
 	.pushGlobal \address, \size
 .endmacro
 
+// Primitive
 popToLocal .macro address, size
 	.popToGlobal \address, \size
 .endmacro
