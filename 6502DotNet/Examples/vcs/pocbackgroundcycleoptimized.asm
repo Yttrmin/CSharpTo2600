@@ -42,74 +42,49 @@ Start
 	.pushConstant $1, INT_Byte_SIZE
 	.popToGlobal Increment, INT_Byte_SIZE
 Main__IL_0007
-	.pushConstant $2, 1
-	.popToGlobal VSYNC, INT_Byte_SIZE
+	.assignConstantToGlobal $2, VSYNC, INT_Byte_SIZE
 	.storeTo WSYNC
 	.storeTo WSYNC
 	.storeTo WSYNC
-	.pushConstant 43, 1
-	.popToGlobal TIM64T, INT_Byte_SIZE
-	.pushConstant 0, 1
-	.popToGlobal VSYNC, INT_Byte_SIZE
+	.assignConstantToGlobal 43, TIM64T, INT_Byte_SIZE
+	.assignConstantToGlobal 0, VSYNC, INT_Byte_SIZE
 
-	.pushGlobal BackgroundColor, 1
-	.pushGlobal Increment, 1
-	.addFromStack
-	.popToGlobal BackgroundColor, 1
-	.copyTo BackgroundColor, COLUBK, INT_Byte_SIZE
+	.addFromAddressesToAddress BackgroundColor, 1, Increment, 1, BackgroundColor, 1
+	.storeTo COLUBK
 
 Main__IL_004e
-	.pushGlobal INTIM, INT_Byte_SIZE
-	.pushConstant 0, 1
-	.compareGreaterThanFromStack //PARAMS
-	.popToLocal LOCAL_Main_01, SIZE_LOCAL_Main_01
-	.pushLocal LOCAL_Main_01, SIZE_LOCAL_Main_01
-	.branchTrueFromStack Main__IL_004e
+	.compareGreaterThanFromGlobalAndConstantToLocal INTIM, 0, LOCAL_Main_01
+	.branchTrueFromLocal LOCAL_Main_01, Main__IL_004e
 
 	.storeTo WSYNC
-	.pushConstant 0, 1
-	.popToGlobal VBLANK, INT_Byte_SIZE
+	.assignConstantToGlobal 0, VBLANK, INT_Byte_SIZE
 
-	.pushConstant 192, 1
-	.popToLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
+	.assignConstantToLocal 192, LOCAL_Main_00, INT_Byte_SIZE
 	.branch Main__IL_007d
 
 Main__IL_0070
-	.pushLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
-	.pushConstant 1, 1
-	.subFromStack // PARAMS
+	.subFromLocalAndConstant LOCAL_Main_00, 1
 	.convertToByte // PARAMS
 	.popToLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
 	.storeTo WSYNC
 
 Main__IL_007d
-	.pushLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
-	.pushConstant 0, 1
-	.compareGreaterThanFromStack // PARAMS
-	.popToLocal LOCAL_Main_02, SIZE_LOCAL_Main_02
-	.pushLocal LOCAL_Main_02, SIZE_LOCAL_Main_02
-	.branchTrueFromStack Main__IL_0070
+	.compareGreaterThanFromLocalAndConstantToLocal LOCAL_Main_00, 0, LOCAL_Main_02 // SIZE PARAMS
+	.branchTrueFromLocal LOCAL_Main_02, MAIN__IL_0070
 
 	.storeTo WSYNC
-	.pushConstant 2, 1
-	.popToGlobal VBLANK, INT_Byte_SIZE
-	.pushConstant 30, 1
-	.popToLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
+	.assignConstantToGlobal 2, VBLANK, INT_Byte_SIZE
+	.assignConstantToLocal 30, LOCAL_Main_00, INT_Byte_SIZE
 	.branchTo Main__IL_00a4
 
 Main__IL_0097
-	.pushLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
-	.pushConstant 1, 1
-	.subFromStack // PARAMS
+	.subFromLocalAndConstant LOCAL_Main_00, 1
 	.convertToByte // PARAMS
 	.popToLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
 	.storeTo WSYNC
 
 Main__IL_00a4
-	.pushLocal LOCAL_Main_00, SIZE_LOCAL_Main_00
-	.pushConstant 0, 1
-	.compareGreaterThanFromStack // PARAMS
-	.popToLocal LOCAL_Main_03, SIZE_LOCAL_Main_03
+	.compareGreaterThanFromLocalAndConstantToLocal LOCAL_Main_00, 0, LOCAL_Main_03
 	.pushLocal LOCAL_Main_03, SIZE_LOCAL_Main_03
 	.branchTrueFromStack Main__IL_0097
 
