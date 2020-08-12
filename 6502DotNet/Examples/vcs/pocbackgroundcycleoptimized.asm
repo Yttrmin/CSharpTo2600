@@ -52,7 +52,7 @@ Main__IL_0007
 	.storeTo COLUBK
 
 Main__IL_004e
-	.branchIfGreaterThanFromGlobalAndConstantToLocal INTIM, 0, LOCAL_Main_01, Main__IL_004e
+	.branchIfGreaterThanFromGlobalAndConstant INTIM, 0, Main__IL_004e
 
 	.storeTo WSYNC
 	.assignConstantToGlobal 0, VBLANK, INT_Byte_SIZE

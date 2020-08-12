@@ -250,6 +250,22 @@ branchIfGreaterThanFromGlobalAndConstantToLocal .macro address, constant, local,
 	BNE \branchTarget
 .endmacro
 
+// branchIfGreaterThanFromGlobalAndConstantToLocal and local is never read.
+branchIfGreaterThanFromGlobalAndConstant .macro address, constant, branchTarget
+	.if \constant == 0
+		LDA \address
+		BEQ +
+		JMP \branchTarget
+	+
+	.else
+		LDA \address
+		CMP \constant
+		BEQ +
+		JMP \branchTarget
+	+
+	.endif
+.endmacro
+
 // pushLocal + pushConstant + compareGreaterThanFromStack
 compareGreaterThanFromLocalAndConstant .macro local, constant //@TODO SIZE PARAMS
 	.compareGreaterThanFromGlobalAndConstant \local, \constant
