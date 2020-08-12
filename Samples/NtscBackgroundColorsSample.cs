@@ -5,11 +5,13 @@ namespace Samples
     public static class NtscBackgroundColorsSample
     {
 		private static byte BackgroundColor; // Support for static fields.
+		private static byte Increment; // A temporary contrivance to test globals a bit more.
 
 		public static void Main()
 		{
 			// Processor and memory initialization code is automatically injected by the compiler into
 			// the program's entry point, so there's no need to manually do it.
+			Increment = 1;
 		MainLoop:
 			// Perform vertical sync.
 			// This is the same logic that would be used in 6502 assembly as well.
@@ -22,7 +24,7 @@ namespace Samples
 
 			// Actual logic to increment and set the background color every frame.
 			// The least significant bit is unused, so incrementing by 1 instead of 2 slows the flashing down.
-			BackgroundColor++;
+			BackgroundColor += Increment;
 			ColuBk = BackgroundColor;
 
 			// Kill time until the vertical blank period is over.
