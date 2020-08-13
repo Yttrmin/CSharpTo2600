@@ -13,13 +13,13 @@ namespace VCSCompiler.V2
 {
     public sealed class Compiler
     {
-        private readonly Assembly FrameworkAssembly;
-        private readonly AssemblyDefinition UserAssemblyDefinition;
+        private readonly AssemblyDefinition FrameworkAssembly;
+        private readonly AssemblyDefinition UserAssembly;
 
-        private Compiler(Assembly frameworkAssembly, AssemblyDefinition userAssemblyDefinition)
+        private Compiler(AssemblyDefinition frameworkAssembly, AssemblyDefinition userAssemblyDefinition)
         {
             FrameworkAssembly = frameworkAssembly;
-            UserAssemblyDefinition = userAssemblyDefinition;
+            UserAssembly = userAssemblyDefinition;
         }
 
         public static RomInfo CompileFromFile(string sourcePath, string frameworkPath)
@@ -54,9 +54,10 @@ namespace VCSCompiler.V2
              *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
              */
             var compilation = CompilationCreator.CreateFromFilePaths(new[] { sourcePath });
-            var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
+            var userAssemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
             var frameworkAssembly = Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
-            var compiler = new Compiler(frameworkAssembly, assemblyDefinition);
+            var frameworkAssemblyDefinition = AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true });
+            var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
             compiler.CompileEntryPoint();
             throw new NotImplementedException();
             try
@@ -94,8 +95,8 @@ namespace VCSCompiler.V2
 
         public IEnumerable<AssemblyEntry> CompileEntryPoint()
         {
-            var entryPoint = UserAssemblyDefinition.EntryPoint;
-            var cilCompiler = new CilInstructionCompiler(entryPoint);
+            var entryPoint = UserAssembly.EntryPoint;
+            var cilCompiler = new CilInstructionCompiler(entryPoint, FrameworkAssembly);
             var roughCompilation = cilCompiler.Compile().ToList();
             return roughCompilation; // @TODO - Optimize!!
         }

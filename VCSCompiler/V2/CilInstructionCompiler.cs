@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using VCSFramework;
 using VCSFramework.V2;
 using Instruction = Mono.Cecil.Cil.Instruction;
 
@@ -15,11 +16,13 @@ namespace VCSCompiler.V2
     {
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
+		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
 
-		public CilInstructionCompiler(MethodDefinition methodDefinition)
+		public CilInstructionCompiler(MethodDefinition methodDefinition, params AssemblyDefinition[] assemblies)
         {
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
+			Assemblies = assemblies.ToImmutableArray();
         }
 
 		public IEnumerable<AssemblyEntry> Compile()
@@ -83,6 +86,7 @@ namespace VCSCompiler.V2
 			{
 				try
 				{
+					// @TODO - Don't limit to byte, also don't be this verbose.
 					value = Convert.ToByte(instruction.Operand);
 				}
 				catch (OverflowException)
@@ -124,9 +128,21 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<AssemblyEntry> Call(Instruction instruction)
         {
-			var method = (MethodReference)instruction.Operand;
+			var methodReference = (MethodReference)instruction.Operand;
 
-			throw new NotImplementedException();
+			// If it's not a MethodDefintion, it's not in the assembly we're compiling. Search for it in others.
+			var method = methodReference as MethodDefinition
+				?? Assemblies.CompilableTypes().CompilableMethods().SingleOrDefault(it => methodReference.FullName == it.FullName)
+				?? throw new MissingMethodException($"Could not find '{methodReference.FullName}' in any assemblies.");
+
+			if (method.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
+            {
+				throw new NotImplementedException("TODO");
+            }
+			else
+            {
+				throw new InvalidOperationException($"Couldn't compile '{instruction}', 'call' has limited support now.");
+            }
         }
 
 		private IEnumerable<AssemblyEntry> Ldc_I4(Instruction instruction)
