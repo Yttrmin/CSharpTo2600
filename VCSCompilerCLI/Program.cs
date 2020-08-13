@@ -1,5 +1,5 @@
 ﻿using System;
-using VCSCompiler;
+using VCSCompiler.V2;
 
 namespace VCSCompilerCLI
 {
@@ -10,9 +10,9 @@ namespace VCSCompilerCLI
 			//TODO - Error handling, actual argument parsing, etc.
 			var filePath = args[0];
 			var frameworkPath = args[1];
-			var dasmPath = args[2];
 			Console.WriteLine($"Beginning compilation of {filePath}");
-			var result = Compiler.CompileFromFiles(new[] { filePath }, frameworkPath, dasmPath).Result;
+			var result = Compiler.CompileFromFile(filePath, frameworkPath);
+			//var result = Compiler.CompileFromFiles(new[] { filePath }, frameworkPath, dasmPath).Result;
 			Console.WriteLine("Compilation complete.");
 #if DEBUG
 			Console.ReadLine();
