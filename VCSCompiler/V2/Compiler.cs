@@ -1,12 +1,15 @@
 ﻿#nullable enable
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Xml.Linq;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -57,8 +60,10 @@ namespace VCSCompiler.V2
             var userAssemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
             var frameworkAssembly = Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
             var frameworkAssemblyDefinition = AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true });
+            
             var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
-            compiler.CompileEntryPoint();
+            var entryPointBody = compiler.CompileEntryPoint();
+            compiler.ResolveLabels(entryPointBody);
             throw new NotImplementedException();
             try
             {
@@ -75,11 +80,14 @@ namespace VCSCompiler.V2
             }
         }
 
-        private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
+        private static AssemblyDefinition GetAssemblyDefinition(
+            CSharpCompilation compilation, 
+            out MemoryStream assemblyStream)
         {
             assemblyStream = new MemoryStream();
+            var emitOptions = new EmitOptions(debugInformationFormat: DebugInformationFormat.Embedded);
             // TODO - Emit debug symbols so Cecil can use them.
-            var result = compilation.Emit(assemblyStream);
+            var result = compilation.Emit(assemblyStream, options: emitOptions);
             if (!result.Success)
             {
                 foreach (var diagnostic in result.Diagnostics)
@@ -90,7 +98,8 @@ namespace VCSCompiler.V2
             }
             assemblyStream.Position = 0;
 
-            return AssemblyDefinition.ReadAssembly(assemblyStream);
+            var parameters = new ReaderParameters { ReadSymbols = true };
+            return AssemblyDefinition.ReadAssembly(assemblyStream, parameters);
         }
 
         public IEnumerable<AssemblyEntry> CompileEntryPoint()
@@ -98,7 +107,27 @@ namespace VCSCompiler.V2
             var entryPoint = UserAssembly.EntryPoint;
             var cilCompiler = new CilInstructionCompiler(entryPoint, FrameworkAssembly);
             var roughCompilation = cilCompiler.Compile().ToList();
-            return roughCompilation; // @TODO - Optimize!!
+
+            // Initialize CPU and memory before entry point code runs.
+            var entryPointPrefix = new AssemblyEntry[]
+            {
+                new Initialize(),
+                new ClearMemory()
+            };
+
+            roughCompilation.InsertRange(0, entryPointPrefix);
+            return roughCompilation;
+        }
+
+        public IEnumerable<AssemblyEntry> ResolveLabels(IEnumerable<AssemblyEntry> methodBody)
+        {
+            var allLabelParams = methodBody
+                .OfType<Macro>()
+                .SelectMany(it => it.Params)
+                .Where(it => !(it is InstructionLabel))
+                .Distinct();
+
+            throw new NotImplementedException();
         }
     }
 }

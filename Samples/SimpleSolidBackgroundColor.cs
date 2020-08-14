@@ -8,8 +8,10 @@ namespace Samples
     {
         public static void Main()
         {
-            ColuBk = 0x0E;
-            while (true) ;
+            while (true)
+            {
+                ColuBk = 0x0E;
+            }
         }
     }
 }

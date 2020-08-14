@@ -18,7 +18,8 @@ namespace VCSCompiler
 		private static readonly MetadataReference MsCorLibReference = MetadataReference.CreateFromFile(Assembly.Load(new AssemblyName("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e")).Location);
 		private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(VCSFramework.NByte).GetTypeInfo().Assembly.Location);
 		private static readonly MetadataReference[] MetadataReferences = new[] { RuntimeReference, CoreLibReference, MsCorLibReference, FrameworkReference };
-		private static readonly CSharpCompilationOptions Options = new CSharpCompilationOptions(OutputKind.ConsoleApplication, allowUnsafe: true);
+		// @TODO - Parameterize debug/release?
+		private static readonly CSharpCompilationOptions Options = new CSharpCompilationOptions(OutputKind.ConsoleApplication, allowUnsafe: true, optimizationLevel: OptimizationLevel.Release);
 
 		public static CSharpCompilation CreateFromFilePaths(IEnumerable<string> filePaths)
 		{
@@ -48,7 +49,7 @@ namespace VCSCompiler
 		private static SyntaxTree Parse(string filename)
 		{
 			var fileText = File.ReadAllText(filename);
-			var sourceText = SourceText.From(fileText);
+			var sourceText = SourceText.From(fileText, Encoding.UTF8); // Need to specify encoding in order to embed PDB.
 			return SyntaxFactory.ParseSyntaxTree(sourceText, new CSharpParseOptions(LanguageVersion.Latest), filename);
 		}
     }

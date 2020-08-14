@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Immutable;
 
@@ -9,6 +10,8 @@ namespace VCSFramework.V2
         public MacroLabel Label { get; }
         public ImmutableArray<Label> Params { get; }
         public ImmutableArray<Attribute> Effects { get; }
+        /// <summary>What instructions this macro replaces.</summary>
+        public ImmutableArray<Instruction> Instructions { get; init; }
 
         public Macro(MacroLabel label, params Label[] parameters)
         {
@@ -22,6 +25,15 @@ namespace VCSFramework.V2
             var paramString = string.Join(", ", Params);
             return $".{Label} {paramString}";
         }
+    }
+
+    public sealed record Branch : Macro
+    {
+        public Branch(InstructionLabel instruction)
+            : base(new MacroLabel("branch"), instruction) { }
+
+        public void Deconstruct(out InstructionLabel instruction)
+            => instruction = (InstructionLabel)Params[0];
     }
 
     [PushStack(Count = 1)]
@@ -47,6 +59,16 @@ namespace VCSFramework.V2
         public PopToGlobal(GlobalLabel label) : base(new MacroLabel("popToGlobal"), label) { }
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
+    }
+
+    public sealed record Initialize : Macro
+    {
+        public Initialize() : base(new MacroLabel("initialize")) { }
+    }
+
+    public sealed record ClearMemory : Macro
+    {
+        public ClearMemory() : base(new MacroLabel("clearMemory")) { }
     }
 
     /**

@@ -2,6 +2,7 @@
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -36,7 +37,9 @@ namespace VCSCompiler.V2
 			return @this.SelectMany(it => it.CompilableMethods());
 		}
 
-		public static bool TryGetFrameworkAttribute<T>(this MethodDefinition @this, out T? result) where T : Attribute
+		public static bool TryGetFrameworkAttribute<T>(
+			this MethodDefinition @this, 
+			[NotNullWhen(true)] out T? result) where T : Attribute
 		{
 			var attribute = @this.CustomAttributes.
 				SingleOrDefault(a => a.AttributeType.FullName == typeof(T).FullName);

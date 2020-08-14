@@ -45,7 +45,8 @@ namespace VCSCompiler.V2
             }
         }
 
-		public IEnumerable<AssemblyEntry> CompileInstruction(Instruction instruction) => MethodMap[instruction.OpCode.Code](instruction);
+        public IEnumerable<AssemblyEntry> CompileInstruction(Instruction instruction)
+			=> MethodMap[instruction.OpCode.Code](instruction);
 
 		private ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> CreateMethodMap()
 		{
@@ -126,6 +127,14 @@ namespace VCSCompiler.V2
 			yield return new PushConstant(LabelGenerator.Constant(value), LabelGenerator.ByteSize(typeof(byte)));
 		}
 
+		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new Branch(LabelGenerator.Instruction(targetInstruction));
+        }
+
+		private IEnumerable<AssemblyEntry> Br_S(Instruction instruction) => Br(instruction);
+
 		private IEnumerable<AssemblyEntry> Call(Instruction instruction)
         {
 			var methodReference = (MethodReference)instruction.Operand;
@@ -134,10 +143,26 @@ namespace VCSCompiler.V2
 			var method = methodReference as MethodDefinition
 				?? Assemblies.CompilableTypes().CompilableMethods().SingleOrDefault(it => methodReference.FullName == it.FullName)
 				?? throw new MissingMethodException($"Could not find '{methodReference.FullName}' in any assemblies.");
-
+			var arity = method.Parameters.Count;
+			
 			if (method.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
             {
-				throw new NotImplementedException("TODO");
+				if (overrideStore.Strobe)
+                {
+					if (arity != 0)
+                    {
+						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', methods to be replaced with a strobe must take 0 parameters");
+                    }
+					throw new NotImplementedException("Strobe");
+                }
+				else
+                {
+					if (arity != 1)
+                    {
+						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
+                    }
+					yield return new PopToGlobal(new GlobalLabel(overrideStore.Symbol));
+				}
             }
 			else
             {
