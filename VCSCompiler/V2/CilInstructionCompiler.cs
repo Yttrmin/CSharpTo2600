@@ -124,7 +124,7 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<AssemblyEntry> LoadConstant(Instruction instruction, byte value)
 		{
-			yield return new PushConstant(instruction, LabelGenerator.Constant(value), LabelGenerator.ByteSize(typeof(byte)));
+			yield return new PushConstant(instruction, LabelGenerator.Constant(value), LabelGenerator.ByteType, LabelGenerator.ByteSize);
 		}
 
 		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
@@ -161,7 +161,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
                     }
-					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol));
+					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol), LabelGenerator.ByteType, LabelGenerator.ByteSize);
 				}
             }
 			else
@@ -185,9 +185,10 @@ namespace VCSCompiler.V2
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
-			var fieldSizeLabel = LabelGenerator.ByteSize(field.FieldType);
+			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
+			var fieldSizeLabel = LabelGenerator.Size(field.FieldType);
 
-			yield return new PushGlobal(instruction, fieldLabel, fieldSizeLabel);
+			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
 		}
 
 		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)
@@ -198,7 +199,11 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Stsfld(Instruction instruction)
         {
 			var field = (FieldReference)instruction.Operand;
-			yield return new PopToGlobal(instruction, LabelGenerator.Global(field));
+			var fieldLabel = LabelGenerator.Global(field);
+			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
+			var fieldSizeLabel = LabelGenerator.Size(field.FieldType);
+
+			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
         }
 
 		private IEnumerable<AssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);

@@ -15,6 +15,7 @@ namespace VCSCompiler.V2
         private readonly ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> CompiledMethods;
         private readonly Lazy<string> AssemblyText;
         private static readonly string Indent = "    ";
+        private static readonly string StackIndex = "  ";
 
         public AssemblyWriter(Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> compiledMethods)
         {
@@ -55,7 +56,6 @@ namespace VCSCompiler.V2
 
             builder.AppendLine(new Comment("End function definitions."));
             builder.AppendLine();
-            builder.AppendLine("// Special memory locations");
             builder.AppendLine("* = $FFFC");
             builder.AppendLine($".word {LabelGenerator.Start}");
             builder.AppendLine($".word {LabelGenerator.Start}");
@@ -70,6 +70,13 @@ namespace VCSCompiler.V2
             {
                 var indent = entry is InstructionLabel ? "" : Indent;
                 builder.AppendLine($"{indent}{entry}");
+                if (entry is Macro macro)
+                {
+                    foreach (var stackLet in macro.StackLets)
+                    {
+                        builder.AppendLine($"{StackIndex}{stackLet}");
+                    }
+                }
             }
             builder.AppendLine(new Comment($"End {methodPair.Key.FullName}"));
         }

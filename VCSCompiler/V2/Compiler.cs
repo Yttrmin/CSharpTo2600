@@ -63,7 +63,7 @@ namespace VCSCompiler.V2
             var frameworkAssemblyDefinition = AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true });
             
             var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
-            var entryPointBody = compiler.CompileEntryPoint();
+            var entryPointBody = compiler.GenerateStackOps(compiler.CompileEntryPoint());
             //compiler.ResolveLabels(entryPointBody);
 
             var assemblyWriter = new AssemblyWriter(new()
@@ -119,14 +119,32 @@ namespace VCSCompiler.V2
             return roughCompilation.Prepend(new EntryPoint()).ToImmutableArray();
         }
 
-        public IEnumerable<AssemblyEntry> ResolveLabels(IEnumerable<AssemblyEntry> methodBody)
+        private ImmutableArray<AssemblyEntry> GenerateStackOps(ImmutableArray<AssemblyEntry> entries)
         {
-            var allLabelParams = methodBody
-                .OfType<Macro>()
-                .SelectMany(it => it.Params)
-                .Where(it => !(it is InstructionLabel))
-                .Distinct();
+            int maxPush = 0;
+            int maxPop = 0;
+            foreach (var entry in entries.OfType<Macro>())
+            {
+                if (entry.Effects.OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
+                {
+                    maxPush = Math.Max(maxPush, pushAttr.Count);
+                }
+                if (entry.Effects.OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
+                {
+                    maxPop = Math.Max(maxPop, popAttr.Count);
+                }
+            }
+            var maxStack = Math.Max(maxPush, maxPop);
 
+            return entries
+                .Select(entry =>
+                {
+                    if (entry is Macro macro)
+                    {
+                        return macro.WithStackLets(maxStack);
+                    }
+                    return entry;
+                }).ToImmutableArray();
             throw new NotImplementedException();
         }
     }
