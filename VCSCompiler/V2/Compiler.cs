@@ -5,6 +5,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -63,7 +64,13 @@ namespace VCSCompiler.V2
             
             var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
             var entryPointBody = compiler.CompileEntryPoint();
-            compiler.ResolveLabels(entryPointBody);
+            //compiler.ResolveLabels(entryPointBody);
+
+            var assemblyWriter = new AssemblyWriter(new()
+            {
+                { userAssemblyDefinition.MainModule.EntryPoint, entryPointBody }
+            });
+            assemblyWriter.WriteToConsole();
             throw new NotImplementedException();
             try
             {
@@ -102,21 +109,14 @@ namespace VCSCompiler.V2
             return AssemblyDefinition.ReadAssembly(assemblyStream, parameters);
         }
 
-        public IEnumerable<AssemblyEntry> CompileEntryPoint()
+        public ImmutableArray<AssemblyEntry> CompileEntryPoint()
         {
             var entryPoint = UserAssembly.EntryPoint;
             var cilCompiler = new CilInstructionCompiler(entryPoint, FrameworkAssembly);
-            var roughCompilation = cilCompiler.Compile().ToList();
+            var roughCompilation = cilCompiler.Compile();
 
-            // Initialize CPU and memory before entry point code runs.
-            var entryPointPrefix = new AssemblyEntry[]
-            {
-                new Initialize(),
-                new ClearMemory()
-            };
-
-            roughCompilation.InsertRange(0, entryPointPrefix);
-            return roughCompilation;
+            // Mark as entry point so we can find it later.
+            return roughCompilation.Prepend(new EntryPoint()).ToImmutableArray();
         }
 
         public IEnumerable<AssemblyEntry> ResolveLabels(IEnumerable<AssemblyEntry> methodBody)

@@ -21,6 +21,11 @@ namespace VCSCompiler.V2
 
         public static InstructionLabel Instruction(Instruction instruction)
             => new($"IL_{instruction.Offset:x4}");
+
+        public static FunctionLabel Function(MethodDefinition method)
+            => new($"FUNC_{method.DeclaringType.NamespaceAndName()}_{method.Name}");
+
+        public static FunctionLabel Start => new("START");
     }
 
     static class TypeReferenceStringExtensions

@@ -363,3 +363,8 @@ clearMemory .macro
 	DEX
 	BNE -
 .endmacro
+
+entryPoint .macro
+	.initialize
+	.clearMemory
+.endmacro
