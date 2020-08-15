@@ -1,7 +1,9 @@
 ﻿#nullable enable
 using Mono.Cecil.Cil;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace VCSFramework.V2
 {
@@ -9,7 +11,7 @@ namespace VCSFramework.V2
     {
         public MacroLabel Label { get; }
         public ImmutableArray<Label> Params { get; }
-        public ImmutableArray<Attribute> Effects { get; }
+        public IEnumerable<MacroEffectAttribute> Effects => GetType().CustomAttributes.OfType<MacroEffectAttribute>();
         /// <summary>What instructions this macro replaces.</summary>
         public ImmutableArray<Instruction> Instructions { get; init; }
 
@@ -17,7 +19,14 @@ namespace VCSFramework.V2
         {
             Label = label;
             Params = parameters.ToImmutableArray();
-            Effects = ImmutableArray<Attribute>.Empty;
+            Instructions = ImmutableArray<Instruction>.Empty;
+        }
+
+        public Macro(Instruction instruction, MacroLabel label, params Label[] parameters)
+        {
+            Label = label;
+            Params = parameters.ToImmutableArray();
+            Instructions = new[] { instruction }.ToImmutableArray();
         }
 
         public override string ToString()
@@ -39,8 +48,8 @@ namespace VCSFramework.V2
     [PushStack(Count = 1)]
     public sealed record PushConstant : Macro
     {
-        public PushConstant(ConstantLabel constant, SizeLabel constantSize) 
-            : base(new MacroLabel("pushConstant"), constant, constantSize) { }
+        public PushConstant(Instruction instruction, ConstantLabel constant, SizeLabel constantSize) 
+            : base(instruction, new MacroLabel("pushConstant"), constant, constantSize) { }
 
         public void Deconstruct(out ConstantLabel constant) => constant = (ConstantLabel)Params[0];
     }
@@ -48,7 +57,8 @@ namespace VCSFramework.V2
     [PushStack(Count = 1)]
     public sealed record PushGlobal : Macro
     {
-        public PushGlobal(GlobalLabel global, SizeLabel globalSize) : base(new MacroLabel("pushGlobal"), global, globalSize) { }
+        public PushGlobal(Instruction instruction, GlobalLabel global, SizeLabel globalSize)
+            : base(instruction, new MacroLabel("pushGlobal"), global, globalSize) { }
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
     }
@@ -56,9 +66,15 @@ namespace VCSFramework.V2
     [PopStack(Count = 1)]
     public sealed record PopToGlobal : Macro
     {
-        public PopToGlobal(GlobalLabel label) : base(new MacroLabel("popToGlobal"), label) { }
+        public PopToGlobal(Instruction instruction, GlobalLabel label)
+            : base(instruction, new MacroLabel("popToGlobal"), label) { }
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
+    }
+
+    public sealed record EntryPoint : Macro
+    {
+        public EntryPoint() : base(new MacroLabel("entryPoint")) { }
     }
 
     public sealed record Initialize : Macro
@@ -79,6 +95,8 @@ namespace VCSFramework.V2
     {
         //public string? SourceText { get; init; }
         //public string? CilText { get; init; }
+
+        public static implicit operator string(AssemblyEntry entry) => entry.ToString();
 
         public abstract override string ToString();
     }
@@ -130,6 +148,8 @@ namespace VCSFramework.V2
     public sealed record MacroLabel(string Name) : Label(Name);
 
     public sealed record InstructionLabel(string Name) : Label(Name);
+
+    public sealed record FunctionLabel(string Name) : Label(Name);
 
     // [StackEffect(POP, 2)]
     // [StackEffect(PUSH, 1)]

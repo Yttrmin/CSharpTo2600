@@ -100,31 +100,31 @@ namespace VCSCompiler.V2
 				switch (instruction.OpCode.Code)
 				{
 					case Code.Ldc_I4_0:
-						return LoadConstant(0);
+						return LoadConstant(instruction, 0);
 					case Code.Ldc_I4_1:
-						return LoadConstant(1);
+						return LoadConstant(instruction, 1);
 					case Code.Ldc_I4_2:
-						return LoadConstant(2);
+						return LoadConstant(instruction, 2);
 					case Code.Ldc_I4_3:
-						return LoadConstant(3);
+						return LoadConstant(instruction, 3);
 					case Code.Ldc_I4_4:
-						return LoadConstant(4);
+						return LoadConstant(instruction, 4);
 					case Code.Ldc_I4_5:
-						return LoadConstant(5);
+						return LoadConstant(instruction, 5);
 					case Code.Ldc_I4_6:
-						return LoadConstant(6);
+						return LoadConstant(instruction, 6);
 					case Code.Ldc_I4_7:
-						return LoadConstant(7);
+						return LoadConstant(instruction, 7);
 					case Code.Ldc_I4_8:
-						return LoadConstant(8);
+						return LoadConstant(instruction, 8);
 				}
 			}
-			return LoadConstant(value);
+			return LoadConstant(instruction, value);
 		}
 
-		private IEnumerable<AssemblyEntry> LoadConstant(byte value)
+		private IEnumerable<AssemblyEntry> LoadConstant(Instruction instruction, byte value)
 		{
-			yield return new PushConstant(LabelGenerator.Constant(value), LabelGenerator.ByteSize(typeof(byte)));
+			yield return new PushConstant(instruction, LabelGenerator.Constant(value), LabelGenerator.ByteSize(typeof(byte)));
 		}
 
 		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
@@ -161,7 +161,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
                     }
-					yield return new PopToGlobal(new GlobalLabel(overrideStore.Symbol));
+					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol));
 				}
             }
 			else
@@ -187,7 +187,7 @@ namespace VCSCompiler.V2
 			var fieldLabel = LabelGenerator.Global(field);
 			var fieldSizeLabel = LabelGenerator.ByteSize(field.FieldType);
 
-			yield return new PushGlobal(fieldLabel, fieldSizeLabel);
+			yield return new PushGlobal(instruction, fieldLabel, fieldSizeLabel);
 		}
 
 		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)
@@ -198,7 +198,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Stsfld(Instruction instruction)
         {
 			var field = (FieldReference)instruction.Operand;
-			yield return new PopToGlobal(LabelGenerator.Global(field));
+			yield return new PopToGlobal(instruction, LabelGenerator.Global(field));
         }
 
 		private IEnumerable<AssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
