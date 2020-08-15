@@ -221,7 +221,7 @@ namespace VCSFramework.V2
         : Label($"TYPE_{Type.NamespaceAndName()}");
 
     /// <summary>Label referring to the address of a global.</summary>
-    public sealed record GlobalLabel(string Name) : Label(Name);
+    public sealed record GlobalLabel(string Name, bool Predefined = false) : Label(Name);
 
     /// <summary>Label referring to the address of a local.</summary>
     public sealed record LocalLabel(string Name) : Label(Name);

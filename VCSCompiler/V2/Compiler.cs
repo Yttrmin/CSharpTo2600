@@ -64,6 +64,7 @@ namespace VCSCompiler.V2
             
             var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
             var entryPointBody = compiler.GenerateStackOps(compiler.CompileEntryPoint());
+            new LabelMap(new[] { entryPointBody }, new[] { frameworkAssemblyDefinition, userAssemblyDefinition }.ToImmutableArray());
             //compiler.ResolveLabels(entryPointBody);
 
             var assemblyWriter = new AssemblyWriter(new()

@@ -161,7 +161,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
                     }
-					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol), LabelGenerator.ByteType, LabelGenerator.ByteSize);
+					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, true), LabelGenerator.ByteType, LabelGenerator.ByteSize);
 				}
             }
 			else
