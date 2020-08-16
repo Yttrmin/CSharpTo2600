@@ -63,7 +63,9 @@ namespace VCSCompiler.V2
             var frameworkAssemblyDefinition = AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true });
             
             var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
-            var entryPointBody = compiler.GenerateStackOps(compiler.CompileEntryPoint());
+            var entryPointBody = compiler.CompileEntryPoint();
+            entryPointBody = compiler.Optimize(entryPointBody);
+            entryPointBody = compiler.GenerateStackOps(entryPointBody);
             var labelMap = new LabelMap(new[] { entryPointBody }, new[] { frameworkAssemblyDefinition, userAssemblyDefinition }.ToImmutableArray());
             //compiler.ResolveLabels(entryPointBody);
 
@@ -94,7 +96,6 @@ namespace VCSCompiler.V2
         {
             assemblyStream = new MemoryStream();
             var emitOptions = new EmitOptions(debugInformationFormat: DebugInformationFormat.Embedded);
-            // TODO - Emit debug symbols so Cecil can use them.
             var result = compilation.Emit(assemblyStream, options: emitOptions);
             if (!result.Success)
             {
@@ -120,6 +121,34 @@ namespace VCSCompiler.V2
             return roughCompilation.Prepend(new EntryPoint()).ToImmutableArray();
         }
 
+        private ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries)
+        {
+            var optimizers = new[]
+            {
+                new PushConstantPopToGlobalOptimization()
+            };
+
+            ImmutableArray<AssemblyEntry> preOptimize;
+            var postOptimize = entries;
+
+            // Optimizers may rely on the output of other optimizers. So loop until there's 
+            // no more changes being made.
+            do
+            {
+                preOptimize = postOptimize;
+                foreach (var optimizer in optimizers)
+                {
+                    postOptimize = optimizer.Optimize(postOptimize);
+                }
+            } while (!preOptimize.SequenceEqual(postOptimize));
+            return postOptimize;
+        }
+
+        /// <summary>
+        /// Generates stack-related let psuedoops that let us attempt to track the size/type of elements on the stack.
+        /// This must be called AFTER optimizations. Most optimizations eliminate stack operations anyways. But the
+        /// presence of the psuedoops will likely interfere with most optimizer's pattern matching too.
+        /// </summary>
         private ImmutableArray<AssemblyEntry> GenerateStackOps(ImmutableArray<AssemblyEntry> entries)
         {
             int maxPush = 0;
