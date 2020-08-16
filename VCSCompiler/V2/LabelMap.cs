@@ -35,9 +35,10 @@ namespace VCSCompiler.V2
                 .Distinct()
                 .ToImmutableArray();
 
+            var typeNumber = 100;
             foreach (var typeLabel in allLabelParams.OfType<TypeLabel>())
             {
-                typeToString[typeLabel] = @$"""{typeLabel.Type.NamespaceAndName()}""";
+                typeToString[typeLabel] = typeNumber++.ToString();
             }
 
             foreach (var sizeLabel in allLabelParams.OfType<SizeLabel>())

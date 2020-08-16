@@ -45,10 +45,11 @@ pushGlobal .macro address, size
 	.next
 .endmacro
 
-// Pops {size} bytes off the stack and stores them at {address}.
+// Pops {globalSize} bytes off the stack and stores them at {targetAddress}.
 // Effects: STACK-1, AccChange, MemChange
-popToGlobal .macro address, size
-	.for i = \address + (\size - 1), i >= \address, i = i - 1
+popToGlobal .macro targetAddress, globalType, globalSize, stackType, stackSize
+	.errorIf \globalType != \stackType, "popToGlobal to @{targetAddress}: type mismatch."
+	.for i = \targetAddress + (\globalSize - 1), i >= \targetAddress, i = i - 1
 		PLA
 		STA i
 	.next
@@ -318,7 +319,8 @@ branchTrueFromLocal .macro local, address
 .endmacro
 
 //@TODO Check if messed up endianness.
-pushConstant .macro value, size
+//@TODO - Delete type?
+pushConstant .macro value, type, size
 	.errorif \size > 2, "REPORTME: Bitshifting values that are >16-bit produces unexpected results."
 	.for i = 0, i < \size, i = i + 1
 		.let byte = (\value >> (i * 8)) & $FF
