@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -7,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VCSFramework;
+using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
@@ -55,5 +57,8 @@ namespace VCSCompiler.V2
 				return false;
 			}
 		}
+
+		public static IEnumerable<Instruction> AllInstructions(this (Macro a, Macro b) @this)
+			=> @this.a.Instructions.Concat(@this.b.Instructions);
 	}
 }

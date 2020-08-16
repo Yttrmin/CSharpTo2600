@@ -30,6 +30,13 @@ namespace VCSFramework.V2
             Instructions = new[] { instruction }.ToImmutableArray();
         }
 
+        public Macro(IEnumerable<Instruction> instructions, MacroLabel label, params Label[] parameters)
+        {
+            Label = label;
+            Params = parameters.ToImmutableArray();
+            Instructions = instructions.ToImmutableArray();
+        }
+
         public virtual Macro WithStackLets(int depth)
         {
             return this;
@@ -71,6 +78,10 @@ namespace VCSFramework.V2
         public PushConstant(Instruction instruction, ConstantLabel constant, TypeLabel constantType, SizeLabel constantSize) 
             : base(instruction, new MacroLabel("pushConstant"), constant, constantType, constantSize) { }
 
+        public ConstantLabel Constant => (ConstantLabel)Params[0];
+        public TypeLabel Type => (TypeLabel)Params[1];
+        public SizeLabel Size => (SizeLabel)Params[2];
+
         public override Macro WithStackLets(int depth)
         {
             var stackLets = new StackLetOp[]
@@ -81,7 +92,13 @@ namespace VCSFramework.V2
             return this with { StackLets = PercolateStackOps(depth).Concat(stackLets).ToImmutableArray() };
         }
 
-        public void Deconstruct(out ConstantLabel constant) => constant = (ConstantLabel)Params[0];
+        public void Deconstruct(out ConstantLabel constant, out TypeLabel typeLabel, out SizeLabel size, out ImmutableArray<Instruction> instructions)
+        {
+            constant = Constant;
+            typeLabel = Type;
+            size = Size;
+            instructions = Instructions;
+        }
     }
 
     [PushStack(Count = 1)]
@@ -109,9 +126,25 @@ namespace VCSFramework.V2
         public PopToGlobal(Instruction instruction, GlobalLabel globalLabel, TypeLabel typeLabel, SizeLabel sizeLabel)
             : base(instruction, new MacroLabel("popToGlobal"), globalLabel, typeLabel, sizeLabel, new StackTypeLabel(0), new StackSizeLabel(0)) { }
 
+        public GlobalLabel Global => (GlobalLabel)Params[0];
+        public TypeLabel Type => (TypeLabel)Params[1];
+        public SizeLabel Size => (SizeLabel)Params[2];
+
         // @TODO - Invalidate stack since we popped?
 
-        public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
+        public void Deconstruct(out GlobalLabel global, out TypeLabel type, out SizeLabel size, out ImmutableArray<Instruction> instructions)
+        {
+            global = Global;
+            type = Type;
+            size = Size;
+            instructions = Instructions;
+        }
+    }
+
+    public sealed record AssignConstantToGlobal : Macro
+    {
+        public AssignConstantToGlobal(IEnumerable<Instruction> instructions, ConstantLabel constant, GlobalLabel global, SizeLabel size)
+            : base(instructions, new MacroLabel("assignConstantToGlobal"), constant, global, size) { }
     }
 
     public sealed record EntryPoint : Macro
