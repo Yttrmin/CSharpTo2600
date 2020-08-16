@@ -3,9 +3,9 @@ using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -16,6 +16,7 @@ namespace VCSCompiler.V2
         private readonly LabelMap LabelMap;
         private readonly Lazy<string> AssemblyText;
         private static readonly string Indent = "    ";
+        private static readonly string SourceIndent = "   ";
         private static readonly string StackIndex = "  ";
 
         public AssemblyWriter(
@@ -78,9 +79,14 @@ namespace VCSCompiler.V2
             builder.AppendLine(LabelGenerator.Function(methodPair.Key));
             foreach (var entry in methodPair.Value)
             {
+                var macro = entry as Macro;
+                if (macro != null)
+                {
+                    AppendSource(methodPair.Key, macro, builder);
+                }
                 var indent = entry is InstructionLabel ? "" : Indent;
                 builder.AppendLine($"{indent}{entry}");
-                if (entry is Macro macro)
+                if (macro != null)
                 {
                     foreach (var stackLet in macro.StackLets)
                     {
@@ -89,6 +95,49 @@ namespace VCSCompiler.V2
                 }
             }
             builder.AppendLine(new Comment($"End {methodPair.Key.FullName}"));
+        }
+
+        private void AppendSource(MethodDefinition method, Macro macro, StringBuilder builder)
+        {
+            foreach (var instruction in macro.Instructions)
+            {
+                // @TODO - Parameterize printing of C#/CIL/none
+                var point = method.DebugInformation.GetSequencePoint(instruction);
+                if (point != null)
+                {
+                    var source = ReadSource(
+                        ReadSourceFile(point.Document.Url),
+                        point.StartLine,
+                        point.StartColumn,
+                        point.EndLine,
+                        point.EndColumn);
+                    foreach (var line in source)
+                    {
+                        builder.AppendLine($"{SourceIndent}{new Comment(line)}");
+                    }
+                }
+            }
+        }
+
+        private ImmutableArray<string> ReadSourceFile(string path)
+        {
+            return File.ReadAllLines(path).ToImmutableArray();
+        }
+
+        private IEnumerable<string> ReadSource(
+            ImmutableArray<string> sourceText,
+            int lineStart,
+            int columnStart,
+            int lineEnd,
+            int columnEnd)
+        {
+            if (lineStart != lineEnd)
+            {
+                throw new ArgumentException("Don't support multi-line source snippets yet.");
+            }
+            var line = sourceText[lineStart - 1];
+            var subLine = line[(columnStart-1)..(columnEnd-1)];
+            return new[] { subLine };
         }
 
         private void AppendLabels(StringBuilder builder)

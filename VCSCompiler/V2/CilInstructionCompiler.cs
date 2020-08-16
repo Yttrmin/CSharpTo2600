@@ -130,7 +130,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
         {
 			var targetInstruction = (Instruction)instruction.Operand;
-			yield return new Branch(LabelGenerator.Instruction(targetInstruction));
+			yield return new Branch(instruction, LabelGenerator.Instruction(targetInstruction));
         }
 
 		private IEnumerable<AssemblyEntry> Br_S(Instruction instruction) => Br(instruction);

@@ -58,8 +58,8 @@ namespace VCSFramework.V2
 
     public sealed record Branch : Macro
     {
-        public Branch(InstructionLabel instruction)
-            : base(new MacroLabel("branch"), instruction) { }
+        public Branch(Instruction instruction, InstructionLabel instructionLabel)
+            : base(instruction, new MacroLabel("branch"), instructionLabel) { }
 
         public void Deconstruct(out InstructionLabel instruction)
             => instruction = (InstructionLabel)Params[0];
