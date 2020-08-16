@@ -45,6 +45,11 @@ namespace VCSCompiler.V2
                 sizeToValue[sizeLabel] = $"{TypeData.Of(sizeLabel.Type, assemblies).Size}";
             }
 
+            foreach (var constantLabel in allLabelParams.OfType<ConstantLabel>())
+            {
+                constantToValue[constantLabel] = constantLabel.Value.ToString();
+            }
+
             // @TODO - Need to reserve some for VIL.
             var ramStart = 0x80;
             foreach (var globalLabel in allLabelParams.OfType<GlobalLabel>().Where(l => !l.Predefined))
