@@ -93,9 +93,9 @@ namespace VCSCompiler.V2
             return next switch
             {
                 (PushConstant(var constant, var constType, var size, var instA), 
-                (PopToGlobal(var global, var globalType, _, var instB), _))
+                (PopToGlobal(var global, var globalType, _, var instB), var trueNext))
                     when constType.Equals(globalType) 
-                    => new LinkedEntry(new AssignConstantToGlobal(instA.Concat(instB), constant, global, size), next.Next?.Next),
+                    => new LinkedEntry(new AssignConstantToGlobal(instA.Concat(instB), constant, global, size), trueNext),
                 _ => next
             };
         }
