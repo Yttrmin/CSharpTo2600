@@ -19,14 +19,16 @@ namespace VCSCompiler.V2
     {
         private readonly AssemblyDefinition FrameworkAssembly;
         private readonly AssemblyDefinition UserAssembly;
+        private readonly CompilerOptions Options;
 
-        private Compiler(AssemblyDefinition frameworkAssembly, AssemblyDefinition userAssemblyDefinition)
+        private Compiler(AssemblyDefinition frameworkAssembly, AssemblyDefinition userAssemblyDefinition, CompilerOptions options)
         {
             FrameworkAssembly = frameworkAssembly;
             UserAssembly = userAssemblyDefinition;
+            Options = options;
         }
 
-        public static RomInfo CompileFromFile(string sourcePath, string frameworkPath)
+        public static RomInfo CompileFromFile(string sourcePath, CompilerOptions options)
         {
             /**
              * Assumptions:
@@ -57,12 +59,13 @@ namespace VCSCompiler.V2
              * 6) In the end, the generated .asm may look like an intermediate representation, with lots of parameterized macro
              *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
              */
+            var frameworkPath = options.FrameworkPath;
             var compilation = CompilationCreator.CreateFromFilePaths(new[] { sourcePath });
             var userAssemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
             var frameworkAssembly = Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
             var frameworkAssemblyDefinition = AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true });
             
-            var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition);
+            var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
             entryPointBody = compiler.Optimize(entryPointBody);
             entryPointBody = compiler.GenerateStackOps(entryPointBody);

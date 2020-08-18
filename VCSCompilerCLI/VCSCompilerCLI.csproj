@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.CommandLine.DragonFruit" Version="0.3.0-alpha.20371.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\VCSCompiler\VCSCompiler.csproj" />
   </ItemGroup>
 
