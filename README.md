@@ -1,13 +1,16 @@
 # CSharpTo2600
-A compiler and framework for creating Atari 2600 games using C#. It uses the .NET Compiler Platform (Roslyn) to compile C# files, and Mono.Cecil to compile the resulting CIL into 6502 assembly.
+
+###### Iteration 3
+---
+A compiler and framework for creating Atari 2600 games using C#. It uses the .NET Compiler Platform (Roslyn) to compile C# files, and Mono.Cecil to compile the resulting CIL into 6502 assembler macros.
 
 ### Current Status
-Initially this project was written to compile C# straight to 6502 assembly. It has since been rewritten to compile C# to CIL, and then compile the CIL to 6502 assembly.
-The rewrite quickly surpassed the original implementation in both features and development speed.
-Development will continue towards the goal of porting [my 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#.
+The first iteration of this project compiled C# directly to 6502 assembly.\
+The second iteration of this project compiled CIL directly to 6502 assembly.\
+The third (and current) iteration of this project instead compiles CIL to custom macros for the 6502 assembler. This sounds like a small change, but it offers a higher level of abstraction to compile to, and makes it easier to optimize the results. We're also now using [6502.Net](https://github.com/informedcitizenry/6502.Net) as the assembler instead of DASM, so every part of the compiler is now running on .NET.
 
 ### Current Goal
-The current goal is to add all the features needed for me to port my [attempt at a 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#.
+The current goal is to add all the features needed for me to port my [attempt at a 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#. Progress will likely be slow since I have other personal projects I'm also working on.
 
 ### Example
 There's no collection of samples yet since they may quickly become obsolete. 
@@ -76,6 +79,8 @@ namespace Samples
 ### Features
 An incomplete list of supported features in no particular order. 
 
+>:warning: This list is out of date due to starting work on the third iteration of the compiler. The goal is achieve as much feature parity as we can with the second iteration, so the list remains here. It will be updated prior to being merged into `master`.
+
 * :o: Primitive Types
   * :x: `bool`
   * :heavy_check_mark: `byte`
@@ -143,12 +148,13 @@ An incomplete list of supported features in no particular order.
     * :heavy_check_mark: Initialize value type (`initobj`)
 
 ### Building
-Load the solution into [Visual Studio Community 2017](https://www.visualstudio.com/) and it should build and run fine.
+Load the solution into [Visual Studio Community 2019](https://www.visualstudio.com/) and it should build and run fine.
+
+>:warning: This project is using .NET 5. At the time of writing, .NET 5 is in preview and scheduled to be released in November 2020. You will need to download the preview SDK to build prior to its release.
 
 ### Usage
-The public interface is very rudimentary. You can either invoke it programmatically through `VCSCompiler.Compiler.CompileFromFiles()`, or through the command line program like so:
 
-`dotnet VCSCompilerCLI.dll path_to_source_file path_to_vcsframework_dll path_to_dasm_executable`
+TODO
 
 ### License
 This project is licensed under the [MIT License](./LICENSE.txt).
