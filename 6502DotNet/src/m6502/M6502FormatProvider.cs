@@ -20,33 +20,33 @@ namespace Core6502DotNet.m6502
     {
         public IEnumerable<byte> GetFormat()
         {
-            var arch = Assembler.Options.Architecture.ToLower();
-            var progstart = System.Convert.ToUInt16(Assembler.Output.ProgramStart);
-            var progend = System.Convert.ToUInt16(Assembler.Output.ProgramCounter);
+            var fmt = Assembler.Options.Format;
+            var progstart = (ushort)Assembler.Output.ProgramStart;
+            var progend = (ushort)Assembler.Output.ProgramCounter;
             var progsize = Assembler.Output.GetCompilation().Count;
 
             using (var ms = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(ms))
                 {
-                    if (string.IsNullOrEmpty(arch) || arch.Equals("cbm"))
+                    if (string.IsNullOrEmpty(fmt) || fmt.Equals("cbm"))
                     {
                         writer.Write(progstart);
                     }
-                    else if (arch.Equals("atari-xex"))
+                    else if (fmt.Equals("atari-xex"))
                     {
                         writer.Write(new byte[] { 0xff, 0xff }); // FF FF
                         writer.Write(progstart);
                         writer.Write(progend);
                     }
-                    else if (arch.Equals("apple2"))
+                    else if (fmt.Equals("apple2"))
                     {
                         writer.Write(progstart);
                         writer.Write(progsize);
                     }
-                    else if (!arch.Equals("flat"))
+                    else if (!fmt.Equals("flat"))
                     {
-                        throw new ArgumentException($"Unknown architecture specified \"{arch}\".");
+                        throw new ArgumentException($"Format \"{fmt}\" not supported with targeted CPU.");
                     }
                     writer.Write(Assembler.Output.GetCompilation().ToArray());
                     return ms.ToArray();

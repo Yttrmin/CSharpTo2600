@@ -75,16 +75,6 @@ namespace Core6502DotNet
         /// Constructs a new token object.
         /// </summary>
         /// <param name="parent">The token's parent token.</param>
-        public Token(Token parent)
-            : this(parent, string.Empty, 1)
-        {
-
-        }
-
-        /// <summary>
-        /// Constructs a new token object.
-        /// </summary>
-        /// <param name="parent">The token's parent token.</param>
         /// <param name="source">The source for which to derive the token's name.</param>
         /// <param name="position">The token's position (column) in the source code line.</param>
         public Token(Token parent, string source, int position)
@@ -143,29 +133,18 @@ namespace Core6502DotNet
             return copy;
         }
 
-        /// <summary>
-        /// Returns a string that represents the current object.
-        /// </summary>
-        /// <param name="useUnparsed">Determines whether the ToString
-        /// method should be based on the Unparsed name.</param>
-        /// <returns>The string representation of the object.</returns>
-        public string ToString(bool useUnparsed)
+        public override string ToString()
         {
-            StringBuilder sb;
-            if (useUnparsed)
-                sb = new StringBuilder(UnparsedName);
-            else
-                sb = new StringBuilder(Name);
+            StringBuilder sb = new StringBuilder(UnparsedName);
             if (Children != null)
             {
                 foreach (Token t in Children)
-                    sb.Append(t.ToString(useUnparsed));
+                    sb.Append(t.ToString());
             }
+            if (OperatorType == OperatorType.Open)
+                sb.Append(LexerParser.Groups[Name]);
             return sb.ToString();
         }
-
-        public override string ToString()
-            => ToString(false);
 
         #endregion
 
@@ -198,21 +177,10 @@ namespace Core6502DotNet
             get => _opType;
             set
             {
-                _opType = OperatorType.None;
-                switch (value)
-                {
-                    case OperatorType.Open:
-                    case OperatorType.Function:
-                    case OperatorType.Closed:
-                    case OperatorType.Unary:
-                    case OperatorType.Binary:
-                    case OperatorType.Separator:
-                        if (Type == TokenType.Operator)
-                            _opType = value;
-                        break;
-                    default:
-                        break;
-                }
+                if (Type == TokenType.Operator)
+                    _opType = value;
+                else
+                    _opType = OperatorType.None;
             }
         }
 

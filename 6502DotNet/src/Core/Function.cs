@@ -23,7 +23,9 @@ namespace Core6502DotNet
         /// definition and invocations.</param>
         /// <param name="parameterList">The list of parameters for the function.</param>
         public Function(Token parameterList)
-            : base(parameterList, Assembler.LineIterator.Current.ParsedSource)
+            : base(parameterList, 
+                   Assembler.LineIterator.Current.ParsedSource, 
+                   Assembler.Options.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
         {
             StartIndex = EndIndex = -1;
             Define();
@@ -75,7 +77,7 @@ namespace Core6502DotNet
         /// <returns>A <see cref="double"/> of the function return.</returns>
         public double Invoke(MultiLineAssembler mla, List<object> parameterList)
         {
-            SourceLine invokeLine = Assembler.LineIterator.Current;
+            var invokeLine = Assembler.LineIterator.Current;
             if (parameterList.Count > Params.Count)
             {
                 Assembler.Log.LogEntry(invokeLine, invokeLine.Instruction, "Unexpected argument passed to function.");
@@ -179,6 +181,6 @@ namespace Core6502DotNet
 
         public override bool AllowContinue => false;
 
-        public override void ExecuteDirective() => throw new NotImplementedException();
+        public override bool ExecuteDirective() => throw new NotImplementedException();
     }
 }

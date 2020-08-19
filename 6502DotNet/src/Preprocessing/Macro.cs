@@ -5,6 +5,7 @@
 // 
 //-----------------------------------------------------------------------------
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -30,7 +31,7 @@ namespace Core6502DotNet
 
         #region Members
 
-
+       
         readonly List<MacroSource> _sources;
 
         #endregion
@@ -42,20 +43,17 @@ namespace Core6502DotNet
         /// </summary>
         /// <param name="parms">The parameters token.</param>
         /// <param name="source">The original source string for the macro definition.</param>
-        public Macro(Token parms, string source)
-            : base(parms, source) => _sources = new List<MacroSource>();
+        public Macro(Token parms, string source, StringComparison stringComparison)
+            : base(parms, source, stringComparison)
+        {
+            _sources = new List<MacroSource>();
+        }
 
         #endregion
 
         #region Methods
 
-        /// <summary>
-        /// Expands the macro into source from the invocation.
-        /// </summary>
-        /// <param name="passedParams">The parameters passed from the invocation.</param>
-        /// <returns>A string representation of the expanded macro, including all
-        /// substituted parameters.</returns>
-        public IEnumerable<SourceLine> Expand(Token passedParams)
+        List<string> GetParamListFromParameters(Token passedParams)
         {
             var paramList = new List<string>();
             // capture passed parameters to a simple string list
@@ -64,12 +62,12 @@ namespace Core6502DotNet
                 var index = 0;
                 foreach (Token p in passedParams.Children)
                 {
-                    var parmName = p.ToString(useUnparsed: true);
+                    var parmName = p.ToString();
                     if (passedParams.Children.Count > 1)
                         parmName = parmName.TrimStartOnce(',');
                     if (string.IsNullOrEmpty(parmName))
                     {
-                        // if empty then simply take the default value if it iexists.
+                        // if empty then simply take the default value if it exists.
                         if (index >= Params.Count || string.IsNullOrEmpty(Params[index].DefaultValue))
                             throw new ExpressionException(p.Position, "No default value was passed for unnamed parameter in parameter list.");
                         paramList.Add(Params[index].DefaultValue);
@@ -83,12 +81,24 @@ namespace Core6502DotNet
                     index++;
                 }
             }
+            return paramList;
+        }
+
+        /// <summary>
+        /// Expands the macro into source from the invocation.
+        /// </summary>
+        /// <param name="passedParams">The parameters passed from the invocation.</param>
+        /// <returns>A string representation of the expanded macro, including all
+        /// substituted parameters.</returns>
+        public IEnumerable<SourceLine> Expand(Token passedParams)
+        {
+            var paramList = GetParamListFromParameters(passedParams);
             var expanded = new List<SourceLine> { GetBlockDirectiveLine(string.Empty, 1, ".block") };
             foreach (MacroSource source in _sources)
             {
                 if (source.ParamPlaces.Count > 0)
                 {
-                    string expandedSource = string.Empty;
+                    string expandedSource = source.Line.UnparsedSource;
 
                     foreach ((int paramIndex, string reference, Token token) parmRef in source.ParamPlaces)
                     {
@@ -105,13 +115,12 @@ namespace Core6502DotNet
                         {
                             substitution = paramList[parmRef.paramIndex];
                         }
-                        replacement = parmRef.token.UnparsedName.Replace(parmRef.reference, substitution);//Name.Replace(parmRef.reference, substitution);
-                        expandedSource = source.Line.UnparsedSource.Replace(parmRef.token.Name, replacement);
+                        replacement = parmRef.token.UnparsedName.Replace(parmRef.reference, substitution, _stringCompare);
+                        expandedSource = expandedSource.Replace(parmRef.token.Name, replacement);
                     }
                     var expandedLine = LexerParser.Parse(source.Line.Filename, expandedSource).First();
                     expandedLine.LineNumber = source.Line.LineNumber;
                     expanded.Add(expandedLine);
-                    //expanded.AddRange(LexerParser.Parse(source.Line.Filename, clone.UnparsedSource));
                 }
                 else
                 {
@@ -219,7 +228,7 @@ namespace Core6502DotNet
                                 else
                                     reference = afterMark.Substring(0, length);
                                 if (!int.TryParse(reference, out var paramIx))
-                                    paramIx = Params.FindIndex(p => p.Name.Equals(reference));
+                                    paramIx = Params.FindIndex(p => p.Name.Equals(reference, _stringCompare));
                                 else
                                     paramIx--;
 

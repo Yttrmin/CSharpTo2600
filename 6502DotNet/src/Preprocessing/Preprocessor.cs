@@ -11,7 +11,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Core6502DotNet
 {
@@ -25,7 +24,6 @@ namespace Core6502DotNet
 
         readonly Dictionary<string, Macro> _macros;
         readonly HashSet<string> _includedFiles;
-        static Regex _altBinary = new Regex(@"(?:^|\b)%([.#]+)", RegexOptions.Compiled);
 
         #endregion
 
@@ -63,9 +61,8 @@ namespace Core6502DotNet
 
             if (line.InstructionName[1] == 'b')
                 expanded.Add(Macro.GetBlockDirectiveLine(include, line.LineNumber, line.LabelName, ".block"));
-            var fileName = Path.GetFileName(include);
-            var includePath = Path.GetFullPath(include);
-            expanded.AddRange(Preprocess(includePath, fileName, File.ReadAllText(includePath)));
+
+            expanded.AddRange(PreprocessFile(include));
 
             if (line.InstructionName[1] == 'b')
                 expanded.Add(Macro.GetBlockDirectiveLine(include, line.LineNumber, ".endblock"));
@@ -73,26 +70,24 @@ namespace Core6502DotNet
             return expanded;
         }
 
-        static string ProcessComments(string fileName, string source)
+        static string ProcessComments(string source)
         {
             char c;
             int lineNumber = 1;
             var iterator = source.GetIterator();
-            var uncommentedBuilder = new StringBuilder();
-            int openindex = 0; // note for testing only feel free to delete 
+            var uncommented = new StringBuilder();
             while ((c = iterator.GetNext()) != char.MinValue)
             {
                 var peekNext = iterator.PeekNext();
                 if (c == '/' && peekNext == '*')
                 {
                     iterator.MoveNext();
-                    while ((c = iterator.Skip(c => c != '\n' && c != '*')) != char.MinValue/* &&
-                           (peekNext = iterator.PeekNext()) != char.MinValue && peekNext != '/'*/)
+                    while ((c = iterator.Skip(c => c != '\n' && c != '*')) != char.MinValue)
                     {
                         if (c == '\n')
                         {
                             lineNumber++;
-                            uncommentedBuilder.Append(c);
+                            uncommented.Append(c);
                         }
                         if ((peekNext = iterator.PeekNext()) == '/')
                         {
@@ -111,49 +106,36 @@ namespace Core6502DotNet
                         while (c != '\n' && c != char.MinValue)
                         {
                             if (isSemi)
-                                uncommentedBuilder.Append(c);
+                                uncommented.Append(c);
                             c = iterator.GetNext();
                         }
                         if (c == char.MinValue)
                             break;
                     }
-                    uncommentedBuilder.Append(c);
+                    uncommented.Append(c);
                     if (c == '"' || c == '\'')
                     {
-                        openindex = iterator.Index;
                         var close = c;
                         while ((c = iterator.GetNext()) != char.MinValue)
                         {
-                            uncommentedBuilder.Append(c);
+                            uncommented.Append(c);
                             if (c == '\\')
                             {
                                 if ((c = iterator.GetNext()) == char.MinValue)
                                     break;
-                                uncommentedBuilder.Append(c);
+                                uncommented.Append(c);
                             }
                             else if (c == close)
                             {
                                 break;
                             }
                         }
-                        if (c != close)
-                        {
-                            Assembler.Log.LogEntry(fileName, lineNumber, "Quote string not enclosed.");
-                            return string.Empty;
-                        }
                     }
                     else if (c == '\n')
                         lineNumber++;
                 }
             }
-            var uncommented = uncommentedBuilder.ToString();
-            foreach (var match in _altBinary.Matches(uncommented))
-            {
-                var m = match.ToString();
-                uncommented = uncommented.Replace(m, m.Replace('.', '0')
-                                                      .Replace('#', '1'));
-            }
-            return uncommented;
+            return uncommented.ToString(); ;
         }
 
         IEnumerable<SourceLine> ProcessMacros(IEnumerable<SourceLine> uncommented)
@@ -163,111 +145,121 @@ namespace Core6502DotNet
             SourceLine line = null;
             while ((line = lineIterator.GetNext()) != null)
             {
-                if (string.IsNullOrWhiteSpace(line.ParsedSource))
+                try
                 {
-                    macroProcessed.Add(line);
-                    continue;
-                }
-                if (line.InstructionName.Equals(".macro"))
-                {
-                    if (string.IsNullOrEmpty(line.LabelName))
+                    if (string.IsNullOrWhiteSpace(line.ParsedSource))
                     {
-                        Assembler.Log.LogEntry(line, line.Instruction, "Macro name not specified.");
+                        macroProcessed.Add(line);
                         continue;
                     }
-                    var macroName = "." + line.LabelName;
-                    if (_macros.ContainsKey(macroName))
+                    if (line.InstructionName.Equals(".macro"))
                     {
-                        Assembler.Log.LogEntry(line, line.Label, $"Macro named \"{line.LabelName}\" already defined.");
-                        continue;
-                    }
-                    if (Assembler.IsReserved.Any(i => i.Invoke(macroName)) ||
-                        !char.IsLetter(line.LabelName[0]))
-                    {
-                        Assembler.Log.LogEntry(line, line.Label, $"Macro name \"{line.LabelName}\" is not valid.");
-                        continue;
-                    }
-                    //Assembler.SymbolManager.DefineGlobal(line.LabelName, double.NaN);
-                    Reserved.AddWord("MacroNames", line.Label.Name);
-                    var macro = new Macro(line.Operand, line.ParsedSource);
-                    _macros[macroName] = macro;
-                    SourceLine instr = line;
-                    while ((line = lineIterator.GetNext()) != null && !line.InstructionName.Equals(".endmacro"))
-                    {
-                        if (macroName.Equals(line.InstructionName))
+                        if (string.IsNullOrEmpty(line.LabelName))
                         {
-                            Assembler.Log.LogEntry(line, line.Instruction, "Recursive macro call not allowed.");
+                            Assembler.Log.LogEntry(line, line.Instruction, "Macro name not specified.");
                             continue;
                         }
-                        if (line.InstructionName.Equals(".macro"))
+                        var macroName = "." + line.LabelName;
+
+                        if (_macros.ContainsKey(macroName))
                         {
-                            Assembler.Log.LogEntry(line, line.Instruction, "Nested macro definitions not allowed.");
+                            Assembler.Log.LogEntry(line, line.Label, $"Macro named \"{line.LabelName}\" already defined.");
                             continue;
                         }
-                        if (line.InstructionName.Equals(".include") || line.InstructionName.Equals(".binclude"))
+                        if (Assembler.IsReserved.Any(i => i.Invoke(macroName)) ||
+                            !char.IsLetter(line.LabelName[0]))
                         {
-                            IEnumerable<SourceLine> includes = ExpandInclude(line);
-                            foreach (SourceLine incl in includes)
+                            Assembler.Log.LogEntry(line, line.Label, $"Macro name \"{line.LabelName}\" is not valid.");
+                            continue;
+                        }
+                        Reserved.AddWord("MacroNames", macroName);
+
+                        var compare = Assembler.Options.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+                        var macro = new Macro(line.Operand, line.ParsedSource, compare);
+                        _macros[macroName] = macro;
+                        var instr = line;
+                        while ((line = lineIterator.GetNext()) != null && !line.InstructionName.Equals(".endmacro"))
+                        {
+                            if (macroName.Equals(line.InstructionName))
                             {
-                                if (macroName.Equals(incl.InstructionName))
+                                Assembler.Log.LogEntry(line, line.Instruction, "Recursive macro call not allowed.");
+                                continue;
+                            }
+                            if (line.InstructionName.Equals(".macro"))
+                            {
+                                Assembler.Log.LogEntry(line, line.Instruction, "Nested macro definitions not allowed.");
+                                continue;
+                            }
+                            if (line.InstructionName.Equals(".include") || line.InstructionName.Equals(".binclude"))
+                            {
+                                var includes = ExpandInclude(line);
+                                foreach (var incl in includes)
                                 {
-                                    Assembler.Log.LogEntry(incl, incl.Instruction, "Recursive macro call not allowed.");
-                                    continue;
+                                    if (macroName.Equals(incl.InstructionName))
+                                    {
+                                        Assembler.Log.LogEntry(incl, incl.Instruction, "Recursive macro call not allowed.");
+                                        continue;
+                                    }
+                                    macro.AddSource(incl);
                                 }
-                                macro.AddSource(incl);
+                            }
+                            else
+                            {
+                                macro.AddSource(line);
                             }
                         }
-                        else
+                        if (!string.IsNullOrEmpty(line.LabelName))
                         {
+                            if (line.OperandHasToken)
+                            {
+                                Assembler.Log.LogEntry(line, line.Operand, "Unexpected argument found for macro definition closure.");
+                                continue;
+                            }
+                            line.Instruction = null;
+                            line.ParsedSource = line.ParsedSource.Replace(".endmacro", string.Empty);
                             macro.AddSource(line);
                         }
-                    }
-                    if (!string.IsNullOrEmpty(line.LabelName))
-                    {
-                        if (line.OperandHasToken)
+                        else if (line == null)
                         {
-                            Assembler.Log.LogEntry(line, line.Operand, "Unexpected argument found for macro definition closure.");
+                            line = instr;
+                            Assembler.Log.LogEntry(instr, instr.Instruction, "Missing closure for macro definition.");
                             continue;
                         }
-                        line.Instruction = null;
-                        line.ParsedSource = line.ParsedSource.Replace(".endmacro", string.Empty);
-                        macro.AddSource(line);
                     }
-                    else if (line == null)
+                    else if (line.InstructionName.Equals(".include") || line.InstructionName.Equals(".binclude"))
                     {
-                        line = instr;
-                        Assembler.Log.LogEntry(instr, instr.Instruction, "Missing closure for macro definition.");
+                        macroProcessed.AddRange(ExpandInclude(line));
+                    }
+                    else if (_macros.ContainsKey(line.InstructionName))
+                    {
+                        if (!string.IsNullOrEmpty(line.LabelName))
+                        {
+                            SourceLine clone = line.Clone();
+                            clone.Operand =
+                            clone.Instruction = null;
+                            clone.UnparsedSource =
+                            clone.ParsedSource = line.LabelName;
+                            macroProcessed.Add(clone);
+                        }
+                        Macro macro = _macros[line.InstructionName];
+                        macroProcessed.AddRange(ProcessExpansion(macro.Expand(line.Operand)));
+                    }
+                    else if (line.InstructionName.Equals(".endmacro"))
+                    {
+                        Assembler.Log.LogEntry(line, line.Instruction,
+                            "Directive \".endmacro\" does not close a macro definition.");
                         continue;
                     }
-                }
-                else if (line.InstructionName.Equals(".include") || line.InstructionName.Equals(".binclude"))
-                {
-                    macroProcessed.AddRange(ExpandInclude(line));
-                }
-                else if (_macros.ContainsKey(line.InstructionName))
-                {
-                    if (!string.IsNullOrEmpty(line.LabelName))
+                    else
                     {
-                        SourceLine clone = line.Clone();
-                        clone.Operand =
-                        clone.Instruction = null;
-                        clone.UnparsedSource =
-                        clone.ParsedSource = line.LabelName;
-                        macroProcessed.Add(clone);
+                        macroProcessed.Add(line);
                     }
-                    Macro macro = _macros[line.InstructionName];
-                    macroProcessed.AddRange(ProcessExpansion(macro.Expand(line.Operand)));
                 }
-                else if (line.InstructionName.Equals(".endmacro"))
+                catch (ExpressionException ex)
                 {
-                    Assembler.Log.LogEntry(line, line.Instruction,
-                        "Directive \".endmacro\" does not close a macro definition.");
-                    continue;
+                    Assembler.Log.LogEntry(line, ex.Position, ex.Message);
                 }
-                else
-                {
-                    macroProcessed.Add(line);
-                }
+                
             }
             return macroProcessed;
         }
@@ -301,32 +293,92 @@ namespace Core6502DotNet
         }
 
         /// <summary>
-        /// Perform preprocessing of the source string, including
-        /// comment scrubbing and macro creation and expansion.
+        /// Perform preprocessing of the source text, 
+        /// including comment scrubbing and macro creation and expansion.
         /// </summary>
-        /// <param name="fileName">The source file name.</param>
-        /// <param name="source">The source as a string.</param>
-        /// <returns></returns>
-        public IEnumerable<SourceLine> Preprocess(string fullPath, string fileName, string source)
-        {
-            if (!string.IsNullOrWhiteSpace(fullPath))
-            {
-                if (_includedFiles.Contains(fullPath))
-                    throw new FileLoadException($"File \"{fullPath}\" already included in source.");
+        /// <param name="source">The source text.</param>
 
-                // truncate path info if executing path is same as source path.
-                var location = new Uri(System.Reflection.Assembly.GetEntryAssembly().GetName().CodeBase);
-                var asmPath = new FileInfo(location.AbsolutePath).Directory.FullName;
-                var exePath = Path.GetDirectoryName(fullPath);
-                if (asmPath.Equals(exePath))
-                    _includedFiles.Add(fileName);
-                else
-                    _includedFiles.Add(fullPath);
+        public IEnumerable<SourceLine> PreprocessSource(string source)
+            => Preprocess(string.Empty, source);
+
+        /// <summary>
+        /// Perforsm preprocessing of the input string as a label define expression.
+        /// </summary>
+        /// <param name="defineExpression">The define</param>
+        /// <returns>A <see cref="SourceLine"/> representing the parsed label define.</returns>
+        /// <exception cref="Exception"/>
+        public SourceLine PreprocessDefine(string defineExpression)
+        {
+            if (!defineExpression.Contains('='))
+                defineExpression += "=1";
+            var defines = Preprocess(string.Empty, defineExpression);
+            var line = defines.ToList()[0];
+            if (line.Label == null || line.Instruction == null || !line.InstructionName.Equals("=") || line.Operand == null)
+                throw new Exception($"Define expression \"{defineExpression}\" is not valid.");
+            if (!Evaluator.ExpressionIsConstant(line.Operand))
+                throw new Exception($"Define expression \"{line.Operand}\" is not a constant.");
+            return line;
+        }
+
+        /// <summary>
+        /// Perform preprocessing of the source text within the source file, 
+        /// including comment scrubbing and macro creation and expansion.
+        /// </summary>
+        /// <param name="fileName">The source file.</param>
+        /// <returns>A collection of parsed <see cref="SourceLine"/>s.</returns>
+        public IEnumerable<SourceLine> PreprocessFile(string fileName)
+        {
+            string source = string.Empty;
+            string fullPath = string.Empty;
+            var fileInfo = new FileInfo(fileName);
+            if (fileInfo.Exists)
+            {
+                using (var fs = fileInfo.OpenText())
+                {
+                    fullPath = fileInfo.FullName;
+                    source = fs.ReadToEnd();
+                }
             }
+            else if (!string.IsNullOrEmpty(Assembler.Options.IncludePath))
+            {
+                fullPath = Path.Combine(Assembler.Options.IncludePath, fileName);
+                if (File.Exists(fullPath))
+                    source = File.ReadAllText(fullPath);
+                else
+                    throw new FileNotFoundException($"Source \"{fileInfo.FullName}\" not found.");
+            }
+            else
+            {
+                throw new FileNotFoundException($"Source \"{fileInfo.FullName}\" not found.");
+            }
+            var sourceFileValid = false;
+            var len = source.Length < 5 ? source.Length : 5;
+            for(var i = 0; i < len; i++)
+            {
+                if (!char.IsControl(source[i]) || char.IsWhiteSpace(source[i]))
+                {
+                    sourceFileValid = true;
+                    break;
+                }
+            }
+            if (!sourceFileValid)
+                throw new Exception($"File \"{fileName}\" may be empty or in an unrecognized file format.");
+
+            var location = new Uri(System.Reflection.Assembly.GetEntryAssembly().GetName().CodeBase);
+            var dirInfo = new DirectoryInfo(location.AbsolutePath);
+            if (Path.GetDirectoryName(dirInfo.FullName).Equals(Path.GetDirectoryName(fullPath)))
+                fullPath = fileName;
+            if (_includedFiles.Contains(fullPath))
+                throw new FileLoadException($"File \"{fullPath}\" already included in source.");
+            _includedFiles.Add(fullPath);
+            return Preprocess(fileName, source);
+        }
+
+        IEnumerable<SourceLine> Preprocess(string fileName, string source)
+        {
             source = source.Replace("\r", string.Empty); // remove Windows CR
-            IEnumerable<SourceLine> uncommented;
-            source = ProcessComments(fileName, source);
-            uncommented = LexerParser.Parse(fileName, source);
+            source = ProcessComments(source);
+            var uncommented = LexerParser.Parse(fileName, source);
             // process older .comment/.endcomments
             var lineIterator = uncommented.GetIterator();
             SourceLine line;
@@ -351,7 +403,6 @@ namespace Core6502DotNet
         /// <returns>A collection of input files.</returns>
         public ReadOnlyCollection<string> GetInputFiles()
             => new ReadOnlyCollection<string>(_includedFiles.ToList());
-
 
         protected override string OnAssembleLine(SourceLine line) => throw new NotImplementedException();
 

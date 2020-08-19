@@ -36,20 +36,6 @@ namespace Core6502DotNet
     {
         #region Members
 
-        static public readonly Dictionary<string, string> Groups = new Dictionary<string, string>
-        {
-            ["("] = ")",
-            ["["] = "]",
-            ["{"] = "}"
-        };
-        static readonly HashSet<string> _restrictedWords = new HashSet<string>
-        {
-            "true", "false", "math_pi", "math_e",
-            "uint32_max", "uint32_min", "int32_max", "int32_min",
-            "uint24_max", "uint24_min", "int24_max", "int24_min",
-            "uint16_max", "uint16_min", "int16_max", "int16_min",
-            "uint8_max", "uint8_min", "int8_max", "int8_min"
-        };
 
         static readonly Dictionary<string, ConversionDef> _radixOperators = new Dictionary<string, ConversionDef>
         {
@@ -60,11 +46,11 @@ namespace Core6502DotNet
         {
             {
                 new Token{ Name = "||", Type = TokenType.Operator, OperatorType = OperatorType.Binary },
-                new OperationDef(parms => ((int)parms[1]!=0?1:0) | ((int)parms[0]!=0? 1 : 0),  0)
+                new OperationDef(parms => (!parms[1].AlmostEquals(0)?1:0) | (!parms[0].AlmostEquals(0)?1:0),  0)
             },
             {
                 new Token{ Name = "&&", Type = TokenType.Operator, OperatorType = OperatorType.Binary },
-                new OperationDef(parms => ((int)parms[1]!=0?1:0) & ((int)parms[0]!=0? 1 : 0),  1)
+                new OperationDef(parms => (!parms[1].AlmostEquals(0)?1:0) & (!parms[0].AlmostEquals(0)?1:0),  1)
             },
             {
                 new Token{ Name = "|",  Type = TokenType.Operator, OperatorType = OperatorType.Binary },
@@ -122,7 +108,7 @@ namespace Core6502DotNet
                 new Token{ Name = "/",  Type = TokenType.Operator, OperatorType = OperatorType.Binary },
                 new OperationDef(delegate(List<double> parms)
                 {
-                    if (parms[0] == 0) throw new DivideByZeroException();
+                    if (parms[0].AlmostEquals(0)) throw new DivideByZeroException();
                     return parms[1] / parms[0];
                 },                                                                             9)
             },
@@ -148,11 +134,11 @@ namespace Core6502DotNet
             },
             {
                 new Token{ Name = "&",  Type = TokenType.Operator, OperatorType = OperatorType.Unary  },
-                new OperationDef(parms => (long)parms[0]  % 65536,                            11)
+                new OperationDef(parms => (long)parms[0]  & 65535,                            11)
             },
             {
                 new Token{ Name = "^",  Type = TokenType.Operator, OperatorType = OperatorType.Unary  },
-                new OperationDef(parms => (long)(parms[0] / 0x10000) % 256,                   11)
+                new OperationDef(parms => ((long)parms[0] & UInt24.MaxValue) / 0x10000,       11)
             },
             {
                 new Token{ Name = "-",  Type = TokenType.Operator, OperatorType = OperatorType.Unary  },
@@ -164,11 +150,11 @@ namespace Core6502DotNet
             },
             {
                 new Token{ Name = ">",  Type = TokenType.Operator, OperatorType = OperatorType.Unary  },
-                new OperationDef(parms => (long)(parms[0] / 0x100) % 256,                     11)
+                new OperationDef(parms => ((long)parms[0] & 65535) / 0x100,                   11)
             },
             {
                 new Token{ Name = "<",  Type = TokenType.Operator, OperatorType = OperatorType.Unary  },
-                new OperationDef(parms => (long)parms[0]  % 256,                              11)
+                new OperationDef(parms => (long)parms[0]  & 255,                              11)
             },
             {
                 new Token{ Name = "$",  Type = TokenType.Operator, OperatorType = OperatorType.Unary  },
@@ -187,6 +173,9 @@ namespace Core6502DotNet
 
         #region Constructors
 
+        /// <summary>
+        /// Initialize the evaluator for use.
+        /// </summary>
         static Evaluator()
         {
             _rng = new Random();
@@ -220,34 +209,68 @@ namespace Core6502DotNet
             };
 
             _functionEvaluators = new List<IFunctionEvaluator>();
-
-            Assembler.SymbolManager.DefineGlobal("true", 1);
-            Assembler.SymbolManager.DefineGlobal("false", 0);
-            Assembler.SymbolManager.DefineGlobal("math_pi", Math.PI);
-            Assembler.SymbolManager.DefineGlobal("math_e", Math.E);
-            Assembler.SymbolManager.DefineGlobal("uint32_max", uint.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("int32_max", int.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("uint32_min", uint.MinValue);
-            Assembler.SymbolManager.DefineGlobal("int32_min", int.MinValue);
-            Assembler.SymbolManager.DefineGlobal("uint24_max", UInt24.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("int24_max", Int24.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("uint24_min", UInt24.MinValue);
-            Assembler.SymbolManager.DefineGlobal("int24_min", Int24.MinValue);
-            Assembler.SymbolManager.DefineGlobal("uint16_max", ushort.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("int16_max", short.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("uint16_min", ushort.MinValue);
-            Assembler.SymbolManager.DefineGlobal("int16_min", short.MinValue);
-            Assembler.SymbolManager.DefineGlobal("uint8_max", byte.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("int8_max", sbyte.MaxValue);
-            Assembler.SymbolManager.DefineGlobal("uint8_min", byte.MinValue);
-            Assembler.SymbolManager.DefineGlobal("int8_min", sbyte.MinValue);
-
-            Assembler.SymbolManager.AddValidSymbolNameCriterion(s => !_restrictedWords.Contains(s) && !_functions.ContainsKey(s));
         }
 
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Initialize the Evaluator for use.
+        /// </summary>
+        public static void Initialize()
+        {
+            _functionEvaluators.Clear();
+
+            Assembler.SymbolManager.DefineConstant("true", 1);
+            Assembler.SymbolManager.DefineConstant("false", 0);
+            Assembler.SymbolManager.DefineConstant("MATH_PI", Math.PI);
+            Assembler.SymbolManager.DefineConstant("MATH_E", Math.E);
+            Assembler.SymbolManager.DefineConstant("UINT32_MAX", uint.MaxValue);
+            Assembler.SymbolManager.DefineConstant("INT32_MAX", int.MaxValue);
+            Assembler.SymbolManager.DefineConstant("UINT32_MIN", uint.MinValue);
+            Assembler.SymbolManager.DefineConstant("INT32_MIN", int.MinValue);
+            Assembler.SymbolManager.DefineConstant("UINT24_MAX", UInt24.MaxValue);
+            Assembler.SymbolManager.DefineConstant("INT24_MAX", Int24.MaxValue);
+            Assembler.SymbolManager.DefineConstant("UINT24_MIN", UInt24.MinValue);
+            Assembler.SymbolManager.DefineConstant("INT24_MIN", Int24.MinValue);
+            Assembler.SymbolManager.DefineConstant("UINT16_MAX", ushort.MaxValue);
+            Assembler.SymbolManager.DefineConstant("INT16_MAX", short.MaxValue);
+            Assembler.SymbolManager.DefineConstant("UINT16_MIN", ushort.MinValue);
+            Assembler.SymbolManager.DefineConstant("INT16_MIN", short.MinValue);
+            Assembler.SymbolManager.DefineConstant("UINT8_MAX", byte.MaxValue);
+            Assembler.SymbolManager.DefineConstant("INT8_MAX", sbyte.MaxValue);
+            Assembler.SymbolManager.DefineConstant("UINT8_MIN", byte.MinValue);
+            Assembler.SymbolManager.DefineConstant("INT8_MIN", sbyte.MinValue);
+
+            Assembler.SymbolManager.AddValidSymbolNameCriterion(s => !_functions.ContainsKey(s));
+        }
+
+        /// <summary>
+        /// Determines if the tokenized expression is constant.
+        /// </summary>
+        /// <param name="token">The token expression.</param>
+        /// <returns><c>True</c> if the expression is a constant, otherwise <c>false</c>.</returns>
+        public static bool ExpressionIsConstant(Token token)
+        {
+            var tokenAsString = token.ToString();
+            if (string.IsNullOrEmpty(tokenAsString))
+                return false;
+            token.Name = tokenAsString.Replace("%", "0b")
+                                   .Replace("$", "0x")
+                                   .TrimStart('(')
+                                   .TrimEnd(')');
+            token.Type = TokenType.Operand;
+            try
+            {
+                _ = EvaluateAtomic(token);
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
+        }
 
         static double EvaluateAtomic(Token token)
         {
@@ -277,11 +300,11 @@ namespace Core6502DotNet
                     try
                     {
                         if (token.Name[1] == 'b' || token.Name[1] == 'B')
-                            converted = Convert.ToInt32(token.Name.Substring(2), 2);
+                            converted = Convert.ToInt64(token.Name.Substring(2), 2);
                         else if (token.Name[1] == 'o' || token.Name[1] == 'O')
-                            converted = Convert.ToInt32(token.Name.Substring(2), 8);
+                            converted = Convert.ToInt64(token.Name.Substring(2), 8);
                         else if (token.Name[1] == 'x' || token.Name[1] == 'X')
-                            converted = Convert.ToInt32(token.Name.Substring(2), 16);
+                            converted = Convert.ToInt64(token.Name.Substring(2), 16);
                         else
                             throw new ExpressionException(token.Position, $"\"{token}\" is not a valid numeric constant.");
                     }
@@ -301,16 +324,16 @@ namespace Core6502DotNet
                 if (double.IsNaN(converted))
                     throw new ExpressionException(token.Position, $"\"{token}\" is not a expression.");
             }
-            else if (token.Name[0] == '0')
+            else if (token.Name[0] == '0' && token.Name.Length > 1 && token.Name[1] != 'e' && token.Name[1] != 'E')
             {
                 // all leading zeros treated as octal
                 try
                 {
-                    converted = Convert.ToInt32(token.Name, 8);
+                    converted = Convert.ToInt64(token.Name, 8);
                 }
                 catch
                 {
-                    throw new ExpressionException(token.Position, $"\"{token}\" is not a valid octal number.");
+                    throw new ExpressionException(token.Position, $"\"{token}\" is not a valid numeric constant.");
                 }
             }
             return converted;
@@ -321,10 +344,10 @@ namespace Core6502DotNet
             var result = new Stack<double>();
             var operands = new Stack<string>();
             var operators = new Stack<Token>();
-            OperatorType lastType = OperatorType.None;
+            var lastType = OperatorType.None;
             var lastToken = string.Empty;
             var nonBase10 = string.Empty;
-            RandomAccessIterator<Token> iterator = tokens.GetIterator();
+            var iterator = tokens.GetIterator();
             Token token;
             while ((token = iterator.GetNext()) != null)
             {
@@ -332,11 +355,13 @@ namespace Core6502DotNet
                 {
                     if (lastType == OperatorType.Unary && _radixOperators.ContainsKey(lastToken))
                     {
+                        if (!string.IsNullOrEmpty(nonBase10))
+                            throw new ExpressionException(iterator.Current.Position, $"Unexpected token {token.Name}.");
                         nonBase10 = token.Name;
                     }
                     else if (iterator.PeekNext() != null && iterator.PeekNext().Name == "[")
                     {
-                        var value = Assembler.SymbolManager.GetVectorElementValue(token, iterator.GetNext());
+                        var value = Assembler.SymbolManager.GetNumericVectorElementValue(token, iterator.GetNext());
                         if (double.IsNegativeInfinity(value))
                             throw new ExpressionException(iterator.Current, "Index is out of range.");
                         result.Push(value);
@@ -349,19 +374,20 @@ namespace Core6502DotNet
                 else if (token.Type == TokenType.Operator)
                 {
                     lastType = token.OperatorType;
-                    lastToken = token.Name; // track for non-base 10 operands that may succeed this operation
-                    if ((token.OperatorType == OperatorType.Open && token.Name.Equals("(")) ||
-                         token.OperatorType == OperatorType.Separator)
+                    lastToken = token.Name;
+                    if (token.HasChildren)
                     {
-                        Stack<double> subResults = EvaluateInternal(token.Children);
+                        var subResults = EvaluateInternal(token.Children);
                         foreach (var sr in subResults)
                             result.Push(sr);
+                        if (lastToken.IsByteExtractor())
+                            operators.Push(token);
                     }
-                    else if (token.OperatorType == OperatorType.Function && !_functions.ContainsKey(token.Name))
+                    else if (token.OperatorType == OperatorType.Function && !_functions.ContainsKey(lastToken))
                     {
-                        IFunctionEvaluator fe = _functionEvaluators.FirstOrDefault(fe => fe.EvaluatesFunction(token));
+                        var fe = _functionEvaluators.FirstOrDefault(fe => fe.EvaluatesFunction(token));
                         if (fe == null)
-                            throw new ExpressionException(token.Position, $"Unknown function \"{token.Name}\".");
+                            throw new ExpressionException(token.Position, $"Unknown function \"{lastToken}\".");
                         result.Push(fe.EvaluateFunction(token, iterator.GetNext()));
                     }
                     else if (token.OperatorType == OperatorType.Unary)
@@ -372,8 +398,8 @@ namespace Core6502DotNet
                     {
                         if (operators.Count > 0)
                         {
-                            if (!_operators.ContainsKey(token) && !_functions.ContainsKey(token.Name))
-                                throw new ExpressionException(token.Position, $"Unknown operator \"{token.Name}\".");
+                            if (!_operators.ContainsKey(token) && !_functions.ContainsKey(lastToken))
+                                throw new ExpressionException(token.Position, $"Unknown operator \"{lastToken}\".");
 
                             Token top = operators.Peek();
                             var opOrder = token.OperatorType == OperatorType.Function ? int.MaxValue : _operators[token].Item2;
@@ -387,7 +413,7 @@ namespace Core6502DotNet
                             }
                         }
                         if (token.OperatorType != OperatorType.Function && !_operators.ContainsKey(token))
-                            throw new ExpressionException(token.Position, $"Invalid expression \"{token.Name}\".");
+                            throw new ExpressionException(token.Position, $"Invalid expression \"{lastToken}\".");
                         operators.Push(token);
                     }
                 }
@@ -460,6 +486,7 @@ namespace Core6502DotNet
 
                 if (isMath)
                     return 0xFFFF;
+
                 return 0;
             }
 

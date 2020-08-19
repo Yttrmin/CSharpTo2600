@@ -48,11 +48,11 @@ namespace Core6502DotNet
 
         #region Methods
 
-        public override void ExecuteDirective()
+        public override bool ExecuteDirective()
         {
             if (Assembler.CurrentLine.InstructionName.Equals(".next"))
             {
-                foreach (Token child in _iterations.Children)
+                foreach (var child in _iterations.Children)
                 {
                     if (!child.HasChildren)
                         throw new ExpressionException(child.Position, "Iteration expression cannot be empty.");
@@ -68,8 +68,9 @@ namespace Core6502DotNet
 
                 if (_condition == null || Evaluator.EvaluateCondition(_condition))
                     Assembler.LineIterator.Rewind(Index);
+                return true;
             }
-
+            return Assembler.CurrentLine.InstructionName.Equals(".for");
         }
 
         #endregion

@@ -5,33 +5,34 @@
 // 
 //-----------------------------------------------------------------------------
 
+using Core6502DotNet.m6502;
+using Core6502DotNet.z80;
 using System;
 
 namespace Core6502DotNet
 {
-    public class Core6502DotNet
+    static class Core6502DotNet
     {
-        public static void Main(string[] args)
+        static void Main()
         {
-            Assembler.Initialize(args);
-
-            AssemblerBase cpuAssembler;
-            if (Assembler.Options.CPU.Equals("z80"))
-            {
-                Assembler.BinaryFormatProvider = new z80.Z80FormatProvider();
-                cpuAssembler = new z80.Z80Asm();
-            }
-            else
-            {
-                if (Assembler.Options.Architecture.ToLower().Equals("d64"))
-                    Assembler.BinaryFormatProvider = new m6502.D64FormatProvider();
-                else
-                    Assembler.BinaryFormatProvider = new m6502.M6502FormatProvider();
-                cpuAssembler = new m6502.Asm6502();
-            }
-            var controller = new AssemblyController(cpuAssembler);
             try
             {
+                var controller = new AssemblyController();
+                AssemblerBase cpuAssembler;
+                if (Assembler.Options.CPU.Equals("z80"))
+                {
+                    Assembler.BinaryFormatProvider = new Z80FormatProvider();
+                    cpuAssembler = new Z80Asm();
+                }
+                else
+                {
+                    if (Assembler.Options.Format.Equals("d64"))
+                        Assembler.BinaryFormatProvider = new D64FormatProvider();
+                    else
+                        Assembler.BinaryFormatProvider = new M6502FormatProvider();
+                    cpuAssembler = new Asm6502();
+                }
+                controller.AddAssembler(cpuAssembler);
                 controller.Assemble();
             }
             catch (Exception ex)

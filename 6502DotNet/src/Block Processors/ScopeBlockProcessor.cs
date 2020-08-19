@@ -23,9 +23,9 @@ namespace Core6502DotNet
 
         #region Methods
 
-        public override void ExecuteDirective()
+        public override bool ExecuteDirective()
         {
-            SourceLine line = Assembler.LineIterator.Current;
+            var line = Assembler.LineIterator.Current;
             var scopeName = line.LabelName;
             if (line.InstructionName.Equals(".block"))
             {
@@ -38,11 +38,14 @@ namespace Core6502DotNet
                 }
 
                 Assembler.SymbolManager.PushScope(scopeName);
+                return true;
             }
-            else
+            else if (line.InstructionName.Equals(".endblock"))
             {
                 Assembler.SymbolManager.PopScope();
+                return true;
             }
+            return false;
         }
 
         #endregion

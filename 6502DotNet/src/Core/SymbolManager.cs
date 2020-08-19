@@ -46,13 +46,13 @@ namespace Core6502DotNet
 
         static readonly Dictionary<ExceptionReason, string> _reasonMessages = new Dictionary<ExceptionReason, string>
         {
-            { ExceptionReason.Redefined,                "Cannot assign \"{0}\" after it has been assigned." },
-            { ExceptionReason.NonScalar,                "Symbol \"{0}\" is a non-scalar value."             },
-            { ExceptionReason.NotDefined,               "Symbol \"{0}\" is not defined."                    },
-            { ExceptionReason.NotValid,                 "\"{0}\" is not a valid symbol name."               },
-            { ExceptionReason.InvalidBackReference,     "Invalid back reference."                           },
-            { ExceptionReason.InvalidForwardReference,  "Invalid forward reference."                        },
-            { ExceptionReason.Scalar, "Symbol is a \"{0}\" scalar value but is being used as a non-scalar." }
+            { ExceptionReason.Redefined,                "Cannot assign \"{0}\" after it has been assigned."           },
+            { ExceptionReason.NonScalar,                "Symbol \"{0}\" is non-scalar but is being used as a scalar." },
+            { ExceptionReason.NotDefined,               "Symbol \"{0}\" is not defined."                              },
+            { ExceptionReason.NotValid,                 "\"{0}\" is not a valid symbol name."                         },
+            { ExceptionReason.InvalidBackReference,     "Invalid back reference."                                     },
+            { ExceptionReason.InvalidForwardReference,  "Invalid forward reference."                                  },
+            { ExceptionReason.Scalar,                   "Symbol \"{0}\" is scalar but is being used as a non-scalar." }
         };
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Core6502DotNet
     /// <summary>
     /// A class managing all valid assembly symbols, including their scope and values.
     /// </summary>
-    public class SymbolManager
+    public class SymbolManager : IFunctionEvaluator
     {
         #region Subclasses
 
@@ -169,6 +169,25 @@ namespace Core6502DotNet
 
             public Symbol(string name, bool mutable, IEnumerable<string> value)
                 : this(name, mutable) => SetValue(value);
+
+            public Symbol(string name, bool mutable, Symbol other)
+                : this(name, mutable)
+            {
+                DataType = other.DataType;
+                SymbolType = other.SymbolType;
+                if (IsScalar())
+                {
+                    StringValue = new string(other.StringValue);
+                    NumericValue = other.NumericValue;
+                }
+                else
+                {
+                    if (DataType == DataType.String)
+                        StringVector = new Dictionary<int, string>(other.StringVector);
+                    else
+                        NumericVector = new Dictionary<int, double>(other.NumericVector);
+                }
+            }
 
             public void SetValue(string value)
             {
@@ -364,8 +383,11 @@ namespace Core6502DotNet
                     return "[Object]";
                 switch (DataType)
                 {
-                    case DataType.Numeric: return NumericValue.ToString();
-                    default: return StringValue;
+                    case DataType.Numeric:
+                    case DataType.Address:
+                        return NumericValue.ToString();
+                    default: 
+                        return StringValue;
                 }
             }
 
@@ -373,21 +395,55 @@ namespace Core6502DotNet
 
             public bool IsValueEqual(Symbol other)
             {
-                if (SymbolType == SymbolType.Scalar &&
-                    SymbolType == other.SymbolType &&
+                if (SymbolType == other.SymbolType &&
                     DataType == other.DataType)
                 {
-                    switch (DataType)
+                    if (SymbolType == SymbolType.Scalar)
                     {
-                        case DataType.Address:
-                            return GetNumericValue() == other.GetNumericValue();
-                        case DataType.Numeric:
-                            return NumericValue == other.NumericValue;
-                        default:
-                            return StringValue.Equals(other.StringValue);
+                        switch (DataType)
+                        {
+                            case DataType.Address:
+                                return GetNumericValue() == other.GetNumericValue();
+                            case DataType.Numeric:
+                                return NumericValue == other.NumericValue;
+                            default:
+                                return StringValue.Equals(other.StringValue);
+                        }
+                    }
+                    else
+                    {
+                        if (!IsMutable)
+                            return true;
+                        switch (DataType)
+                        {
+                            case DataType.Numeric:
+                                if (NumericVector != null && other.NumericVector != null) 
+                                    return NumericVector.SequenceEqual(other.NumericVector);
+                                break;
+                            case DataType.String:
+                                if (StringVector != null && other.StringVector != null)
+                                    return StringVector.SequenceEqual(other.StringVector);
+                                break;
+                        }
                     }
                 }
                 return false;
+            }
+
+            public int Length
+            {
+                get
+                {
+                    if (IsScalar())
+                    {
+                        if (DataType == DataType.String)
+                            return StringValue.Length;
+                        return 1;
+                    }
+                    if (DataType == DataType.String)
+                        return StringVector.Count;
+                    return NumericVector.Count;
+                }
             }
         }
 
@@ -469,12 +525,13 @@ namespace Core6502DotNet
 
         #region Members
 
-        /*readonly*/
-        Dictionary<string, Symbol> _symbols;
+        readonly Dictionary<string, Symbol> _symbols;
+        readonly Dictionary<string, Symbol> _constants;
         readonly Stack<string> _scope;
         readonly Stack<int> _referenceFrameIndexStack;
         readonly List<Func<string, bool>> _criteria;
         readonly List<LineReferenceStackFrame> _lineReferenceFrames;
+        readonly StringComparison _stringComparison;
         int _referenceFramesCounter, _ephemeralCounter;
 
         #endregion
@@ -484,13 +541,27 @@ namespace Core6502DotNet
         /// <summary>
         /// Constructs a new instance of a symbol manager class.
         /// </summary>
-        public SymbolManager()
+        /// <param name="caseSensitive">Determines the case-sensitivity of lookups to the symbol tables.
+        /// </param>
+        public SymbolManager(bool caseSensitive)
         {
 
             Assembler.PassChanged += ProcessPassChange;
 
+            StringComparer stringCompare;
+            if (caseSensitive)
+            {
+                stringCompare = StringComparer.Ordinal;
+                _stringComparison = StringComparison.Ordinal;
+            }
+            else
+            {
+                stringCompare = StringComparer.OrdinalIgnoreCase;
+                _stringComparison = StringComparison.OrdinalIgnoreCase;
+            }
+            _constants = new Dictionary<string, Symbol>(stringCompare);
+            _symbols = new Dictionary<string, Symbol>(stringCompare);
             _scope = new Stack<string>();
-            _symbols = new Dictionary<string, Symbol>();
             _referenceFrameIndexStack = new Stack<int>();
             _referenceFrameIndexStack.Push(0);
 
@@ -500,18 +571,19 @@ namespace Core6502DotNet
             };
 
             Local = string.Empty;
+            _referenceFramesCounter = 0;
 
             _criteria = new List<Func<string, bool>>
             {
                 s =>
                 {
-                      return s.Equals("+") ||
-                             s.Equals("-") ||
-                              ((s[0] == '_' || char.IsLetter(s[0])) &&
-                              ((char.IsLetterOrDigit(s[^1]) || s[^1] == '_') && !s.Contains('.')));
-                }
+                        return s.Equals("+") ||
+                                s.Equals("-") ||
+                                ((s[0] == '_' || char.IsLetter(s[0])) &&
+                                ((char.IsLetterOrDigit(s[^1]) || s[^1] == '_') && !s.Contains('.')));
+                },
+                s => !_constants.ContainsKey(s)
             };
-            _referenceFramesCounter = 0;
         }
 
         #endregion
@@ -555,7 +627,6 @@ namespace Core6502DotNet
 
         bool DefineSymbol(Symbol symbol, bool isGlobal)
         {
-
             if (_criteria.Any(f => !f(symbol.Name)))
                 throw new SymbolException(symbol.Name, 0, SymbolException.ExceptionReason.NotValid);
             var fqdn = GetScopedName(symbol.Name);
@@ -567,6 +638,9 @@ namespace Core6502DotNet
             if (exists)
             {
                 var sym = _symbols[fqdn];
+                if (sym.DataType == DataType.Numeric && (symbol.DataType == DataType.Address || symbol.DataType == DataType.Boolean))
+                    sym.DataType = symbol.DataType;
+
                 if ((!sym.IsMutable &&
                     ((sym.DefinedAtIndex == -1 && Assembler.LineIterator == null) || sym.DefinedAtIndex != Assembler.LineIterator.Index)) ||
                     sym.DataType != symbol.DataType)
@@ -576,10 +650,14 @@ namespace Core6502DotNet
                 if (!sym.IsValueEqual(symbol))
                 {
                     // update the existing symbol
+                    if (symbol.IsScalar() && !sym.IsScalar())
+                        throw new SymbolException(symbol.Name, 0, SymbolException.ExceptionReason.NonScalar);
+                    else if (!symbol.IsScalar() && sym.IsScalar())
+                        throw new SymbolException(symbol.Name, 0, SymbolException.ExceptionReason.Scalar);
                     sym.SetValueFromSymbol(symbol);
 
                     // signal to the assembler another pass is needed.
-                    if (!sym.IsMutable)
+                    if (!sym.IsMutable && !Assembler.PassNeeded)
                         Assembler.PassNeeded = true;
                 }
             }
@@ -595,11 +673,32 @@ namespace Core6502DotNet
             var tokenList = rhs.ToList();
 
             var symbolName = lhs.Name;
-            if (arrayElementToUpdate != null && !arrayElementToUpdate.IsMutable)
+            if (arrayElementToUpdate != null)
             {
-                Assembler.Log.LogEntry(Assembler.CurrentLine, tokenList[0].Position,
-                    $"Symbol \"{symbolName}\" cannot be re-defined.");
-                return false;
+                if (!arrayElementToUpdate.IsMutable)
+                {
+                    Assembler.Log.LogEntry(Assembler.CurrentLine, tokenList[0].Position,
+                      $"Symbol \"{symbolName}\" cannot be re-defined.");
+                    return false;
+                }
+                if (subscriptix > -1)
+                {
+                    if (arrayElementToUpdate.IsScalar())
+                        throw new SymbolException(lhs, SymbolException.ExceptionReason.Scalar);
+                    if (
+                        (arrayElementToUpdate.DataType == DataType.String &&
+                         !arrayElementToUpdate.StringVector.ContainsKey(subscriptix)
+                        ) ||
+                        (arrayElementToUpdate.DataType == DataType.Numeric &&
+                         !arrayElementToUpdate.NumericVector.ContainsKey(subscriptix)
+                        )
+                       )
+                    {
+                        Assembler.Log.LogEntry(Assembler.CurrentLine, tokenList[0].Position,
+                            "Argument out of range.");
+                        return false;
+                    }
+                }
             }
             bool valueIsArray = tokenList[0].Name.Equals("[");
             if (valueIsArray)
@@ -628,7 +727,7 @@ namespace Core6502DotNet
                         {
                             if (child.Children.Count > 1 || !child.Children[0].Name.EnclosedInDoubleQuotes())
                             {
-                                Assembler.Log.LogEntry(Assembler.CurrentLine, child.Children[1].Position,
+                                Assembler.Log.LogEntry(Assembler.CurrentLine, child.Children[0].Position,
                                     "Expected string literal.");
                                 return false;
                             }
@@ -689,6 +788,12 @@ namespace Core6502DotNet
                 }
                 else
                 {
+                    if (tokenList.Count == 1 && (char.IsLetter(tokenList[0].Name[0]) || tokenList[0].Name[0] == '_'))
+                    {
+                        var symbolLookup = Lookup(tokenList[0], false);
+                        if (symbolLookup != null)
+                            return DefineSymbol(new Symbol(symbolName, isMutable, symbolLookup), isGlobal);
+                    }
                     var value = Evaluator.Evaluate(tokenList);
                     if (arrayElementToUpdate != null)
                     {
@@ -721,18 +826,10 @@ namespace Core6502DotNet
 
 
             var isSubscript = tokenList[1].Name.Equals("[");
-            Symbol arrayElementToUpdate = isSubscript ? Lookup(tokenList[0]) : null;
-            if (arrayElementToUpdate != null && !arrayElementToUpdate.IsMutable)
-            {
-                Assembler.Log.LogEntry(Assembler.CurrentLine, tokenList[0].Position,
-                    $"Symbol \"{tokenList[0].Name}\" cannot be re-defined.");
-                return false;
-            }
-
-
-            int subscriptix = isSubscript ? (int)Evaluator.Evaluate(tokenList[1].Children, uint.MinValue, int.MaxValue) : -1;
-            int assignIx = isSubscript ? 2 : 1;
-            Token assignment = tokenList[assignIx];
+            var arrayElementToUpdate = isSubscript ? Lookup(tokenList[0]) : null;
+            var subscriptix = isSubscript ? (int)Evaluator.Evaluate(tokenList[1].Children, uint.MinValue, int.MaxValue) : -1;
+            var assignIx = isSubscript ? 2 : 1;
+            var assignment = tokenList[assignIx];
 
             if (assignment.OperatorType != OperatorType.Binary ||
                 (!assignment.Name.Equals("=")))
@@ -747,7 +844,7 @@ namespace Core6502DotNet
                     "Missing rhs in assignment.");
                 return false;
             }
-            return DefineFromTokens(tokenList[0], tokenList.Skip(2), isMutable, isGlobal, arrayElementToUpdate, subscriptix);
+            return DefineFromTokens(tokenList[0], tokenList.Skip(assignIx + 1), isMutable, isGlobal, arrayElementToUpdate, subscriptix);
         }
 
         string GetFullyQualifiedName(string name)
@@ -763,15 +860,21 @@ namespace Core6502DotNet
             return scopedName;
         }
 
-        Symbol Lookup(Token symbolToken)
+        Symbol Lookup(Token symbolToken, bool raiseExceptionIfNotFound)
         {
             var name = symbolToken.Name;
+            if (_constants.ContainsKey(name))
+                return _constants[name];
             var fqdn = GetFullyQualifiedName(name);
             if (_symbols.ContainsKey(fqdn))
                 return _symbols[fqdn];
             Assembler.PassNeeded = true;
-            throw new SymbolException(symbolToken, SymbolException.ExceptionReason.NotDefined);
+            if (raiseExceptionIfNotFound)
+                throw new SymbolException(symbolToken, SymbolException.ExceptionReason.NotDefined);
+            return null;
         }
+
+        Symbol Lookup(Token symbolToken) => Lookup(symbolToken, true);
 
         /// <summary>
         /// Determines if the symbol has been defined.
@@ -816,7 +919,7 @@ namespace Core6502DotNet
                 if (ephemeral)
                 {
                     _ephemeralCounter--;
-                    IEnumerable<string> ephemerals = _symbols.Keys.Where(k => k.Contains(sc, StringComparison.Ordinal));
+                    var ephemerals = new List<string>(_symbols.Keys.Where(k => k.Contains(sc, _stringComparison)));
                     foreach (var key in ephemerals)
                         _symbols.Remove(key);
                 }
@@ -827,6 +930,23 @@ namespace Core6502DotNet
                 }
             }
         }
+
+
+        /// <summary>
+        /// Define a global constant symbol whose name is unique for all scopes.
+        /// </summary>
+        /// <param name="name">Constant name.</param>
+        /// <param name="value">Constant value.</param>
+        public void DefineConstant(string name, string value)
+            => _constants.Add(name, new Symbol(name, false, value));
+
+        /// <summary>
+        /// Define a global constant symbol whose name is unique for all scopes.
+        /// </summary>
+        /// <param name="name">Constant name.</param>
+        /// <param name="value">Constant value.</param>
+        public void DefineConstant(string name, double value)
+            => _constants.Add(name, new Symbol(name, false, value));
 
         /// <summary>
         /// Define a globally scoped symbol.
@@ -985,15 +1105,7 @@ namespace Core6502DotNet
         public void DefineSymbolicAddress(string addressName)
             => DefineSymbol(new Symbol(addressName, Assembler.Output.LogicalPC), false);
 
-        /// <summary>
-        /// Gets the vector element value.
-        /// </summary>
-        /// <param name="symbolToken">The symbol as a parsed token.</param>
-        /// <param name="subscriptToken">The symbol's subscript expression.</param>
-        /// <returns></returns>
-        /// <exception cref="ExpressionException"></exception>
-        /// <exception cref="SymbolException"></exception>
-        public double GetVectorElementValue(Token symbolToken, Token subscriptToken)
+        (Symbol symbol, int index)  GetVectorElementAtIndex(Token symbolToken, Token subscriptToken)
         {
             Symbol symbol = Lookup(symbolToken);
             if (symbol.IsScalar())
@@ -1005,8 +1117,30 @@ namespace Core6502DotNet
             if (index != (int)index)
                 throw new ExpressionException(subscriptToken.Position, "Subscript index must be an integral value.");
 
-            return symbol.GetNumericValueAtIndex((int)index);
+            return (symbol, (int)index);
         }
+
+        /// <summary>
+        /// Gets the vector element value.
+        /// </summary>
+        /// <param name="symbolToken">The symbol as a parsed token.</param>
+        /// <param name="subscriptToken">The symbol's subscript expression.</param>
+        /// <returns></returns>
+        /// <exception cref="ExpressionException"></exception>
+        /// <exception cref="SymbolException"></exception>
+        public double GetNumericVectorElementValue(Token symbolToken, Token subscriptToken)
+        {
+            var (symbol, index) = GetVectorElementAtIndex(symbolToken, subscriptToken);
+
+            if (symbol.DataType == DataType.String)
+            {
+                var value = symbol.GetStringValueAtIndex(index);
+                return Assembler.Encoding.GetEncodedValue(value);
+            }
+            
+            return symbol.GetNumericValueAtIndex(index);
+        }
+
 
         /// <summary>
         /// Gets the vector element string.
@@ -1016,19 +1150,11 @@ namespace Core6502DotNet
         /// <returns></returns>
         /// <exception cref="ExpressionException"></exception>
         /// <exception cref="SymbolException"></exception>
-        public string GetVectorElementString(Token symbolToken, Token subscriptToken)
+        public string GetStringVectorElementValue(Token symbolToken, Token subscriptToken)
         {
-            Symbol symbol = Lookup(symbolToken);
-            if (symbol.IsScalar())
-                throw new SymbolException(symbolToken, SymbolException.ExceptionReason.Scalar);
+            var (symbol, index) = GetVectorElementAtIndex(symbolToken, subscriptToken);
 
-            if (subscriptToken == null || !subscriptToken.Name.Equals("["))
-                throw new ExpressionException(subscriptToken.Position, "Array subscript expression expected.");
-            var index = Evaluator.Evaluate(subscriptToken.Children);
-            if (index != (int)index)
-                throw new ExpressionException(subscriptToken.Position, "Subscript index must be an integral value.");
-
-            return symbol.GetStringValueAtIndex((int)index);
+            return symbol.GetStringValueAtIndex(index);
         }
 
         /// <summary>
@@ -1107,7 +1233,6 @@ namespace Core6502DotNet
         /// <param name="symbol">The symbol name.</param>
         /// <returns><c>True</c> if valid, otherwise <c>false</c>.</returns>
         public bool SymbolIsValid(string symbol)
-        // => _criteria.Any(c => !c(symbol));
         {
             foreach (var f in _criteria)
             {
@@ -1121,6 +1246,28 @@ namespace Core6502DotNet
         {
             var sym = Lookup(new Token(symbol));
             return sym.IsScalar();
+        }
+
+        public bool EvaluatesFunction(Token function) => function.Name.Equals("len");
+
+        public double EvaluateFunction(Token function, Token parameters)
+        {
+            if (!parameters.HasChildren || !parameters.Children[0].HasChildren)
+                throw new ExpressionException(parameters.Position, "Expected argument not provided.");
+            if (parameters.Children.Count > 1)
+                throw new ExpressionException(parameters.LastChild.Position, $"Unexpected argument \"{parameters.LastChild}\".");
+            var symbolLookup = Lookup(parameters.LastChild);
+            return symbolLookup.Length;
+        }
+
+        /// <summary>
+        /// Resets the labels and variables table.
+        /// </summary>
+        /// <param name="caseSensitive">Sets the case-sensitivity of lookups to the symbol tables. Calling this function resets the label and variables
+        /// tables, but not the constants table.</param>
+        public void ResetLabelsAndVariables(bool caseSensitive)
+        {
+             
         }
 
         #endregion

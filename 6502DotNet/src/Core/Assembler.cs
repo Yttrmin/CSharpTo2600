@@ -39,43 +39,29 @@ namespace Core6502DotNet
 
         #endregion
 
-        #region Constructors
-
-        static Assembler()
-        {
-            IsReserved = new List<Func<string, bool>>();
-            InstructionLookupRules = new List<Func<string, bool>>();
-            Log = new ErrorLog();
-            Encoding = new AsmEncoding();
-            SymbolManager = new SymbolManager();
-            Output = new BinaryOutput();
-            Options = new CommandLineOptions();
-            _pass = -1;
-            PrintOff = false;
-            PassNeeded = true;
-        }
-
-        #endregion
-
         #region Methods
 
         /// <summary>
-        /// Initialize the <see cref="Assembler"/> class.
+        /// Initializes the <see cref="Assembler"/> class for use. Repeated calls will reset symbol labels and variables,
+        /// assembling pass and listing printing states, the binary output, and the error log.
         /// </summary>
         public static void Initialize()
         {
-
-        }
-
-        /// <summary>
-        /// Initialize the <see cref="Assembler"/> class.
-        /// </summary>
-        /// <param name="args">The command line arguments passed by
-        /// the user.</param>
-        public static void Initialize(string[] args)
-        {
-            Options.ParseArgs(args);
-            Encoding.CaseSensitive = Options.CaseSensitive;
+            PassChanged = null;
+            PrintOff = false;
+            PassNeeded = true;
+            _pass = -1;
+            LineIterator = null;
+            Options = new CommandLineOptions();
+            IsReserved = new List<Func<string, bool>>();
+            InstructionLookupRules = new List<Func<string, bool>>();
+            Options.ParseArgs();
+            Encoding = new AsmEncoding(Options.CaseSensitive);
+            SymbolManager = new SymbolManager(Options.CaseSensitive);
+            Evaluator.Initialize();
+            Evaluator.AddFunctionEvaluator(SymbolManager);
+            Log = new ErrorLog();
+            Output = new BinaryOutput();
         }
 
         #endregion
@@ -86,29 +72,29 @@ namespace Core6502DotNet
         /// The <see cref="SymbolManager"/> responsible for all symbol definitions
         /// and references.
         /// </summary>
-        public static SymbolManager SymbolManager { get; set; }
+        public static SymbolManager SymbolManager { get; private set; }
 
         /// <summary>
         /// The <see cref="AsmEncoding"/> responsible for all encoding.
         /// </summary>
-        public static AsmEncoding Encoding { get; set; }
+        public static AsmEncoding Encoding { get; private set; }
 
         /// <summary>
         /// The <see cref="ErrorLog"/> object used for all error and warning
         /// logging.
         /// </summary>
-        public static ErrorLog Log { get; set; }
+        public static ErrorLog Log { get; private set; }
 
         /// <summary>
         /// The <see cref="BinaryOutput"/> object managing all output of assembly.
         /// </summary>
-        public static BinaryOutput Output { get; set; }
+        public static BinaryOutput Output { get; private set; }
 
         /// <summary>
         /// The <see cref="CommandLineOptions"/> object responsible for parsing
         /// and enumerating all command line options.
         /// </summary>
-        public static CommandLineOptions Options { get; set; }
+        public static CommandLineOptions Options { get; private set; }
 
 
         /// <summary>
@@ -138,10 +124,10 @@ namespace Core6502DotNet
         public static bool PassNeeded { get; set; }
 
         /// <summary>
-        /// The list of functions that
+        /// Gets the list of functions that
         /// determine whether a given keyword is reserved.
         /// </summary>
-        public static List<Func<string, bool>> IsReserved { get; set; }
+        public static List<Func<string, bool>> IsReserved { get; private set; }
 
         /// <summary>
         /// Gets or sets the flag that determines whether disassembly should print.
@@ -191,7 +177,7 @@ namespace Core6502DotNet
         /// Gets a list of <see cref="Func{string, bool}"/> functions that determine
         /// whether a given keyword is a mnemonic, pseudo-op or other assembler directive.
         /// </summary>
-        public static List<Func<string, bool>> InstructionLookupRules { get; set; }
+        public static List<Func<string, bool>> InstructionLookupRules { get; private set; }
 
         /// <summary>
         /// Gets or sets the <see cref="SourceLine"/> iterator associated with the assembler session.
@@ -210,6 +196,13 @@ namespace Core6502DotNet
         /// </summary>
         public static SourceLine CurrentLine => LineIterator.Current;
 
+        /// <summary>
+        /// Gets the <see cref="StringComparer"/> base on the case-sensitive flag of
+        /// the set <see cref="Options"/>.
+        /// </summary>
+        public static StringComparer StringComparer 
+            => Options.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+
         #endregion
     }
 
@@ -226,15 +219,13 @@ namespace Core6502DotNet
         /// </summary>
         protected AssemblerBase()
         {
-            Reserved = new ReservedWords();
+            Reserved = new ReservedWords(Assembler.StringComparer);
 
             Assembler.IsReserved.Add(Reserved.IsReserved);
 
             Assembler.SymbolManager.AddValidSymbolNameCriterion(s => !Reserved.IsReserved(s));
 
             Assembler.InstructionLookupRules.Add(s => Assembles(s));
-
-            Reserved = new ReservedWords();
         }
 
         #endregion

@@ -7,8 +7,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Core6502DotNet
 {
@@ -20,8 +23,44 @@ namespace Core6502DotNet
         /// <param name="s">The string to evaluate.</param>
         /// <returns><c>True</c> if string is fully enclosed in quotes, otherwise <c>false</c>.</returns>
         public static bool EnclosedInQuotes(this string s)
-            => (s[0] == '"' && s[^1] == '"') ||
-               (s[0] == '\'' && s[2] == '\'');
+            => EnclosedInSingleQuotes(s) || EnclosedInDoubleQuotes(s);
+
+        /// <summary>
+        /// Tests whether the string is enclosed in single quotes.
+        /// </summary>
+        /// <param name="s">The string to evaluate.</param>
+        /// <returns><c>True</c> if the string is enclosed in single quotes, otherwise <c>false</c>.</returns>
+        public static bool EnclosedInSingleQuotes(this string s)
+        {
+            if (s.Length < 2 || s[0] != '\'' || s[^1] != '\'')
+                return false;
+            if (s.Length == 2 && s[1] == '\'')
+                return true;
+            var constchar = s[1..^1];
+            if (constchar[0] == '\\')
+            {
+                if (constchar.Length > 1)
+                {
+                    if (constchar[1] == '\\' && constchar.Length == 2)
+                        return true;
+                    if (constchar[^1] == '\\')
+                        return false;
+                }
+                try
+                {
+                    constchar = Regex.Unescape(constchar);
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+            else if (constchar[0] == '\'')
+            {
+                return false;
+            }
+            return constchar.Length == 1;
+        }
 
         /// <summary>
         /// Tests whether the string is enclosed in double quotes.
@@ -29,7 +68,27 @@ namespace Core6502DotNet
         /// <param name="s">The string to evaluate.</param>
         /// <returns><c>True</c> if string is fully enclosed in double quotes, otherwise <c>false</c>.</returns>
         public static bool EnclosedInDoubleQuotes(this string s)
-            => s[0] == '"' && s[^1] == '"';
+        {
+            if (s.Length < 2 || s[0] != '"' || s[^1] != '"')
+                return false;
+            var penult = s.Length - 2;
+            if (penult > 0 && s[^2] == '\\')
+            {
+                var count = 1;
+                for (var i = penult; i > 1 && s[^i] == '\\'; i--)
+                    count++;
+                return count % 2 == 0;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Converts the string so that the first character is in uppercase.
+        /// </summary>
+        /// <param name="s">The string to convert.</param>
+        /// <returns>The case-converted string.</returns>
+        public static string ToFirstUpper(this string s)
+            => Char.ToUpper(s[0]) + s.Substring(1);
 
         /// <summary>
         /// Trims one instance of the specified character at the start of the string.
@@ -66,6 +125,14 @@ namespace Core6502DotNet
         /// <param name="str">String.</param>
         /// <param name="c">The character to trim.</param>
         public static string TrimOnce(this string str, char c) => str.TrimStartOnce(c).TrimEndOnce(c);
+
+        /// <summary>
+        /// Determines whether the string is a binary extractor operator string.
+        /// </summary>
+        /// <param name="str">The string.</param>
+        /// <returns><c>True</c>, if the string represents a binary extractor operator, <c>false</c> otherwise.</returns>
+        public static bool IsByteExtractor(this string str) 
+            => str.Equals("<") || str.Equals(">") || str.Equals("^") || str.Equals("&");
     }
 
     public static class Char_Extension
@@ -97,7 +164,7 @@ namespace Core6502DotNet
         /// </summary>
         /// <param name="c">The Unicode character.</param>
         /// <returns><c>true</c>, if the character is a unary operator, <c>false</c> otherwise.</returns>
-        public static bool IsUnaryOperator(this char c) => c == '-' || c == '+' || c == '<' || c == '>' || c == '^' || c == '!' || c == '&' || c == '~';// || c == '$' || c == '%';
+        public static bool IsUnaryOperator(this char c) => c == '-' || c == '+' || c == '<' || c == '>' || c == '^' || c == '!' || c == '&' || c == '~';
 
         /// <summary>
         /// Indicates whether the specified Unicode character is a separator operator
@@ -163,7 +230,7 @@ namespace Core6502DotNet
         /// </summary>
         /// <typeparam name="T">The type.</typeparam>
         /// <param name="collection">The collection.</param>
-        /// <returns>An iterator.</returns>
+        /// <returns>A <see cref="RandomAccessIterator{T}"/> iterator for the collection.</returns>
         public static RandomAccessIterator<T> GetIterator<T>(this IEnumerable<T> collection)
             => new RandomAccessIterator<T>(collection);
 
@@ -214,8 +281,8 @@ namespace Core6502DotNet
                 sb.Append($"{startChar}{pc:x4}    ");
             var byteList = byteCollection.ToList();
             var rows = byteList.Count / 8;
-            if (rows == 0)
-                rows = 1;
+            if (byteList.Count % 8 != 0)
+                rows++;
             for (int y = 0; y < rows; y++)
             {
                 for (int x = 0; x < 8; x++)

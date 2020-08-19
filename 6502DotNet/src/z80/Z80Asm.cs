@@ -5,7 +5,6 @@
 // 
 //-----------------------------------------------------------------------------
 
-//using DotNetAsm;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -248,6 +247,8 @@ namespace Core6502DotNet.z80
                 }
                 else
                 {
+                    if (Assembler.PassNeeded || string.IsNullOrEmpty(Assembler.Options.ListingFile))
+                        return string.Empty;
                     var disasmBuilder = new StringBuilder();
                     if (!Assembler.Options.NoAssembly)
                     {

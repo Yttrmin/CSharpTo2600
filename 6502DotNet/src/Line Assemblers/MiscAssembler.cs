@@ -24,7 +24,7 @@ namespace Core6502DotNet
         {
             Reserved.DefineType("Directives",
                     ".assert", ".bank",
-                    ".eor", ".echo",
+                    ".eor", ".echo", ".format",
                     ".initmem", ".target",
                     ".error", ".errorif",
                     ".pron", ".proff",
@@ -99,7 +99,8 @@ namespace Core6502DotNet
                 case ".echo":
                 case ".error":
                 case ".warn":
-                    if (line.OperandHasToken)
+                    if (line.OperandHasToken && line.Operand.Children.Count == 1 && 
+                        StringHelper.ExpressionIsAString(line.Operand.Children[0]))
                         Output(line, line.Operand.Children[0]);
                     else
                         Assembler.Log.LogEntry(line, line.Operand, "String expression expected.");
@@ -113,11 +114,14 @@ namespace Core6502DotNet
                 case ".proff":
                     Assembler.PrintOff = true;
                     break;
+                case ".format":
                 case ".target":
-                    if (!line.OperandHasToken || !line.OperandExpression.EnclosedInQuotes())
+                    if (!line.OperandHasToken || !line.OperandExpression.EnclosedInDoubleQuotes())
                         Assembler.Log.LogEntry(line, line.Operand, "Expression must be a string.");
                     else
-                        Assembler.Options.Architecture = line.OperandExpression.TrimOnce('"');
+                        Assembler.Options.Format = line.OperandExpression.TrimOnce('"');
+                    if (instruction.Equals(".target"))
+                        Assembler.Log.LogEntry(line, line.Instruction, "\".target\" is deprecated. Use \".format\" instead.", false);
                     break;
                 default:
                     InitMem(line);
@@ -145,24 +149,27 @@ namespace Core6502DotNet
 
         void Output(SourceLine line, string output)
         {
-            var type = line.InstructionName.Substring(0, 5);
-            switch (type)
+            if (!Assembler.PassNeeded)
             {
-                case ".echo":
-                    Console.WriteLine(output);
-                    break;
-                case ".warn":
-                    Assembler.Log.LogEntry(line, line.Operand, output, false);
-                    break;
-                default:
-                    Assembler.Log.LogEntry(line, line.Operand, output);
-                    break;
+                var type = line.InstructionName.Substring(0, 5);
+                switch (type)
+                {
+                    case ".echo":
+                        Console.WriteLine(output);
+                        break;
+                    case ".warn":
+                        Assembler.Log.LogEntry(line, line.Operand, output, false);
+                        break;
+                    default:
+                        Assembler.Log.LogEntry(line, line.Operand, output);
+                        break;
+                }
             }
         }
 
         void Output(SourceLine line, Token operand)
         {
-            if (StringHelper.ExpressionIsString(operand))
+            if (StringHelper.ExpressionIsAString(operand))
                 Output(line, StringHelper.GetString(operand));
             else
                 Output(line, Evaluator.Evaluate(operand).ToString());

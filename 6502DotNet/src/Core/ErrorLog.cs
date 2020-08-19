@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -54,26 +55,44 @@ namespace Core6502DotNet
         /// <summary>
         /// Dumps all logged messages to console output.
         /// </summary>
-        public void DumpAll() => _errors.ForEach(e => Console.WriteLine(e.message));
+        public void DumpAll() => DumpAll(Console.Error);
+
+        /// <summary>
+        /// Dumps all logged messages to a <see cref="TextWriter"/>.
+        /// </summary>
+        /// <param name="writer">The <see cref="TextWriter"/> to dump log messages to.</param>
+        public void DumpAll(TextWriter writer) =>
+            _errors.ForEach(e => writer.WriteLine(e.message));
 
         /// <summary>
         /// Dumps all logged errors to console output.
         /// </summary>
-        public void DumpErrors()
+        public void DumpErrors() => DumpErrors(Console.Error);
+
+        /// <summary>
+        /// Dumps all logged errors to a <see cref="TextWriter"/>.
+        /// </summary>
+        /// <param name="writer">The <see cref="TextWriter"/> to dump errors to.</param>
+        public void DumpErrors(TextWriter writer)
         {
             _errors.Where(e => e.isError).ToList()
-                   .ForEach(error => Console.WriteLine(error.message));
+                   .ForEach(error => writer.WriteLine(error.message));
         }
 
         /// <summary>
         /// Dumps all logged warnings to console output.
         /// </summary>
-        public void DumpWarnings()
+        public void DumpWarnings() => DumpWarnings(Console.Out);
+
+        /// <summary>
+        /// Dumps all logged warnings to a <see cref="TextWriter"/>.
+        /// </summary>
+        /// <param name="writer">The <see cref="TextWriter"/> to dump warnings to.</param>
+        public void DumpWarnings(TextWriter writer)
         {
             _errors.Where(e => !e.isError).ToList()
-                   .ForEach(warning => Console.WriteLine(warning.message));
+                   .ForEach(warning => writer.WriteLine(warning.message));
         }
-
 
         public void LogEntry(string filename, int linenumber, string message, params object[] source)
             => LogEntry(filename, linenumber, message, true, source);
@@ -89,42 +108,54 @@ namespace Core6502DotNet
         /// <param name="source">The message source.</param>
         public void LogEntry(string filename, int linenumber, int position, string message, bool isError, params object[] source)
         {
-            var sb = new StringBuilder();
+            var errorBuilder = new StringBuilder();
 
             if (string.IsNullOrEmpty(filename))
             {
                 if (isError)
-                    sb.Append("Error");
+                    errorBuilder.Append("Error");
                 else
-                    sb.Append("Warning");
+                    errorBuilder.Append("Warning");
             }
             else
             {
-                sb.Append($"{filename}({linenumber}");
+                filename = Path.GetFileName(filename);
+                errorBuilder.Append($"{filename}({linenumber}");
                 if (position > 0)
-                    sb.Append($",{position}");
-                sb.Append("): ");
+                    errorBuilder.Append($",{position}");
+                errorBuilder.Append("): ");
                 if (isError)
-                    sb.Append("error");
+                    errorBuilder.Append("error");
                 else
-                    sb.Append("warning");
+                    errorBuilder.Append("warning");
             }
             if (!string.IsNullOrEmpty(message))
             {
-                sb.Append(": ");
+                errorBuilder.Append(": ");
                 if (source == null || !message.Contains("{0}"))
-                    sb.Append(Regex.Replace(message, @"\s?\{\d+\}\s?", string.Empty));
+                    errorBuilder.Append(Regex.Replace(message, @"\s?\{\d+\}\s?", string.Empty));
                 else
-                    sb.AppendFormat(message, source);
+                    errorBuilder.AppendFormat(message, source);
             }
             isError = isError || Assembler.Options.WarningsAsErrors;
-            _errors.Add((sb.ToString(), isError));
+            _errors.Add((errorBuilder.ToString(), isError));
             if (_errors.Count > 1000)
             {
                 DumpAll();
                 throw new Exception("Too many errors.");
             }
         }
+
+        /// <summary>
+        /// Log a message.
+        /// </summary>
+        /// <param name="filename">The source file.</param>
+        /// <param name="linenumber">The source line number.</param>
+        /// <param name="position">The position in the source that raised the message.</param>
+        /// <param name="message">The custome string message.</param>
+        public void LogEntry(string filename, int linenumber, int position, string message)
+            => LogEntry(filename, linenumber, position, message, true, null);
+
 
         /// <summary>
         /// Log a message.
@@ -192,6 +223,16 @@ namespace Core6502DotNet
         /// <param name="source">The message source.</param>
         public void LogEntry(SourceLine line, int position, string message, params object[] source)
             => LogEntry(line.Filename, line.LineNumber, position, message, true, source);
+
+        /// <summary>
+        /// Log a message.
+        /// </summary>
+        /// <param name="line">The <see cref="SourceLine"/>.</param>
+        /// <param name="position">The position in the source that raised the message.</param>
+        /// <param name="message">The custom string message.</param>
+        public void LogEntry(SourceLine line, int position, string message)
+            => LogEntry(line.Filename, line.LineNumber, position, message, true);
+
 
         /// <summary>
         /// Log a message.

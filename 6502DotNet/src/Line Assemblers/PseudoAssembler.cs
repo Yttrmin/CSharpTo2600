@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Core6502DotNet
 {
@@ -195,7 +196,7 @@ namespace Core6502DotNet
                 }
                 else
                 {
-                    if (StringHelper.ExpressionIsString(child))
+                    if (StringHelper.ExpressionIsAString(child))
                         stringBytes.AddRange(Assembler.Encoding.GetBytes(StringHelper.GetString(child)));
                     else
                         stringBytes.AddRange(BinaryOutput.ConvertToBytes(Evaluator.Evaluate(child)).ToList());
@@ -214,11 +215,8 @@ namespace Core6502DotNet
                     break;
                 case ".lstring":
                 case ".nstring":
-                    stringBytes.ForEach(b =>
-                    {
-                        if (b > 0x7f)
-                            throw new ExpressionException(line.Operand.Position, $"Element {b} in expression {line.Operand} exceeds maximum value.");
-                    });
+                    if (stringBytes.Any(b => b > 0x7f))
+                        throw new ExpressionException(line.Operand.Position, $"One or more elements in expression \"{line.Operand}\" exceeds maximum value.");
                     if (line.InstructionName.Equals(".lstring"))
                     {
                         stringBytes = stringBytes.Select(b => Convert.ToByte(b << 1)).ToList();
@@ -281,7 +279,7 @@ namespace Core6502DotNet
                     AssembleStrings(line);
                     break;
             }
-            if (Assembler.PassNeeded)
+            if (Assembler.PassNeeded || string.IsNullOrEmpty(Assembler.Options.ListingFile))
                 return string.Empty;
             return StringHelper.GetByteDisassembly(line, startPc);
         }
