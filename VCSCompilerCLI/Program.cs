@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Linq;
+using System.Text;
 using VCSCompiler.V2;
 
 namespace VCSCompilerCLI
@@ -21,7 +22,7 @@ namespace VCSCompilerCLI
 		/// <param name="sourceAnnotations">Whether to include C#, CIL, neither, or both source lines as comments
 		/// above the macros that they were compiled to.</param>
 		/// <param name="arguments">A list of C# source files to compile.</param>
-		static void Main(
+		static int Main(
 			string[] arguments,
 			string? outputPath = null, 
 			string frameworkPath = "./VCSFramework.dll",
@@ -40,10 +41,15 @@ namespace VCSCompilerCLI
 			};
 			var file = arguments.SingleOrDefault() ?? throw new ArgumentException("Missing file");
 			var result = Compiler.CompileFromFile(file, options);
-			//var result = Compiler.CompileFromFiles(new[] { filePath }, frameworkPath, dasmPath).Result;
-#if DEBUG
-			Console.ReadLine();
-#endif
+			var builder = new StringBuilder();
+			builder.AppendLine($"  {nameof(RomInfo.IsSuccessful)}: {result.IsSuccessful}");
+			builder.AppendLine($"  {nameof(RomInfo.RomPath)}: {result.RomPath}");
+			builder.AppendLine($"  {nameof(RomInfo.ListPath)}: {result.ListPath}");
+			builder.AppendLine($"  {nameof(RomInfo.AssemblyPath)}: {result.AssemblyPath}");
+			Console.WriteLine("Result:");
+			Console.WriteLine(builder.ToString());
+
+			return result.IsSuccessful ? 0 : 1;
 		}
     }
 }

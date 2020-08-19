@@ -2,15 +2,12 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Mono.Cecil;
-using Mono.Cecil.Cil;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Xml.Linq;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -70,7 +67,6 @@ namespace VCSCompiler.V2
             entryPointBody = compiler.Optimize(entryPointBody);
             entryPointBody = compiler.GenerateStackOps(entryPointBody);
             var labelMap = new LabelMap(new[] { entryPointBody }, new[] { frameworkAssemblyDefinition, userAssemblyDefinition }.ToImmutableArray());
-            //compiler.ResolveLabels(entryPointBody);
 
             var assemblyWriter = new AssemblyWriter(new()
             {
@@ -87,20 +83,42 @@ namespace VCSCompiler.V2
             {
                 romInfo = assemblyWriter.WriteToConsole();
             }
-            throw new NotImplementedException();
-            try
+
+            if (options.TextEditorPath != null && romInfo.AssemblyPath != null)
             {
-                /*var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
-                var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
-                var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
-                var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
-                var romInfo = RomCreator.CreateRom(program, dasmPath);
-                return Task.FromResult(romInfo);*/
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = options.TextEditorPath,
+                        Arguments = romInfo.AssemblyPath
+                    });
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to open text editor at {options.TextEditorPath} with ASM file {romInfo.AssemblyPath} because: {e.Message}");
+                }
             }
-            finally
+
+            if (options.EmulatorPath != null && romInfo.RomPath != null)
             {
-                AuditorManager.Instance.WriteLog(Path.Combine(Directory.GetCurrentDirectory(), "outlog.html"));
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = options.EmulatorPath,
+                        Arguments = romInfo.RomPath
+                    });
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to open emulator at {options.EmulatorPath} with BIN file {romInfo.RomPath} because: {e.Message}");
+                }
             }
+
+            var final = romInfo.IsSuccessful ? "Compilation succeeded." : "Compilation failed";
+            Console.WriteLine(final);
+            return romInfo;
         }
 
         private static AssemblyDefinition GetAssemblyDefinition(
