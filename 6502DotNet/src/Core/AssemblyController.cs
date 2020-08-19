@@ -32,9 +32,9 @@ namespace Core6502DotNet
         /// Constructs an instance of a <see cref="AssemblyController"/>, which controls the
         /// assembly process.
         /// </summary>
-        public AssemblyController()
+        public AssemblyController(string[] commandLineArgs)
         {
-            Assembler.Initialize();
+            Assembler.Initialize(commandLineArgs);
             _assemblers = new List<AssemblerBase>();
         }
 

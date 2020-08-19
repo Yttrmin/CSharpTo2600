@@ -4,9 +4,9 @@ namespace VCSCompiler.V2
 {
     public sealed record RomInfo
     {
-        bool IsSuccessful => RomPath != null;
-        string? RomPath { get; init; }
-        string? AssemblyPath { get; init; }
-        string? ListPath { get; init; }
+        public bool IsSuccessful { get; init; }
+        public string? RomPath { get; init; }
+        public string? AssemblyPath { get; init; }
+        public string? ListPath { get; init; }
     }
 }

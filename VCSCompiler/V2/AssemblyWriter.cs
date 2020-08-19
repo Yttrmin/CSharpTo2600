@@ -28,14 +28,66 @@ namespace VCSCompiler.V2
             AssemblyText = new(BuildAssemblyText, false);
         }
 
-        public void WriteToFile(string path)
+        public RomInfo WriteToFile(string path)
         {
-            throw new NotImplementedException();
+            var binPath = path;
+            var asmPath = Path.ChangeExtension(path, "asm");
+            var listPath = Path.ChangeExtension(path, "lst");
+
+            File.WriteAllText(asmPath, AssemblyText.Value);
+
+            var assemblerArgs = new[]
+            {
+                "6502.Net.exe",
+                asmPath,
+                "-o",
+                binPath,
+                "-L",
+                listPath
+            };
+
+            using var stdoutStream = new MemoryStream();
+            using var writer = new StreamWriter(stdoutStream) { AutoFlush = true };
+            Console.SetOut(writer);
+            Console.SetError(writer);
+
+            Core6502DotNet.Core6502DotNet.Main(assemblerArgs);
+
+            Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+            Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+            stdoutStream.Position = 0;
+            using var reader = new StreamReader(stdoutStream);
+            var stdoutText = reader.ReadToEnd();
+            Console.WriteLine("Assembler output:");
+            Console.WriteLine(stdoutText);
+
+            if (!stdoutText.Contains("Assembly completed successfully."))
+            {
+                Console.WriteLine("Assembly failed, there is probably an internal problem with the code that the compiler is generating.");
+                return new RomInfo
+                {
+                    IsSuccessful = false,
+                    AssemblyPath = asmPath
+                };
+            }
+
+            Console.WriteLine("Assembly was successful.");
+            return new RomInfo
+            {
+                IsSuccessful = true,
+                AssemblyPath = asmPath,
+                RomPath = binPath,
+                ListPath = listPath
+            };
         }
 
-        public void WriteToConsole()
+        public RomInfo WriteToConsole()
         {
             Console.WriteLine(AssemblyText.Value);
+            return new RomInfo
+            {
+                IsSuccessful = true
+            };
         }
 
         private string BuildAssemblyText()

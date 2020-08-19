@@ -221,9 +221,9 @@ namespace Core6502DotNet
         /// <summary>
         /// Process the command-line arguments passed by the end-user.
         /// </summary>
-        public void ParseArgs()
+        public void ParseArgs(string[] commandLineArgs)
         {
-            var args = Environment.GetCommandLineArgs().Skip(1).ToList();
+            var args = commandLineArgs.Skip(1).ToList();
             if (args.Count == 0)
                 throw new Exception($"One or more arguments expected.{_helpUsage}");
 

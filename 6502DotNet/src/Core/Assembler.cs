@@ -45,7 +45,7 @@ namespace Core6502DotNet
         /// Initializes the <see cref="Assembler"/> class for use. Repeated calls will reset symbol labels and variables,
         /// assembling pass and listing printing states, the binary output, and the error log.
         /// </summary>
-        public static void Initialize()
+        public static void Initialize(string[] commandLineArgs)
         {
             PassChanged = null;
             PrintOff = false;
@@ -55,7 +55,7 @@ namespace Core6502DotNet
             Options = new CommandLineOptions();
             IsReserved = new List<Func<string, bool>>();
             InstructionLookupRules = new List<Func<string, bool>>();
-            Options.ParseArgs();
+            Options.ParseArgs(commandLineArgs);
             Encoding = new AsmEncoding(Options.CaseSensitive);
             SymbolManager = new SymbolManager(Options.CaseSensitive);
             Evaluator.Initialize();

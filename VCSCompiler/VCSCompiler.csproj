@@ -22,6 +22,9 @@
     <None Update="vcs.h">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="vil.h">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

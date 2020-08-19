@@ -76,7 +76,17 @@ namespace VCSCompiler.V2
             {
                 { userAssemblyDefinition.MainModule.EntryPoint, entryPointBody }
             }, labelMap);
-            assemblyWriter.WriteToConsole();
+
+            RomInfo romInfo;
+            
+            if (options.OutputPath != null)
+            {
+                romInfo = assemblyWriter.WriteToFile(options.OutputPath);
+            }
+            else
+            {
+                romInfo = assemblyWriter.WriteToConsole();
+            }
             throw new NotImplementedException();
             try
             {
