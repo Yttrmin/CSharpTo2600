@@ -11,6 +11,7 @@ namespace VCSCompilerCLI
 		/// <summary>
 		/// 
 		/// </summary>
+		/// /// <param name="arguments">A list of C# source files to compile.</param>
 		/// <param name="outputPath">The path to save the compiled binary to. The same path with a different extension will be used for related files.
 		/// If a path is not provided, no files will be saved.</param>
 		/// <param name="frameworkPath">The path to the VCSFramework DLL to compile against. 
@@ -21,13 +22,15 @@ namespace VCSCompilerCLI
 		/// If provided, it will be launched with the path to the output ASM file passed as an argument.</param>
 		/// <param name="sourceAnnotations">Whether to include C#, CIL, neither, or both source lines as comments
 		/// above the macros that they were compiled to.</param>
-		/// <param name="arguments">A list of C# source files to compile.</param>
+		/// <param name="disableOptimizations">True to disable optimizations. Main use is to observe output of primitive
+		/// VIL macros and stack operations. Unoptimized code generally will not run correctly due to excessive cycles consumed.</param>
 		static int Main(
 			string[] arguments,
 			string? outputPath = null, 
 			string frameworkPath = "./VCSFramework.dll",
 			string? emulatorPath = null,
 			string? textEditorPath = null,
+			bool disableOptimizations = false,
 			SourceAnnotation sourceAnnotations = SourceAnnotation.CSharp
 			)
         {
@@ -37,6 +40,7 @@ namespace VCSCompilerCLI
 				FrameworkPath = frameworkPath,
 				EmulatorPath = emulatorPath,
 				TextEditorPath = textEditorPath,
+				DisableOptimizations = disableOptimizations,
 				SourceAnnotations = sourceAnnotations
 			};
 			var file = arguments.SingleOrDefault() ?? throw new ArgumentException("Missing file");

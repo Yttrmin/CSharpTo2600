@@ -64,7 +64,10 @@ namespace VCSCompiler.V2
             
             var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
-            entryPointBody = compiler.Optimize(entryPointBody);
+            if (!options.DisableOptimizations)
+            {
+                entryPointBody = compiler.Optimize(entryPointBody);
+            }
             entryPointBody = compiler.GenerateStackOps(entryPointBody);
             var labelMap = new LabelMap(new[] { entryPointBody }, new[] { frameworkAssemblyDefinition, userAssemblyDefinition }.ToImmutableArray());
 
@@ -206,7 +209,6 @@ namespace VCSCompiler.V2
                     }
                     return entry;
                 }).ToImmutableArray();
-            throw new NotImplementedException();
         }
     }
 }
