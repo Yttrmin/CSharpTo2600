@@ -5,7 +5,7 @@ namespace Samples
     public static class NtscBackgroundColorsSample
     {
 		private static byte BackgroundColor; // Support for static fields.
-		private static byte Increment; // A temporary contrivance to test globals a bit more.
+		private static byte Increment; // @TODO @DELETEME A temporary contrivance to test globals a bit more.
 
 		public static void Main()
 		{

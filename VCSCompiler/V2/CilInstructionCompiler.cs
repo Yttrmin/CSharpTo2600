@@ -153,7 +153,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', methods to be replaced with a strobe must take 0 parameters");
                     }
-					throw new NotImplementedException("Strobe");
+					yield return new StoreTo(instruction, new GlobalLabel(overrideStore.Symbol, true));
                 }
 				else
                 {

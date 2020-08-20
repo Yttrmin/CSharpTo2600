@@ -8,6 +8,10 @@ using System.Linq;
 
 namespace VCSFramework.V2
 {
+    // @TODO - Should we deconstruct instructions in the first position instead of last? This
+    // would match how the Macro subclasses are constructed (we can't move them to the end
+    // for construction since we need the params arg for parameters).
+
     public record Macro : AssemblyEntry
     {
         public MacroLabel Label { get; }
@@ -138,6 +142,20 @@ namespace VCSFramework.V2
             type = Type;
             size = Size;
             instructions = Instructions;
+        }
+    }
+
+    public sealed record StoreTo : Macro
+    {
+        public StoreTo(Instruction instruction, GlobalLabel global)
+            : base(instruction, new MacroLabel("storeTo"), global) { }
+
+        public GlobalLabel Global => (GlobalLabel)Params[0];
+
+        public void Deconstruct(out ImmutableArray<Instruction> instructions, out GlobalLabel global)
+        {
+            instructions = Instructions;
+            global = Global;
         }
     }
 
