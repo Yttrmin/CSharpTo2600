@@ -14,6 +14,7 @@ namespace VCSCompiler.V2
     {
         private readonly ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> CompiledMethods;
         private readonly LabelMap LabelMap;
+        private readonly SourceAnnotation SourceAnnotations;
         private readonly Lazy<string> AssemblyText;
         private static readonly string Indent = "    ";
         private static readonly string SourceIndent = "   ";
@@ -21,10 +22,12 @@ namespace VCSCompiler.V2
 
         public AssemblyWriter(
             Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> compiledMethods,
-            LabelMap labelMap)
+            LabelMap labelMap,
+            SourceAnnotation sourceAnnotations)
         {
             CompiledMethods = compiledMethods.ToImmutableDictionary();
             LabelMap = labelMap;
+            SourceAnnotations = sourceAnnotations;
             AssemblyText = new(BuildAssemblyText, false);
         }
 
@@ -151,22 +154,33 @@ namespace VCSCompiler.V2
 
         private void AppendSource(MethodDefinition method, Macro macro, StringBuilder builder)
         {
+            if (SourceAnnotations == SourceAnnotation.None)
+            {
+                return;
+            }
+
             foreach (var instruction in macro.Instructions)
             {
-                // @TODO - Parameterize printing of C#/CIL/none
-                var point = method.DebugInformation.GetSequencePoint(instruction);
-                if (point != null)
+                if (SourceAnnotations.HasFlag(SourceAnnotation.CSharp))
                 {
-                    var source = ReadSource(
-                        ReadSourceFile(point.Document.Url),
-                        point.StartLine,
-                        point.StartColumn,
-                        point.EndLine,
-                        point.EndColumn);
-                    foreach (var line in source)
+                    var point = method.DebugInformation.GetSequencePoint(instruction);
+                    if (point != null)
                     {
-                        builder.AppendLine($"{SourceIndent}{new Comment(line)}");
+                        var source = ReadSource(
+                            ReadSourceFile(point.Document.Url),
+                            point.StartLine,
+                            point.StartColumn,
+                            point.EndLine,
+                            point.EndColumn);
+                        foreach (var line in source)
+                        {
+                            builder.AppendLine($"{SourceIndent}{new Comment(line)}");
+                        }
                     }
+                }
+                if (SourceAnnotations.HasFlag(SourceAnnotation.CIL))
+                {
+                    builder.AppendLine($"{SourceIndent}{new Comment(instruction.ToString())}");
                 }
             }
         }

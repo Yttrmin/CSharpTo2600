@@ -70,7 +70,7 @@ namespace VCSCompiler.V2
             var assemblyWriter = new AssemblyWriter(new()
             {
                 { userAssemblyDefinition.MainModule.EntryPoint, entryPointBody }
-            }, labelMap);
+            }, labelMap, options.SourceAnnotations);
 
             RomInfo romInfo;
             
