@@ -44,7 +44,7 @@ namespace VCSFramework.V2
             Instructions = instructions.ToImmutableArray();
         }
 
-        public Macro WithStackLets(StackTracker stackTracker, TypeLabel nothingType, SizeLabel nothingSize)
+        public Macro WithStackLets(IStackTracker stackTracker, TypeLabel nothingType, SizeLabel nothingSize)
         {
             var stackPops = Effects.OfType<PopStackAttribute>().SingleOrDefault()?.Count;
             var stackPushes = Effects.OfType<PushStackAttribute>().SingleOrDefault()?.Count;
@@ -70,7 +70,7 @@ namespace VCSFramework.V2
             };
         }
 
-        protected virtual void PerformStackPushOps(StackTracker stackTracker)
+        protected virtual void PerformStackPushOps(IStackTracker stackTracker)
         {
         }
 
@@ -100,7 +100,7 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        protected override void PerformStackPushOps(StackTracker stackTracker)
+        protected override void PerformStackPushOps(IStackTracker stackTracker)
             => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out ConstantLabel constant, out TypeLabel typeLabel, out SizeLabel size, out ImmutableArray<Instruction> instructions)
@@ -122,7 +122,7 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        protected override void PerformStackPushOps(StackTracker stackTracker)
+        protected override void PerformStackPushOps(IStackTracker stackTracker)
             => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
@@ -175,7 +175,7 @@ namespace VCSFramework.V2
         public StackTypeArrayLabel SecondOperandType => (StackTypeArrayLabel)Params[2];
         public StackSizeArrayLabel SecondOperandSize => (StackSizeArrayLabel)Params[3];
 
-        protected override void PerformStackPushOps(StackTracker stackTracker)
+        protected override void PerformStackPushOps(IStackTracker stackTracker)
         {
             stackTracker.Push(
                 new GetAddResultType(FirstOperandType, SecondOperandType),

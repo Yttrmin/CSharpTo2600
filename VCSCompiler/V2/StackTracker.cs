@@ -1,23 +1,14 @@
 ﻿#nullable enable
-using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Reflection;
+using VCSFramework.V2;
 
-namespace VCSFramework.V2
+namespace VCSCompiler.V2
 {
-    // @TODO - Maybe make an IStackTracker interface in VCSFramework and have Compiler provide
-    // this internal implementation? Then we don't have to expose this to everyone writing
-    // a VCS program.
-    public sealed class StackTracker
+    public sealed class StackTracker : IStackTracker
     {
-        // @TODO - Just have VCSCompiler give us this.
-        private static TypeReference NothingType
-            = AssemblyDefinition.ReadAssembly(typeof(Macro).GetTypeInfo().Assembly.Location)
-                .MainModule.Types.Single(t => t.FullName == typeof(Nothing).FullName);
-
         // @TODO - May need an "Unknown" type for when we cross basic block boundaries.
         private abstract record BaseStackElement
         {
@@ -25,18 +16,18 @@ namespace VCSFramework.V2
             public abstract string SizeString { get; }
         }
 
-        private sealed record TypedStackElement(TypeLabel Type, SizeLabel Size) 
+        private sealed record TypedStackElement(TypeLabel Type, SizeLabel Size)
             : BaseStackElement
         {
             public static TypedStackElement Nothing
-                => new(new TypeLabel(NothingType), new SizeLabel(NothingType));
+                => new(LabelGenerator.NothingType, LabelGenerator.NothingSize);
 
             public override string TypeString => Type;
 
             public override string SizeString => Size;
         }
 
-        private sealed record FunctionStackElement(Function TypeFunction, Function SizeFunction) 
+        private sealed record FunctionStackElement(Function TypeFunction, Function SizeFunction)
             : BaseStackElement
         {
             public override string TypeString => TypeFunction;
