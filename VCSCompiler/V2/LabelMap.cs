@@ -17,7 +17,7 @@ namespace VCSCompiler.V2
 
         public LabelMap(
             IEnumerable<ImmutableArray<AssemblyEntry>> functions,
-            ImmutableArray<AssemblyDefinition> assemblies)
+            AssemblyDefinition userAssembly)
         {
             var globalToAddress = new Dictionary<GlobalLabel, string>();
             var localToAddress = new Dictionary<LocalLabel, string>();
@@ -29,9 +29,11 @@ namespace VCSCompiler.V2
                 .SelectMany(it => it)
                 .OfType<Macro>()
                 .SelectMany(it => it.Params)
+                .Prepend(LabelGenerator.NothingSize) // Force Nothing since stack code uses it.
+                .Prepend(LabelGenerator.NothingType)
                 .Where(it => !(it is InstructionLabel))
-                .Where(it => !(it is StackSizeLabel))
-                .Where(it => !(it is StackTypeLabel))
+                .Where(it => !(it is StackSizeArrayLabel))
+                .Where(it => !(it is StackTypeArrayLabel))
                 .Distinct()
                 .ToImmutableArray();
 
@@ -43,7 +45,7 @@ namespace VCSCompiler.V2
 
             foreach (var sizeLabel in allLabelParams.OfType<SizeLabel>())
             {
-                sizeToValue[sizeLabel] = $"{TypeData.Of(sizeLabel.Type, assemblies).Size}";
+                sizeToValue[sizeLabel] = $"{TypeData.Of(sizeLabel.Type, userAssembly).Size}";
             }
 
             foreach (var constantLabel in allLabelParams.OfType<ConstantLabel>())

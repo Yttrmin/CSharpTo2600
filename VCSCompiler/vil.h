@@ -38,7 +38,7 @@ copyTo
 
 // Pushes {size} bytes starting at {address} onto the stack.
 // Effects: STACK+1, AccChange
-pushGlobal .macro address, size
+pushGlobal .macro address, type, size
 	.for i = \address, i <= \address + (\size - 1), i = i + 1
 		LDA i
 		PHA
@@ -66,19 +66,38 @@ copyTo .macro fromAddress, toAddress, size
 	.next
 .endmacro
 
+getAddResultType .function firstOperandType, secondOperandType
+	.if firstOperandType == TYPE_System_Byte && secondOperandType == TYPE_System_Byte
+		.return TYPE_System_Byte
+	.else
+		.error "Unsupported add types"
+	.endif
+.endfunction
+
+getSizeFromBuiltInType .function type
+	.if type == TYPE_System_Byte
+		.return SIZE_System_Byte
+	.else
+		.error "Unknown builtin type"
+	.endif 
+.endfunction
+
 // Primitive
-addFromStack .macro
+addFromStack .macro firstOperandType, firstOperandSize, secondOperandType, secondOperandSize
+	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
 	//.assert OPERAND_1 > 0, "OPERAND_1 size not valid, this is very bad."
 	//.assert OPERAND_2 > 0, "OPERAND_2 size not valid, this is very bad."
 	//.errorif OPERAND_1 != OPERAND_2, "Differing operand sizes not yet supported for addFromStack."
-	.if OPERAND_1 == 1 && OPERAND_2 == 1
+	.invoke getAddResultType(\firstOperandType, \secondOperandType)
+	.if \firstOperandSize == 1 && \secondOperandSize == 1
 		PLA
-		STA INT_RESERVED_1
+		STA INT_RESERVED_0
 		PLA
 		CLC
-		ADC INT_RESERVED_1
+		ADC INT_RESERVED_0
 		PHA
 	.else
+		.error "Invalid addFromStack param sizes"
 	.endif
 .endmacro
 

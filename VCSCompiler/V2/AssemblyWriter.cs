@@ -99,11 +99,11 @@ namespace VCSCompiler.V2
             builder.AppendLine(@".format ""flat""");
             builder.AppendLine("* = $F000");
             builder.AppendLine();
-            builder.AppendLine(@".include ""vcs.h""");
-            builder.AppendLine(@".include ""vil.h""");
-            builder.AppendLine();
 
             AppendLabels(builder);
+            builder.AppendLine();
+            builder.AppendLine(@".include ""vcs.h""");
+            builder.AppendLine(@".include ""vil.h""");
             builder.AppendLine();
 
             builder.AppendLine(new Comment("Begin function definitions"));

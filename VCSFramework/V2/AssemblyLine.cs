@@ -12,25 +12,27 @@ namespace VCSFramework.V2
     // would match how the Macro subclasses are constructed (we can't move them to the end
     // for construction since we need the params arg for parameters).
 
-    public record Macro : AssemblyEntry
+    public abstract record Macro : AssemblyEntry
     {
         public MacroLabel Label { get; }
         public ImmutableArray<Label> Params { get; }
-        public IEnumerable<MacroEffectAttribute> Effects => GetType().CustomAttributes.OfType<MacroEffectAttribute>();
+        public ImmutableArray<MacroEffectAttribute> Effects { get; }
         /// <summary>What instructions this macro replaces.</summary>
         public ImmutableArray<Instruction> Instructions { get; init; } = ImmutableArray<Instruction>.Empty;
-        public ImmutableArray<StackLetOp> StackLets { get; init; } = ImmutableArray<StackLetOp>.Empty;
+        public ImmutableArray<ArrayLetOp> StackLets { get; init; } = ImmutableArray<ArrayLetOp>.Empty;
 
         public Macro(MacroLabel label, params Label[] parameters)
         {
             Label = label;
             Params = parameters.ToImmutableArray();
+            Effects = GetType().GetCustomAttributes(false).OfType<MacroEffectAttribute>().ToImmutableArray();
         }
 
         public Macro(Instruction instruction, MacroLabel label, params Label[] parameters)
         {
             Label = label;
             Params = parameters.ToImmutableArray();
+            Effects = GetType().GetCustomAttributes(false).OfType<MacroEffectAttribute>().ToImmutableArray();
             Instructions = new[] { instruction }.ToImmutableArray();
         }
 
@@ -38,26 +40,38 @@ namespace VCSFramework.V2
         {
             Label = label;
             Params = parameters.ToImmutableArray();
+            Effects = GetType().GetCustomAttributes(false).OfType<MacroEffectAttribute>().ToImmutableArray();
             Instructions = instructions.ToImmutableArray();
         }
 
-        public virtual Macro WithStackLets(int depth)
+        public Macro WithStackLets(StackTracker stackTracker, TypeLabel nothingType, SizeLabel nothingSize)
         {
-            return this;
+            var stackPops = Effects.OfType<PopStackAttribute>().SingleOrDefault()?.Count;
+            var stackPushes = Effects.OfType<PushStackAttribute>().SingleOrDefault()?.Count;
+
+            if (stackPops == null && stackPushes == null)
+            {
+                // Doesn't touch the stack.
+                return this;
+            }
+
+            if (stackPops != null)
+            {
+                stackTracker.Pop((int)stackPops);
+            }
+            if (stackPushes != null)
+            {
+                PerformStackPushOps(stackTracker);
+            }
+
+            return this with
+            {
+                StackLets = stackTracker.GenerateStackSetters()
+            };
         }
 
-        /// <summary>
-        /// Generates stack ops to push type/size up.
-        /// For example, type[0] and size[0] will move to type[1] and size[1],
-        /// type[1] and size[1] will move to type[2] and size[2], etc.
-        /// </summary>\
-        protected IEnumerable<StackLetOp> PercolateStackOps(int depth)
+        protected virtual void PerformStackPushOps(StackTracker stackTracker)
         {
-            for (var i = depth - 1; i > 0; i++)
-            {
-                yield return new StackTypeOp(new StackTypeLabel(i), new StackTypeLabel(i - 1));
-                yield return new StackSizeOp(new StackSizeLabel(i), new StackSizeLabel(i - 1));
-            }
         }
 
         public override string ToString()
@@ -86,15 +100,8 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        public override Macro WithStackLets(int depth)
-        {
-            var stackLets = new StackLetOp[]
-            {
-                new StackTypeOp(new StackTypeLabel(0), (TypeLabel)Params[1]),
-                new StackSizeOp(new StackSizeLabel(0), (SizeLabel)Params[2])
-            };
-            return this with { StackLets = PercolateStackOps(depth).Concat(stackLets).ToImmutableArray() };
-        }
+        protected override void PerformStackPushOps(StackTracker stackTracker)
+            => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out ConstantLabel constant, out TypeLabel typeLabel, out SizeLabel size, out ImmutableArray<Instruction> instructions)
         {
@@ -111,15 +118,12 @@ namespace VCSFramework.V2
         public PushGlobal(Instruction instruction, GlobalLabel global, TypeLabel globalType, SizeLabel globalSize)
             : base(instruction, new MacroLabel("pushGlobal"), global, globalType, globalSize) { }
 
-        public override Macro WithStackLets(int depth)
-        {
-            var stackLets = new StackLetOp[]
-            {
-                new StackTypeOp(new StackTypeLabel(0), (TypeLabel)Params[1]),
-                new StackSizeOp(new StackSizeLabel(0), (SizeLabel)Params[2])
-            };
-            return this with { StackLets = PercolateStackOps(depth).Concat(stackLets).ToImmutableArray() };
-        }
+        public GlobalLabel Global => (GlobalLabel)Params[0];
+        public TypeLabel Type => (TypeLabel)Params[1];
+        public SizeLabel Size => (SizeLabel)Params[2];
+
+        protected override void PerformStackPushOps(StackTracker stackTracker)
+            => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
     }
@@ -128,7 +132,7 @@ namespace VCSFramework.V2
     public sealed record PopToGlobal : Macro
     {
         public PopToGlobal(Instruction instruction, GlobalLabel globalLabel, TypeLabel typeLabel, SizeLabel sizeLabel)
-            : base(instruction, new MacroLabel("popToGlobal"), globalLabel, typeLabel, sizeLabel, new StackTypeLabel(0), new StackSizeLabel(0)) { }
+            : base(instruction, new MacroLabel("popToGlobal"), globalLabel, typeLabel, sizeLabel, new StackTypeArrayLabel(0), new StackSizeArrayLabel(0)) { }
 
         public GlobalLabel Global => (GlobalLabel)Params[0];
         public TypeLabel Type => (TypeLabel)Params[1];
@@ -156,6 +160,35 @@ namespace VCSFramework.V2
         {
             instructions = Instructions;
             global = Global;
+        }
+    }
+
+    [PopStack(Count = 2)]
+    [PushStack(Count = 1)]
+    public sealed record AddFromStack : Macro
+    {
+        public AddFromStack(Instruction instruction, StackTypeArrayLabel firstOperandType, StackSizeArrayLabel firstOperandSize, StackTypeArrayLabel secondOperandType, StackSizeArrayLabel secondOperandSize)
+            : base(instruction, new MacroLabel("addFromStack"), firstOperandType, firstOperandSize, secondOperandType, secondOperandSize) { }
+
+        public StackTypeArrayLabel FirstOperandType => (StackTypeArrayLabel)Params[0];
+        public StackSizeArrayLabel FirstOperandSize => (StackSizeArrayLabel)Params[1];
+        public StackTypeArrayLabel SecondOperandType => (StackTypeArrayLabel)Params[2];
+        public StackSizeArrayLabel SecondOperandSize => (StackSizeArrayLabel)Params[3];
+
+        protected override void PerformStackPushOps(StackTracker stackTracker)
+        {
+            stackTracker.Push(
+                new GetAddResultType(FirstOperandType, SecondOperandType),
+                new GetSizeFromBuiltInType(new StackTypeArrayLabel(0)));
+        }
+
+        public void Deconstruct(out ImmutableArray<Instruction> instructions, out StackTypeArrayLabel firstOperandType, out StackSizeArrayLabel firstOperandSize, out StackTypeArrayLabel secondOperandType, out StackSizeArrayLabel secondOperandSize)
+        {
+            instructions = Instructions;
+            firstOperandType = FirstOperandType;
+            firstOperandSize = FirstOperandSize;
+            secondOperandType = SecondOperandType;
+            secondOperandSize = SecondOperandSize;
         }
     }
 
@@ -213,34 +246,20 @@ namespace VCSFramework.V2
             => $".let {VariableLabel} = {ValueLabel}";
     }
 
-    public abstract record StackLetOp : LetOp
+    public record ArrayLetOp : PsuedoOp
     {
-        internal StackLetOp(Label variableLabel, Label valueLabel)
-            : base(variableLabel, valueLabel) { }
-    }
-    
-    public sealed record StackTypeOp : StackLetOp
-    {
-        public StackTypeLabel StackLabel => (StackTypeLabel)VariableLabel;
-        //public TypeLabel TypeLabel => (TypeLabel)ValueLabel;
+        private LetLabel VariableLabel { get; }
+        // Can't use Label because a function invocation isn't a label
+        private ImmutableArray<string> Values { get; }
 
-        public StackTypeOp(StackTypeLabel stackLabel, TypeLabel typeLabel)
-            : base(stackLabel, typeLabel) { }
+        public ArrayLetOp(LetLabel variable, IEnumerable<string> values)
+        {
+            VariableLabel = variable;
+            Values = values.ToImmutableArray();
+        }
 
-        public StackTypeOp(StackTypeLabel stackLabel, StackTypeLabel typeLabel)
-            : base(stackLabel, typeLabel) { }
-    }
-
-    public sealed record StackSizeOp : StackLetOp
-    {
-        public StackSizeLabel StackLabel => (StackSizeLabel)VariableLabel;
-        //public SizeLabel SizeLabel => (SizeLabel)ValueLabel;
-
-        public StackSizeOp(StackSizeLabel stackLabel, SizeLabel sizeLabel)
-            : base(stackLabel, sizeLabel) { }
-
-        public StackSizeOp(StackSizeLabel stackLabel, StackSizeLabel sizeLabel)
-            : base(stackLabel, sizeLabel) { }
+        public override string ToString()
+            => $".let {VariableLabel} = [{string.Join(',', Values)}]";
     }
 
     public sealed record Comment(string Text) : AssemblyEntry
@@ -280,15 +299,52 @@ namespace VCSFramework.V2
     /// <summary>Label referring to a defined macro.</summary>
     public sealed record MacroLabel(string Name) : Label(Name);
 
+    /// <summary>Label referring to the left hand size of a `.let` psuedop.</summary>
+    public sealed record LetLabel(string Name) : Label(Name);
+
     public sealed record InstructionLabel(string Name) : Label(Name);
 
     public sealed record FunctionLabel(string Name) : Label(Name);
 
-    public sealed record StackTypeLabel(int Index) 
-        : Label($"STACK_TYPEOF_{Index}");
+    public sealed record StackTypeArrayLabel(int Index)
+        : Label($"STACK_TYPEOF[{Index}]");
 
-    public sealed record StackSizeLabel(int Index)
-        : Label($"STACK_SIZEOF_{Index}");
+    public sealed record StackSizeArrayLabel(int Index)
+        : Label($"STACK_SIZEOF[{Index}]");
+
+    /// <summary>Type used to indicate a stack element is empty.</summary>
+    public struct Nothing { }
+
+    public abstract record Function : AssemblyEntry
+    {
+        public FunctionLabel Label { get; }
+        public ImmutableArray<Label> Params { get; }
+
+        public Function(FunctionLabel label, params Label[] parameters)
+        {
+            Label = label;
+            Params = parameters.ToImmutableArray();
+        }
+
+        // Assume it has a return value
+        public override string ToString()
+        {
+            var paramString = string.Join(", ", Params);
+            return $"{Label} {paramString}";
+        }
+    }
+
+    public sealed record GetAddResultType : Function
+    {
+        public GetAddResultType(StackTypeArrayLabel first, StackTypeArrayLabel second)
+            : base(new FunctionLabel("getAddResultType"), first, second) { }
+    }
+
+    public sealed record GetSizeFromBuiltInType : Function
+    {
+        public GetSizeFromBuiltInType(StackTypeArrayLabel type)
+            : base(new FunctionLabel("getSizeFromBuiltInType"), type) { }
+    }
 
     // [StackEffect(POP, 2)]
     // [StackEffect(PUSH, 1)]

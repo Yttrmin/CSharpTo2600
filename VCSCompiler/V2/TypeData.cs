@@ -6,41 +6,48 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
     internal sealed record TypeData(TypeDefinition Type, int Size)
     {
+        private static readonly ImmutableArray<TypeDefinition> BuiltInTypes
+            = AssemblyDefinitions.BuiltIn.Select(a => a.MainModule).SelectMany(m => m.Types).ToImmutableArray();
+
         private static readonly ImmutableArray<TypeDefinition> SystemTypes
             = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location).MainModule.Types.ToImmutableArray();
 
-        public static TypeData Byte { get; } = new(GetSystemTypeDef<byte>(), 1);
+        public static TypeData Byte { get; } = new(GetBuiltInTypeDef<byte>(), 1);
 
-        public static TypeData Of(TypeDefinition type, IEnumerable<AssemblyDefinition> assemblies)
+        // @TODO - Give hardcode typeNum so VIL can check against it
+        public static TypeData Nothing { get; } = new(GetBuiltInTypeDef<Nothing>(), 0);
+
+        public static TypeData Of(TypeDefinition type, AssemblyDefinition userAssembly)
         {
-            var size = GetSize(type, assemblies);
+            var size = GetSize(type, userAssembly);
             return new(type, size);
         }
 
-        public static TypeData Of(TypeReference type, IEnumerable<AssemblyDefinition> assemblies)
+        public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
         {
-            var typeDef = SystemTypes
-                .Concat(assemblies.SelectMany(a => a.CompilableTypes()))
+            var typeDef = BuiltInTypes
+                .Concat(userAssembly.CompilableTypes())
                 .Single(t => t.FullName == type.FullName);
-            return Of(typeDef, assemblies);
+            return Of(typeDef, userAssembly);
         }
 
-        private static TypeDefinition GetSystemTypeDef<T>()
-            => SystemTypes.Single(it => it.FullName == typeof(T).FullName);
+        private static TypeDefinition GetBuiltInTypeDef<T>()
+            => BuiltInTypes.Single(it => it.FullName == typeof(T).FullName);
 
-        private static int GetSize(TypeDefinition type, IEnumerable<AssemblyDefinition> assemblies)
+        private static int GetSize(TypeDefinition type, AssemblyDefinition userAssembly)
         {
             if (type.Namespace.StartsWith("System"))
             {
                 return GetSystemTypeData(type).Size;
             }
 
-            return type.Fields.Sum(f => Of(f.FieldType, assemblies).Size);
+            return type.Fields.Sum(f => Of(f.FieldType, userAssembly).Size);
         }
 
         private static TypeData GetSystemTypeData(TypeDefinition type)

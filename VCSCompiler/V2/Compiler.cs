@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Mono.Cecil;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
@@ -14,13 +15,11 @@ namespace VCSCompiler.V2
 {
     public sealed class Compiler
     {
-        private readonly AssemblyDefinition FrameworkAssembly;
         private readonly AssemblyDefinition UserAssembly;
         private readonly CompilerOptions Options;
 
-        private Compiler(AssemblyDefinition frameworkAssembly, AssemblyDefinition userAssemblyDefinition, CompilerOptions options)
+        private Compiler(AssemblyDefinition userAssemblyDefinition, CompilerOptions options)
         {
-            FrameworkAssembly = frameworkAssembly;
             UserAssembly = userAssemblyDefinition;
             Options = options;
         }
@@ -56,20 +55,17 @@ namespace VCSCompiler.V2
              * 6) In the end, the generated .asm may look like an intermediate representation, with lots of parameterized macro
              *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
              */
-            var frameworkPath = options.FrameworkPath;
             var compilation = CompilationCreator.CreateFromFilePaths(new[] { sourcePath });
             var userAssemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
-            var frameworkAssembly = Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
-            var frameworkAssemblyDefinition = AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true });
-            
-            var compiler = new Compiler(frameworkAssemblyDefinition, userAssemblyDefinition, options);
+
+            var compiler = new Compiler(userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
             if (!options.DisableOptimizations)
             {
                 entryPointBody = compiler.Optimize(entryPointBody);
             }
             entryPointBody = compiler.GenerateStackOps(entryPointBody);
-            var labelMap = new LabelMap(new[] { entryPointBody }, new[] { frameworkAssemblyDefinition, userAssemblyDefinition }.ToImmutableArray());
+            var labelMap = new LabelMap(new[] { entryPointBody }, userAssemblyDefinition);
 
             var assemblyWriter = new AssemblyWriter(new()
             {
@@ -148,7 +144,7 @@ namespace VCSCompiler.V2
         public ImmutableArray<AssemblyEntry> CompileEntryPoint()
         {
             var entryPoint = UserAssembly.EntryPoint;
-            var cilCompiler = new CilInstructionCompiler(entryPoint, FrameworkAssembly);
+            var cilCompiler = new CilInstructionCompiler(entryPoint, UserAssembly);
             var roughCompilation = cilCompiler.Compile();
 
             // Mark as entry point so we can find it later.
@@ -185,30 +181,20 @@ namespace VCSCompiler.V2
         /// </summary>
         private ImmutableArray<AssemblyEntry> GenerateStackOps(ImmutableArray<AssemblyEntry> entries)
         {
-            int maxPush = 0;
-            int maxPop = 0;
-            foreach (var entry in entries.OfType<Macro>())
-            {
-                if (entry.Effects.OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
-                {
-                    maxPush = Math.Max(maxPush, pushAttr.Count);
-                }
-                if (entry.Effects.OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
-                {
-                    maxPop = Math.Max(maxPop, popAttr.Count);
-                }
-            }
-            var maxStack = Math.Max(maxPush, maxPop);
+            var stackTracker = new StackTracker(entries);
 
-            return entries
+            var initialization = stackTracker.GenerateInitializationEntries();
+            var entriesWithStackLets = entries
                 .Select(entry =>
                 {
                     if (entry is Macro macro)
                     {
-                        return macro.WithStackLets(maxStack);
+                        return macro.WithStackLets(stackTracker, LabelGenerator.NothingType, LabelGenerator.NothingSize);
                     }
                     return entry;
-                }).ToImmutableArray();
+                });
+
+            return initialization.Concat(entriesWithStackLets).ToImmutableArray();
         }
     }
 }

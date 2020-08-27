@@ -18,11 +18,11 @@ namespace VCSCompiler.V2
 		private readonly MethodDefinition MethodDefinition;
 		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
 
-		public CilInstructionCompiler(MethodDefinition methodDefinition, params AssemblyDefinition[] assemblies)
+		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyDefinition userAssembly)
         {
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
-			Assemblies = assemblies.ToImmutableArray();
+			Assemblies = AssemblyDefinitions.BuiltIn.Append(userAssembly).ToImmutableArray();
         }
 
 		public IEnumerable<AssemblyEntry> Compile()
@@ -126,6 +126,11 @@ namespace VCSCompiler.V2
 		{
 			yield return new PushConstant(instruction, LabelGenerator.Constant(value), LabelGenerator.ByteType, LabelGenerator.ByteSize);
 		}
+
+		private IEnumerable<AssemblyEntry> Add(Instruction instruction)
+        {
+			throw new NotImplementedException();
+        }
 
 		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
         {

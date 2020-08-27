@@ -26,8 +26,7 @@ namespace VCSCompilerCLI
 		/// VIL macros and stack operations. Unoptimized code generally will not run correctly due to excessive cycles consumed.</param>
 		static int Main(
 			string[] arguments,
-			string? outputPath = null, 
-			string frameworkPath = "./VCSFramework.dll",
+			string? outputPath = null,
 			string? emulatorPath = null,
 			string? textEditorPath = null,
 			bool disableOptimizations = false,
@@ -37,7 +36,6 @@ namespace VCSCompilerCLI
 			var options = new CompilerOptions
 			{
 				OutputPath = outputPath,
-				FrameworkPath = frameworkPath,
 				EmulatorPath = emulatorPath,
 				TextEditorPath = textEditorPath,
 				DisableOptimizations = disableOptimizations,

@@ -17,6 +17,12 @@ namespace VCSCompiler.V2
         public static TypeLabel ByteType
             => new(TypeData.Byte.Type);
 
+        public static TypeLabel NothingType
+            => new(TypeData.Nothing.Type);
+
+        public static SizeLabel NothingSize
+            => new(TypeData.Nothing.Type);
+
         public static ConstantLabel Constant(byte value) => new(value);
 
         public static GlobalLabel Global(FieldReference fieldReference)
