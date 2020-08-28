@@ -13,7 +13,14 @@ namespace VILMacroGenerator
     [Generator]
     public class MacroGenerator : ISourceGenerator
     {
+        [Obsolete]
         private SourceGeneratorContext Context;
+
+        private sealed class MacroInfo
+        {
+            public int PushCount { get; set; }
+            public int PopCount { get; set; }
+        }
 
         public void Execute(SourceGeneratorContext context)
         {
@@ -35,34 +42,45 @@ namespace VILMacroGenerator
 
         private IEnumerable<(string Name, string Source)> FetchMacrosToGenerate(ImmutableArray<string> lines)
         {
-            var generateNextMacro = false;
+            MacroInfo? macroInfo = null;
             foreach (var line in lines)
             {
                 if (line.Contains("@GENERATE"))
                 {
-                    generateNextMacro = true;
+                    macroInfo = GetMacroInfo(line);
                 }
 
-                if (generateNextMacro && line.Contains(".macro"))
+                if (macroInfo != null && line.Contains(".macro"))
                 {
                     var macroName = line.Split(' ').FirstOrDefault();
-                    var source = GenerateMacro(line);
+                    var source = GenerateMacro(line, macroInfo);
                     if (source != null)
                     {
                         yield return (macroName, source);
                     }
-                    generateNextMacro = false;
+                    macroInfo = null;
                 }
             }
         }
 
-        private string? GenerateMacro(string source)
+        private string? GenerateMacro(string source, MacroInfo info)
         {
+            var interfaces = "";
+            var annotationsBuilder = new StringBuilder();
+            if (info.PushCount != 0)
+            {
+                interfaces = ", IStackPusher";
+                annotationsBuilder.AppendLine($"\t[PushStack(Count = {info.PushCount})]");
+            }
+            if (info.PopCount != 0)
+            {
+                annotationsBuilder.AppendLine($"\t[PopStack(Count = {info.PopCount})]");
+            }
+
             var parts = source.Replace(",", "").Split(' ');
-            var macroName = parts.FirstOrDefault();
-            if (macroName == null)
-                return null;
+            var macroName = parts.First();
             var csharpName = macroName.Capitalize();
+
             var variables = parts.Skip(2).ToImmutableArray();
             var paramTypes = variables.Select(TypeNameFromHungarian).ToImmutableArray();
             InfoDianostic(Context, "README", string.Join(" ", variables));
@@ -88,7 +106,8 @@ using VCSFramework.V2;
 
 namespace VCSFramework.V2
 {{
-    public sealed partial record {csharpName} : Macro
+{annotationsBuilder}
+    public sealed partial record {csharpName} : Macro{interfaces}
     {{
         public {csharpName}(Instruction instruction{constructorParamText.DelimitIfAny()}{constructorParamText})
             : base(instruction, new MacroLabel(""{macroName}""){baseConstructorParamText.DelimitIfAny()}{baseConstructorParamText}) {{}}
@@ -106,7 +125,11 @@ namespace VCSFramework.V2
 
         private string TypeNameFromHungarian(string variableName)
         {
-            if (variableName.EndsWith("Type", StringComparison.CurrentCultureIgnoreCase))
+            if (variableName.EndsWith("StackType", StringComparison.CurrentCultureIgnoreCase))
+                return "StackTypeArrayLabel";
+            else if (variableName.EndsWith("StackSize", StringComparison.CurrentCultureIgnoreCase))
+                return "StackSizeArrayLabel";
+            else if (variableName.EndsWith("Type", StringComparison.CurrentCultureIgnoreCase))
                 return "TypeLabel";
             else if (variableName.EndsWith("Size", StringComparison.CurrentCultureIgnoreCase))
                 return "SizeLabel";
@@ -116,6 +139,25 @@ namespace VCSFramework.V2
                 return "ConstantLabel";
             else
                 throw new ArgumentException($"Could not determine type of: {variableName}");
+        }
+
+        private MacroInfo GetMacroInfo(string generateLine)
+        {
+            var info = new MacroInfo();
+            var parts = generateLine.Split(' ');
+            
+            var pushStr = parts.SingleOrDefault(p => p.StartsWith("@PUSH=", StringComparison.CurrentCultureIgnoreCase));
+            if (pushStr != null)
+            {
+                info.PushCount = Convert.ToInt32(pushStr.Last().ToString());
+            }
+
+            var popStr = parts.SingleOrDefault(p => p.StartsWith("@POP=", StringComparison.CurrentCultureIgnoreCase));
+            if (popStr != null)
+            {
+                info.PopCount = Convert.ToInt32(popStr.Last().ToString());
+            }
+            return info;
         }
 
         private void InfoDianostic(SourceGeneratorContext context, string title, string message)

@@ -14,7 +14,7 @@ namespace VCSFramework.V2
 
     internal interface IStackPusher
     {
-        void PerformStackPushOps(IStackTracker stackTracker);
+        void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters);
     }
 
     public abstract record Macro : AssemblyEntry
@@ -70,7 +70,7 @@ namespace VCSFramework.V2
                 // (if annotated to push stack), and thus requiring user to add a partial
                 // to implement it.
                 if (this is IStackPusher stackPusher)
-                    stackPusher.PerformStackPushOps(stackTracker);
+                    stackPusher.PerformStackPushOps(stackTracker, Params);
                 else
                     throw new InvalidOperationException($"{GetType().Name} is annotated with {nameof(PushStackAttribute)} but doesn't implement {nameof(IStackPusher)}");
             }
@@ -107,7 +107,7 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        public void PerformStackPushOps(IStackTracker stackTracker)
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
             => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out ConstantLabel constant, out TypeLabel typeLabel, out SizeLabel size, out ImmutableArray<Instruction> instructions)
@@ -129,7 +129,7 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        public void PerformStackPushOps(IStackTracker stackTracker)
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
             => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
@@ -170,9 +170,34 @@ namespace VCSFramework.V2
         }
     }
 
-    [PopStack(Count = 2)]
-    [PushStack(Count = 1)]
-    public sealed record AddFromStack : Macro, IStackPusher
+    /*record Bar
+    {
+        public Bar(string q) { qqq = q; }
+        public string qqq;
+    }
+
+    partial record Foo : Bar
+    {
+        public Foo() : base("zzz") { }
+        void A() { qqq = null; }
+    }
+
+    abstract partial record Foo
+    {
+        void B() { this.A(); this.qqq = null; }
+    }*/
+
+    public partial record AddFromStack : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+        {
+            stackTracker.Push(
+                new GetAddResultType((StackTypeArrayLabel)parameters[0], (StackTypeArrayLabel)parameters[2]),
+                new GetSizeFromBuiltInType(new StackTypeArrayLabel(0)));
+        }
+    }
+
+    /*public sealed record AddFromStack : Macro, IStackPusher
     {
         public AddFromStack(Instruction instruction, StackTypeArrayLabel firstOperandType, StackSizeArrayLabel firstOperandSize, StackTypeArrayLabel secondOperandType, StackSizeArrayLabel secondOperandSize)
             : base(instruction, new MacroLabel("addFromStack"), firstOperandType, firstOperandSize, secondOperandType, secondOperandSize) { }
@@ -197,7 +222,7 @@ namespace VCSFramework.V2
             secondOperandType = SecondOperandType;
             secondOperandSize = SecondOperandSize;
         }
-    }
+    }*/
 
     /*public sealed record AddFromGlobalAndConstant : Macro
     {

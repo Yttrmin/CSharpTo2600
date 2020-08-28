@@ -82,14 +82,15 @@ getSizeFromBuiltInType .function type
 	.endif 
 .endfunction
 
+// @GENERATE @PUSH=1 @POP=2
 // Primitive
-addFromStack .macro firstOperandType, firstOperandSize, secondOperandType, secondOperandSize
+addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
 	//.assert OPERAND_1 > 0, "OPERAND_1 size not valid, this is very bad."
 	//.assert OPERAND_2 > 0, "OPERAND_2 size not valid, this is very bad."
 	//.errorif OPERAND_1 != OPERAND_2, "Differing operand sizes not yet supported for addFromStack."
-	.invoke getAddResultType(\firstOperandType, \secondOperandType)
-	.if \firstOperandSize == 1 && \secondOperandSize == 1
+	.invoke getAddResultType(\firstOperandStackType, \secondOperandStackType)
+	.if \firstOperandStackSize == 1 && \secondOperandStackSize == 1
 		PLA
 		STA INTERNAL_RESERVED_0
 		PLA
