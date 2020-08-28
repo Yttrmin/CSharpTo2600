@@ -16,17 +16,12 @@
   <ItemGroup>
     <ProjectReference Include="..\6502DotNet\6502DotNet.csproj" />
     <ProjectReference Include="..\VCSFramework\VCSFramework.csproj" />
-    <ProjectReference Include="..\VILMacroGenerator\VILMacroGenerator.csproj"
-                      OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
   </ItemGroup>
 
   <ItemGroup>
     <None Update="vcs.h">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <AdditionalFiles Include="vil.h">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
   </ItemGroup>
 
 </Project>

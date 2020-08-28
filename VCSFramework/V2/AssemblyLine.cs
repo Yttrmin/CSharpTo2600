@@ -12,6 +12,11 @@ namespace VCSFramework.V2
     // would match how the Macro subclasses are constructed (we can't move them to the end
     // for construction since we need the params arg for parameters).
 
+    internal interface IStackPusher
+    {
+        void PerformStackPushOps(IStackTracker stackTracker);
+    }
+
     public abstract record Macro : AssemblyEntry
     {
         public MacroLabel Label { get; }
@@ -61,17 +66,19 @@ namespace VCSFramework.V2
             }
             if (stackPushes != null)
             {
-                PerformStackPushOps(stackTracker);
+                // @TODO - We can enforce this by including the interface with auto-gen
+                // (if annotated to push stack), and thus requiring user to add a partial
+                // to implement it.
+                if (this is IStackPusher stackPusher)
+                    stackPusher.PerformStackPushOps(stackTracker);
+                else
+                    throw new InvalidOperationException($"{GetType().Name} is annotated with {nameof(PushStackAttribute)} but doesn't implement {nameof(IStackPusher)}");
             }
 
             return this with
             {
                 StackLets = stackTracker.GenerateStackSetters()
             };
-        }
-
-        protected virtual void PerformStackPushOps(IStackTracker stackTracker)
-        {
         }
 
         public override string ToString()
@@ -91,7 +98,7 @@ namespace VCSFramework.V2
     }
 
     [PushStack(Count = 1)]
-    public sealed record PushConstant : Macro
+    public sealed record PushConstant : Macro, IStackPusher
     {
         public PushConstant(Instruction instruction, ConstantLabel constant, TypeLabel constantType, SizeLabel constantSize) 
             : base(instruction, new MacroLabel("pushConstant"), constant, constantType, constantSize) { }
@@ -100,7 +107,7 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        protected override void PerformStackPushOps(IStackTracker stackTracker)
+        public void PerformStackPushOps(IStackTracker stackTracker)
             => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out ConstantLabel constant, out TypeLabel typeLabel, out SizeLabel size, out ImmutableArray<Instruction> instructions)
@@ -113,7 +120,7 @@ namespace VCSFramework.V2
     }
 
     [PushStack(Count = 1)]
-    public sealed record PushGlobal : Macro
+    public sealed record PushGlobal : Macro, IStackPusher
     {
         public PushGlobal(Instruction instruction, GlobalLabel global, TypeLabel globalType, SizeLabel globalSize)
             : base(instruction, new MacroLabel("pushGlobal"), global, globalType, globalSize) { }
@@ -122,7 +129,7 @@ namespace VCSFramework.V2
         public TypeLabel Type => (TypeLabel)Params[1];
         public SizeLabel Size => (SizeLabel)Params[2];
 
-        protected override void PerformStackPushOps(IStackTracker stackTracker)
+        public void PerformStackPushOps(IStackTracker stackTracker)
             => stackTracker.Push(Type, Size);
 
         public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
@@ -165,7 +172,7 @@ namespace VCSFramework.V2
 
     [PopStack(Count = 2)]
     [PushStack(Count = 1)]
-    public sealed record AddFromStack : Macro
+    public sealed record AddFromStack : Macro, IStackPusher
     {
         public AddFromStack(Instruction instruction, StackTypeArrayLabel firstOperandType, StackSizeArrayLabel firstOperandSize, StackTypeArrayLabel secondOperandType, StackSizeArrayLabel secondOperandSize)
             : base(instruction, new MacroLabel("addFromStack"), firstOperandType, firstOperandSize, secondOperandType, secondOperandSize) { }
@@ -175,7 +182,7 @@ namespace VCSFramework.V2
         public StackTypeArrayLabel SecondOperandType => (StackTypeArrayLabel)Params[2];
         public StackSizeArrayLabel SecondOperandSize => (StackSizeArrayLabel)Params[3];
 
-        protected override void PerformStackPushOps(IStackTracker stackTracker)
+        public void PerformStackPushOps(IStackTracker stackTracker)
         {
             stackTracker.Push(
                 new GetAddResultType(FirstOperandType, SecondOperandType),
@@ -192,7 +199,7 @@ namespace VCSFramework.V2
         }
     }
 
-    public sealed record AddFromGlobalAndConstant : Macro
+    /*public sealed record AddFromGlobalAndConstant : Macro
     {
         public AddFromGlobalAndConstant(Instruction instruction, GlobalLabel global, TypeLabel globalType, SizeLabel globalSize, ConstantLabel constant, TypeLabel constantType, SizeLabel constantSize)
             : base(instruction, new MacroLabel("addFromGlobalAndConstant"), global, globalType, globalSize, constant, constantType, constantSize) { }
@@ -214,7 +221,7 @@ namespace VCSFramework.V2
             constantType = ConstantType;
             constantSize = ConstantSize;
         }
-    }
+    }*/
 
     public sealed record AssignConstantToGlobal : Macro
     {

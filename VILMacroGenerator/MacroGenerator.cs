@@ -86,9 +86,9 @@ using Mono.Cecil.Cil;
 using System.Collections.Immutable;
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2.GeneratedFunctions
+namespace VCSFramework.V2
 {{
-    public sealed record {csharpName} : Macro
+    public sealed partial record {csharpName} : Macro
     {{
         public {csharpName}(Instruction instruction{constructorParamText.DelimitIfAny()}{constructorParamText})
             : base(instruction, new MacroLabel(""{macroName}""){baseConstructorParamText.DelimitIfAny()}{baseConstructorParamText}) {{}}
