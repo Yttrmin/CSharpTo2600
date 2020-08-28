@@ -31,6 +31,7 @@ namespace VCSCompiler.V2
                 .SelectMany(it => it.Params)
                 .Prepend(LabelGenerator.NothingSize) // Force Nothing since stack code uses it.
                 .Prepend(LabelGenerator.NothingType)
+                .Prepend(new GlobalLabel("INTERNAL_RESERVED_0")) // @TODO - Find a better way
                 .Where(it => !(it is InstructionLabel))
                 .Where(it => !(it is StackSizeArrayLabel))
                 .Where(it => !(it is StackTypeArrayLabel))

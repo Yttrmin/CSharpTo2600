@@ -64,8 +64,10 @@ namespace VCSCompiler.V2
             }
             var maxDepth = Math.Max(maxPush, maxPop);
 
-            StackState = Enumerable.Repeat(TypedStackElement.Nothing, maxDepth)
-                .Cast<BaseStackElement>().ToArray();
+            StackState = new BaseStackElement[maxDepth];
+            // The compiler should emit the [Nothing,...] initializer at the
+            // start of the function, so we're safe to use indexes from the start.
+            ReplaceStackWithIndexes();
         }
 
         public void Push(TypeLabel type, SizeLabel size)
@@ -134,12 +136,17 @@ namespace VCSCompiler.V2
                 new(StackSizeLabel, sizeValues)
             }.ToImmutableArray();
 
+            ReplaceStackWithIndexes();
+
+            return result;
+        }
+
+        private void ReplaceStackWithIndexes()
+        {
             for (var i = 0; i < StackState.Length; i++)
             {
                 StackState[i] = new IndexedStackElement(i);
             }
-
-            return result;
         }
 
         private void PercolateUp()

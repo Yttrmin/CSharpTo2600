@@ -285,10 +285,32 @@ namespace VCSFramework.V2
 
     /// <summary>Label referring to the size of a type.</summary>
     public sealed record SizeLabel(TypeReference Type) 
-        : Label($"SIZE_{Type.NamespaceAndName()}");
+        : Label($"SIZE_{Type.NamespaceAndName()}"), IEquatable<SizeLabel>
+    {
+        public bool Equals(SizeLabel? other)
+        {
+            return Type.FullName == other?.Type.FullName;
+        }
+
+        public override int GetHashCode()
+        {
+            return Type.FullName.GetHashCode();
+        }
+    }
 
     public sealed record TypeLabel(TypeReference Type)
-        : Label($"TYPE_{Type.NamespaceAndName()}");
+        : Label($"TYPE_{Type.NamespaceAndName()}"), IEquatable<TypeLabel>
+    {
+        public bool Equals(TypeLabel? other)
+        {
+            return Type.FullName == other?.Type.FullName;
+        }
+
+        public override int GetHashCode()
+        {
+            return Type.FullName.GetHashCode();
+        }
+    }
 
     /// <summary>Label referring to the address of a global.</summary>
     public sealed record GlobalLabel(string Name, bool Predefined = false) : Label(Name);
@@ -330,7 +352,7 @@ namespace VCSFramework.V2
         public override string ToString()
         {
             var paramString = string.Join(", ", Params);
-            return $"{Label} {paramString}";
+            return $"{Label}({paramString})";
         }
     }
 

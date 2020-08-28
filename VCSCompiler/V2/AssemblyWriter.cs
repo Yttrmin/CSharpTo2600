@@ -18,7 +18,7 @@ namespace VCSCompiler.V2
         private readonly Lazy<string> AssemblyText;
         private static readonly string Indent = "    ";
         private static readonly string SourceIndent = "   ";
-        private static readonly string StackIndex = "  ";
+        private static readonly string StackIndex = "        ";
 
         public AssemblyWriter(
             Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> compiledMethods,

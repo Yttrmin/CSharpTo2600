@@ -91,10 +91,10 @@ addFromStack .macro firstOperandType, firstOperandSize, secondOperandType, secon
 	.invoke getAddResultType(\firstOperandType, \secondOperandType)
 	.if \firstOperandSize == 1 && \secondOperandSize == 1
 		PLA
-		STA INT_RESERVED_0
+		STA INTERNAL_RESERVED_0
 		PLA
 		CLC
-		ADC INT_RESERVED_0
+		ADC INTERNAL_RESERVED_0
 		PHA
 	.else
 		.error "Invalid addFromStack param sizes"
@@ -127,10 +127,10 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 // Primitive
 subFromStack .macro // @TODO sizes
 	PLA
-	STA INT_RESERVED_1
+	STA INTERNAL_RESERVED_0
 	PLA
 	SEC
-	SBC INT_RESERVED_1
+	SBC INTERNAL_RESERVED_0
 	PHA
 .endmacro
 
@@ -191,9 +191,9 @@ convertToByte .macro
 // Primitive
 compareGreaterThanFromStack .macro // @TODO SIZE PARAMS
 	PLA
-	STA INT_RESERVED_1
+	STA INTERNAL_RESERVED_0
 	PLA
-	CMP INT_RESERVED_1
+	CMP INTERNAL_RESERVED_0
 	// Carry=1 if A >= M, Zero=1 if A = M.
 	// Therefore need to check Zero first, then Carry.
 	BEQ _false

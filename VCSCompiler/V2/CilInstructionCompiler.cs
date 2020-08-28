@@ -129,7 +129,7 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<AssemblyEntry> Add(Instruction instruction)
         {
-			throw new NotImplementedException();
+			yield return new AddFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
 		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
@@ -173,6 +173,13 @@ namespace VCSCompiler.V2
             {
 				throw new InvalidOperationException($"Couldn't compile '{instruction}', 'call' has limited support now.");
             }
+        }
+
+		private IEnumerable<AssemblyEntry> Conv_U1(Instruction instruction)
+        {
+			// @TODO - Do we have to support this? We obviously can't expand byte+byte addition
+			// to int+int addition.
+			yield break;
         }
 
 		private IEnumerable<AssemblyEntry> Ldc_I4(Instruction instruction)
