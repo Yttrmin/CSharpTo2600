@@ -254,21 +254,6 @@ namespace VCSFramework.V2
             : base(instructions, new MacroLabel("assignConstantToGlobal"), constant, global, size) { }
     }
 
-    public sealed record EntryPoint : Macro
-    {
-        public EntryPoint() : base(new MacroLabel("entryPoint")) { }
-    }
-
-    public sealed record Initialize : Macro
-    {
-        public Initialize() : base(new MacroLabel("initialize")) { }
-    }
-
-    public sealed record ClearMemory : Macro
-    {
-        public ClearMemory() : base(new MacroLabel("clearMemory")) { }
-    }
-
     /**
      public record PushGlobal(Label GlobalLabel) : Macro
      */

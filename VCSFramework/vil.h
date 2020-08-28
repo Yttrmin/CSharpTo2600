@@ -422,6 +422,7 @@ clearMemory .macro
 	BNE -
 .endmacro
 
+//@GENERATE @NOINSTPARAM
 entryPoint .macro
 	.initialize
 	.clearMemory

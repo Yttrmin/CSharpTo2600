@@ -18,8 +18,16 @@ namespace VILMacroGenerator
 
         private sealed class MacroInfo
         {
+            public enum InstructionParamType
+            {
+                None,
+                Single,
+                Multiple
+            }
+
             public int PushCount { get; set; }
             public int PopCount { get; set; }
+            public InstructionParamType InstructionParam { get; set; } = InstructionParamType.Single;
         }
 
         public void Execute(SourceGeneratorContext context)
@@ -86,7 +94,19 @@ namespace VILMacroGenerator
             InfoDianostic(Context, "README", string.Join(" ", variables));
             var typesWithNames = paramTypes.Zip(variables, (Type, Name) => (Type, Name)).ToImmutableArray();
 
+            var firstConstructorParam = "";
+            if (info.InstructionParam == MacroInfo.InstructionParamType.Single)
+                firstConstructorParam = "Instruction instruction";
+            else if (info.InstructionParam == MacroInfo.InstructionParamType.Multiple)
+                firstConstructorParam = "IEnumerable<Instruction> instructions";
             var constructorParamText = string.Join(", ", typesWithNames.Select(p => $"{p.Type} {p.Name}"));
+            firstConstructorParam = constructorParamText.Any() ? firstConstructorParam + ", " : firstConstructorParam;
+
+            var firstBaseParam = "";
+            if (info.InstructionParam == MacroInfo.InstructionParamType.Single)
+                firstBaseParam = "instruction, ";
+            else if (info.InstructionParam == MacroInfo.InstructionParamType.Multiple)
+                firstBaseParam = "instructions, ";
             var baseConstructorParamText = string.Join(", ", variables);
             var publicProperties = string.Join(Environment.NewLine,
                 typesWithNames.Zip(Enumerable.Range(0, typesWithNames.Length), (pair, index) =>
@@ -99,8 +119,10 @@ namespace VILMacroGenerator
             var deconstructAssignments = string.Join(Environment.NewLine, variables.Select(v => $"\t\t\t{v} = {v.Capitalize()};"));
 
             return $@"
+#nullable enable
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using VCSFramework.V2;
 
@@ -109,8 +131,8 @@ namespace VCSFramework.V2
 {annotationsBuilder}
     public sealed partial record {csharpName} : Macro{interfaces}
     {{
-        public {csharpName}(Instruction instruction{constructorParamText.DelimitIfAny()}{constructorParamText})
-            : base(instruction, new MacroLabel(""{macroName}""){baseConstructorParamText.DelimitIfAny()}{baseConstructorParamText}) {{}}
+        public {csharpName}({firstConstructorParam}{constructorParamText})
+            : base({firstBaseParam}new MacroLabel(""{macroName}""){baseConstructorParamText.DelimitIfAny()}{baseConstructorParamText}) {{}}
 
 {publicProperties}
 
@@ -157,6 +179,11 @@ namespace VCSFramework.V2
             {
                 info.PopCount = Convert.ToInt32(popStr.Last().ToString());
             }
+
+            if (parts.Any(p => p.Equals("@NOINSTPARAM", StringComparison.CurrentCultureIgnoreCase)))
+                info.InstructionParam = MacroInfo.InstructionParamType.None;
+            else if (parts.Any(p => p.Equals("@MULTIINSTPARAM", StringComparison.CurrentCultureIgnoreCase)))
+                info.InstructionParam = MacroInfo.InstructionParamType.Multiple;
             return info;
         }
 
