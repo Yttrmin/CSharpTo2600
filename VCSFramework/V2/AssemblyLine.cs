@@ -192,6 +192,30 @@ namespace VCSFramework.V2
         }
     }
 
+    public sealed record AddFromGlobalAndConstant : Macro
+    {
+        public AddFromGlobalAndConstant(Instruction instruction, GlobalLabel global, TypeLabel globalType, SizeLabel globalSize, ConstantLabel constant, TypeLabel constantType, SizeLabel constantSize)
+            : base(instruction, new MacroLabel("addFromGlobalAndConstant"), global, globalType, globalSize, constant, constantType, constantSize) { }
+
+        public GlobalLabel Global => (GlobalLabel)Params[0];
+        public TypeLabel GlobalType => (TypeLabel)Params[1];
+        public SizeLabel GlobalSize => (SizeLabel)Params[2];
+        public ConstantLabel Constant => (ConstantLabel)Params[3];
+        public TypeLabel ConstantType => (TypeLabel)Params[4];
+        public SizeLabel ConstantSize => (SizeLabel)Params[5];
+
+        public void Deconstruct(out ImmutableArray<Instruction> instructions, out GlobalLabel global, out TypeLabel globalType, out SizeLabel globalSize, out ConstantLabel constant, out TypeLabel constantType, out SizeLabel constantSize)
+        {
+            instructions = Instructions;
+            global = Global;
+            globalType = GlobalType;
+            globalSize = GlobalSize;
+            constant = Constant;
+            constantType = ConstantType;
+            constantSize = ConstantSize;
+        }
+    }
+
     public sealed record AssignConstantToGlobal : Macro
     {
         public AssignConstantToGlobal(IEnumerable<Instruction> instructions, ConstantLabel constant, GlobalLabel global, SizeLabel size)

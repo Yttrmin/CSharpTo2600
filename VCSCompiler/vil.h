@@ -101,6 +101,41 @@ addFromStack .macro firstOperandType, firstOperandSize, secondOperandType, secon
 	.endif
 .endmacro
 
+// .pushGlobal + .pushConstant + .addFromStack
+// OR
+// .pushConstant + .pushGlobal + .addFromStack
+addFromGlobalAndConstant .macro global, globalType, globalSize, constant, constantType, constantSize
+	.errorif \globalSize != \constantSize, "Differing operand sizes not yet supported for addFromGlobalAndConstant."
+	.errorif \globalSize != 1, ">1-byte addition not supported yet for addFromGlobalAndConstant"
+	.if \globalSize == 1 && \constantSize == 1
+		LDA \global
+		CLC
+		ADC \constant
+		PHA
+	.else
+	.endif
+.endmacro
+
+// .addFromGlobalAndConstant + .popToGlobal
+addFromGlobalAndConstantToGlobal .macro sourceGlobal, sourceGlobalType, sourceGlobalSize, constant, constantType, constantSize, targetGlobal, targetType, targetSize
+	.errorif \sourceGlobalSize != \constantSize, "Differing operand sizes not yet supported for addFromGlobalAndConstantToGlobal."
+	.errorif \sourceGlobalSize != 1, ">1-byte increment not supported yet for addFromGlobalAndConstantToGlobal"
+	.errorif \targetSize != 1, ">1-byte increment not supported yet for addFromGlobalAndConstantToGlobal"
+	.if \sourceGlobalSize == 1 && \constantSize == 1
+		LDA \sourceGlobal
+		CLC
+		ADC \constant
+		STA \targetGlobal
+	.else
+	.endif
+.endmacro
+
+// .addFromGlobalAndConstantToGlobal iff sourceGlobal==targetGlobal AND constant==1
+incrementGlobal .macro global, globalType, globalSize
+	.errorif \globalSize != 1, ">1-byte addition not supported yet for incrementGlobal"
+	INC \global
+.endmacro
+
 addFromAddresses .macro addressA, sizeA, addressB, sizeB
 	.errorif \sizeA != \sizeB, "Differing operand sizes not yet supported for addFromAddresses."
 	.if \sizeA == 1 && \sizeB == 1
