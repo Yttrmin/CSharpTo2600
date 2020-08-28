@@ -101,6 +101,7 @@ addFromStack .macro firstOperandType, firstOperandSize, secondOperandType, secon
 	.endif
 .endmacro
 
+// @GENERATE
 // .pushGlobal + .pushConstant + .addFromStack
 // OR
 // .pushConstant + .pushGlobal + .addFromStack
