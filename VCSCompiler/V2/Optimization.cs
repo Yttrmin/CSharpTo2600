@@ -114,4 +114,24 @@ namespace VCSCompiler.V2
             };
         }
     }
+
+    internal sealed class PushGlobalPushConstantAddFromStack_To_AddFromGlobalAndConstant : Optimization
+    {
+        protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
+        {
+            return next switch
+            {
+                // PushGlobal+PushConstant or PushConstant+PushGlobal are both fine.
+                (PushGlobal(var instA, var global, var globalType, var globalSize),
+                (PushConstant(var constant, var constantType, var constantSize, var instB),
+                (AddFromStack(var instC, _, _, _, _), var trueNext)))
+                    => new LinkedEntry(new AddFromGlobalAndConstant(instA.Concat(instB.Concat(instC)), global, globalType, globalSize, constant, constantType, constantSize), trueNext),
+                (PushConstant(var constant, var constantType, var constantSize, var instB),
+                (PushGlobal(var instA, var global, var globalType, var globalSize),
+                (AddFromStack(var instC, _, _, _, _), var trueNext)))
+                    => new LinkedEntry(new AddFromGlobalAndConstant(instA.Concat(instB.Concat(instC)), global, globalType, globalSize, constant, constantType, constantSize), trueNext),
+                _ => next
+            };
+        }
+    }
 }

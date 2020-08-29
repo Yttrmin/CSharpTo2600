@@ -183,7 +183,7 @@ namespace VCSFramework.V2
             if (parts.Any(p => p.Equals("@NOINSTPARAM", StringComparison.CurrentCultureIgnoreCase)))
                 info.InstructionParam = MacroInfo.InstructionParamType.None;
             else if (parts.Any(p => p.Equals("@MULTIINSTPARAM", StringComparison.CurrentCultureIgnoreCase))
-                || parts.Any(p => p.Equals("@COMPOSITION", StringComparison.CurrentCultureIgnoreCase)))
+                || parts.Any(p => p.Equals("@COMPOSITE", StringComparison.CurrentCultureIgnoreCase)))
                 info.InstructionParam = MacroInfo.InstructionParamType.Multiple;
             return info;
         }

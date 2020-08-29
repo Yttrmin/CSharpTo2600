@@ -125,6 +125,14 @@ namespace VCSFramework.V2
             => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
     }
 
+    public partial record AddFromGlobalAndConstant : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(
+                new GetAddResultType((TypeLabel)parameters[1], (TypeLabel)parameters[4]),
+                new GetSizeFromBuiltInType(new(0)));
+    }
+
     public sealed record StoreTo : Macro
     {
         public StoreTo(Instruction instruction, GlobalLabel global)
@@ -369,6 +377,9 @@ namespace VCSFramework.V2
     public sealed record GetAddResultType : Function
     {
         public GetAddResultType(StackTypeArrayLabel first, StackTypeArrayLabel second)
+            : base(new FunctionLabel("getAddResultType"), first, second) { }
+
+        public GetAddResultType(TypeLabel first, TypeLabel second)
             : base(new FunctionLabel("getAddResultType"), first, second) { }
     }
 

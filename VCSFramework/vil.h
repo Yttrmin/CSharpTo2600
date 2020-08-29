@@ -60,7 +60,7 @@ popToGlobal .macro global, globalType, globalSize, stackType, stackSize
 	.next
 .endmacro
 
-// @GENERATE @COMPOSITION
+// @GENERATE @COMPOSITE
 // Can replace a consecutive ".push(...) .popTo(...)" as an optimization.
 // Copies directly between 2 addresses without using PHA/PLA
 copyGlobalToGlobal .macro fromGlobal, fromSize, toGlobal, toSize
@@ -109,7 +109,7 @@ addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandS
 	.endif
 .endmacro
 
-// @GENERATE
+// @GENERATE @COMPOSITE @PUSH=1
 // .pushGlobal + .pushConstant + .addFromStack
 // OR
 // .pushConstant + .pushGlobal + .addFromStack
@@ -125,6 +125,7 @@ addFromGlobalAndConstant .macro global, globalType, globalSize, constant, consta
 	.endif
 .endmacro
 
+// @GENERATE @COMPOSITE
 // .addFromGlobalAndConstant + .popToGlobal
 addFromGlobalAndConstantToGlobal .macro sourceGlobal, sourceGlobalType, sourceGlobalSize, constant, constantType, constantSize, targetGlobal, targetType, targetSize
 	.errorif \sourceGlobalSize != \constantSize, "Differing operand sizes not yet supported for addFromGlobalAndConstantToGlobal."
@@ -135,14 +136,16 @@ addFromGlobalAndConstantToGlobal .macro sourceGlobal, sourceGlobalType, sourceGl
 		CLC
 		ADC \constant
 		STA \targetGlobal
+		// ^^ 10 cycles
 	.else
 	.endif
 .endmacro
 
-// .addFromGlobalAndConstantToGlobal iff sourceGlobal==targetGlobal AND constant==1
+// @GENERATE @COMPOSITE
+// .addFromGlobalAndConstantToGlobal iff sourceGlobal==targetGlobal AND constant==(1 OR 2)
 incrementGlobal .macro global, globalType, globalSize
-	.errorif \globalSize != 1, ">1-byte addition not supported yet for incrementGlobal"
-	INC \global
+	.errorif \globalSize != 1, ">1-byte increment not supported yet for incrementGlobal"
+	INC \global // 5 cycles
 .endmacro
 
 addFromAddresses .macro addressA, sizeA, addressB, sizeB
