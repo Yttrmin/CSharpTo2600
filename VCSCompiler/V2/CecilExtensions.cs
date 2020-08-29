@@ -43,12 +43,16 @@ namespace VCSCompiler.V2
 			this MethodDefinition @this, 
 			[NotNullWhen(true)] out T? result) where T : Attribute
 		{
+			var type = typeof(T);
 			var attribute = @this.CustomAttributes.
-				SingleOrDefault(a => a.AttributeType.FullName == typeof(T).FullName);
+				SingleOrDefault(a => a.AttributeType.FullName == type.FullName);
 			if (attribute != null)
 			{
 				var constructorArguments = attribute.ConstructorArguments.Select(a => a.Value).ToArray();
-				result = AttributeReconstructor.ReconstructFrom<T>(constructorArguments);
+				var newAttribute = (T?)Activator.CreateInstance(type, constructorArguments);
+				if (newAttribute == null)
+					throw new InvalidOperationException($"Could not recreate attribute of type: {type.FullName}");
+				result = newAttribute;
 				return true;
 			}
 			else
