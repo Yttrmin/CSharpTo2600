@@ -153,9 +153,10 @@ namespace VCSCompiler.V2
 
         private ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries)
         {
-            var optimizers = new[]
+            var optimizers = new Optimization[]
             {
-                new PushConstantPopToGlobalOptimization()
+                new PushConstantPopToGlobalOptimization(),
+                new PushGlobalPopToGlobal_To_CopyGlobalToGlobal(),
             };
 
             ImmutableArray<AssemblyEntry> preOptimize;

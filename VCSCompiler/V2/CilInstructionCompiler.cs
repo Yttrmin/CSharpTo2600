@@ -166,7 +166,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
                     }
-					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, true), LabelGenerator.ByteType, LabelGenerator.ByteSize);
+					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, true), LabelGenerator.ByteType, LabelGenerator.ByteSize, new(0), new(0));
 				}
             }
 			else
@@ -215,7 +215,7 @@ namespace VCSCompiler.V2
 			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
 			var fieldSizeLabel = LabelGenerator.Size(field.FieldType);
 
-			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
+			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
         }
 
 		private IEnumerable<AssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);

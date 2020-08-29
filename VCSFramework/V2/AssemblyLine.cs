@@ -119,41 +119,10 @@ namespace VCSFramework.V2
         }
     }
 
-    [PushStack(Count = 1)]
-    public sealed record PushGlobal : Macro, IStackPusher
+    public partial record PushGlobal : IStackPusher
     {
-        public PushGlobal(Instruction instruction, GlobalLabel global, TypeLabel globalType, SizeLabel globalSize)
-            : base(instruction, new MacroLabel("pushGlobal"), global, globalType, globalSize) { }
-
-        public GlobalLabel Global => (GlobalLabel)Params[0];
-        public TypeLabel Type => (TypeLabel)Params[1];
-        public SizeLabel Size => (SizeLabel)Params[2];
-
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(Type, Size);
-
-        public void Deconstruct(out GlobalLabel global) => global = (GlobalLabel)Params[0];
-    }
-
-    [PopStack(Count = 1)]
-    public sealed record PopToGlobal : Macro
-    {
-        public PopToGlobal(Instruction instruction, GlobalLabel globalLabel, TypeLabel typeLabel, SizeLabel sizeLabel)
-            : base(instruction, new MacroLabel("popToGlobal"), globalLabel, typeLabel, sizeLabel, new StackTypeArrayLabel(0), new StackSizeArrayLabel(0)) { }
-
-        public GlobalLabel Global => (GlobalLabel)Params[0];
-        public TypeLabel Type => (TypeLabel)Params[1];
-        public SizeLabel Size => (SizeLabel)Params[2];
-
-        // @TODO - Invalidate stack since we popped?
-
-        public void Deconstruct(out GlobalLabel global, out TypeLabel type, out SizeLabel size, out ImmutableArray<Instruction> instructions)
-        {
-            global = Global;
-            type = Type;
-            size = Size;
-            instructions = Instructions;
-        }
+            => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
     }
 
     public sealed record StoreTo : Macro

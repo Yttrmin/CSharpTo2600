@@ -93,9 +93,23 @@ namespace VCSCompiler.V2
             return next switch
             {
                 (PushConstant(var constant, var constType, var size, var instA), 
-                (PopToGlobal(var global, var globalType, _, var instB), var trueNext))
+                (PopToGlobal(var instB, var global, var globalType, _, _, _), var trueNext))
                     when constType.Equals(globalType) 
                     => new LinkedEntry(new AssignConstantToGlobal(instA.Concat(instB), constant, global, size), trueNext),
+                _ => next
+            };
+        }
+    }
+
+    internal sealed class PushGlobalPopToGlobal_To_CopyGlobalToGlobal : Optimization
+    {
+        protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
+        {
+            return next switch
+            {
+                (PushGlobal(var instA, var global, _, var size),
+                (PopToGlobal(var instB, var targetGlobal, _, var targetSize, _, _), var trueNext))
+                    => new LinkedEntry(new CopyGlobalToGlobal(instA.Concat(instB), global, size, targetGlobal, targetSize), trueNext),
                 _ => next
             };
         }

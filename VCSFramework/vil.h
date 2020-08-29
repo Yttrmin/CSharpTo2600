@@ -36,31 +36,38 @@ storeTo
 copyTo
 */
 
+// @GENERATE @PUSH=1
 // Pushes {size} bytes starting at {address} onto the stack.
 // Effects: STACK+1, AccChange
-pushGlobal .macro address, type, size
-	.for i = \address, i <= \address + (\size - 1), i = i + 1
+pushGlobal .macro global, type, size
+	.for i = \global, i <= \global + (\size - 1), i = i + 1
 		LDA i
 		PHA
 	.next
 .endmacro
 
+// @GENERATE @POP=1
 // Pops {globalSize} bytes off the stack and stores them at {targetAddress}.
 // Effects: STACK-1, AccChange, MemChange
-popToGlobal .macro targetAddress, globalType, globalSize, stackType, stackSize
-	.errorIf \globalType != \stackType, "popToGlobal to @{targetAddress}: type mismatch."
-	.for i = \targetAddress + (\globalSize - 1), i >= \targetAddress, i = i - 1
+popToGlobal .macro global, globalType, globalSize, stackType, stackSize
+	.errorif \globalType != \stackType, "popToGlobal to @{global}: type mismatch."
+	.errorif \globalSize != 1, "size not 1"
+	.errorif \stackSize != 1, "size not 1"
+	.let startOffset = \globalSize - 1 // @REPORTME - If we inline this we get ProgramOverflowException
+	.for i = \global + startOffset, i >= \global, i = i - 1
 		PLA
 		STA i
 	.next
 .endmacro
 
+// @GENERATE @COMPOSITION
 // Can replace a consecutive ".push(...) .popTo(...)" as an optimization.
 // Copies directly between 2 addresses without using PHA/PLA
-copyTo .macro fromAddress, toAddress, size
-	.for i = 0, i < \size, i = i + 1
-		.let source = \fromAddress + i
-		.let destination = \toAddress + i
+copyGlobalToGlobal .macro fromGlobal, fromSize, toGlobal, toSize
+	.errorif \fromSize != \toSize, "Sizes currently need to match for copyGlobalToGlobal."
+	.for i = 0, i < \fromSize, i = i + 1
+		.let source = \fromGlobal + i
+		.let destination = \toGlobal + i
 		LDA source
 		STA destination
 	.next
