@@ -148,4 +148,18 @@ namespace VCSCompiler.V2
             };
         }
     }
+
+    internal sealed class AddFromGlobalAndConstantToGlobal_To_IncrementGlobal : Optimization
+    {
+        protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
+        {
+            return next switch
+            {
+                (AddFromGlobalAndConstantToGlobal(var inst, var sourceGlobal, var globalType, var globalSize, var constant, _, _, var targetGlobal, _, _), var trueNext)
+                    when sourceGlobal == targetGlobal && (constant.Value is byte b && b == 1)
+                    => new LinkedEntry(new IncrementGlobal(inst, targetGlobal, globalType, globalSize), trueNext),
+                _ => next
+            };
+        }
+    }
 }
