@@ -92,7 +92,7 @@ namespace VCSCompiler.V2
         {
             return next switch
             {
-                (PushConstant(var constant, var constType, var size, var instA), 
+                (PushConstant(var instA, var constant, var constType, var size), 
                 (PopToGlobal(var instB, var global, var globalType, _, _, _), var trueNext))
                     when constType.Equals(globalType) 
                     => new LinkedEntry(new AssignConstantToGlobal(instA.Concat(instB), constant, global, size), trueNext),
@@ -123,10 +123,10 @@ namespace VCSCompiler.V2
             {
                 // PushGlobal+PushConstant or PushConstant+PushGlobal are both fine.
                 (PushGlobal(var instA, var global, var globalType, var globalSize),
-                (PushConstant(var constant, var constantType, var constantSize, var instB),
+                (PushConstant(var instB, var constant, var constantType, var constantSize),
                 (AddFromStack(var instC, _, _, _, _), var trueNext)))
                     => new LinkedEntry(new AddFromGlobalAndConstant(instA.Concat(instB.Concat(instC)), global, globalType, globalSize, constant, constantType, constantSize), trueNext),
-                (PushConstant(var constant, var constantType, var constantSize, var instA),
+                (PushConstant(var instA, var constant, var constantType, var constantSize),
                 (PushGlobal(var instB, var global, var globalType, var globalSize),
                 (AddFromStack(var instC, _, _, _, _), var trueNext)))
                     => new LinkedEntry(new AddFromGlobalAndConstant(instA.Concat(instB.Concat(instC)), global, globalType, globalSize, constant, constantType, constantSize), trueNext),
@@ -156,7 +156,7 @@ namespace VCSCompiler.V2
             return next switch
             {
                 (AddFromGlobalAndConstantToGlobal(var inst, var sourceGlobal, var globalType, var globalSize, var constant, _, _, var targetGlobal, _, _), var trueNext)
-                    when sourceGlobal == targetGlobal && (constant.Value is byte b && b == 1)
+                    when sourceGlobal == targetGlobal && constant.Value is byte b && b == 1
                     => new LinkedEntry(new IncrementGlobal(inst, targetGlobal, globalType, globalSize), trueNext),
                 _ => next
             };

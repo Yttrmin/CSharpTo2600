@@ -384,12 +384,14 @@ branchTrueFromLocal .macro local, address
 	BNE \address
 .endmacro
 
+
+// @GENERATE @PUSH=1
 //@TODO Check if messed up endianness.
 //@TODO - Delete type?
-pushConstant .macro value, type, size
-	.errorif \size > 2, "REPORTME: Bitshifting values that are >16-bit produces unexpected results."
+pushConstant .macro constant, type, size
+	.errorif \size > 2, "REPORTME: Bitshifting constants that are >16-bit produces unexpected results."
 	.for i = 0, i < \size, i = i + 1
-		.let byte = (\value >> (i * 8)) & $FF
+		.let byte = (\constant >> (i * 8)) & $FF
 		LDA #byte
 		PHA
 	.next

@@ -97,26 +97,10 @@ namespace VCSFramework.V2
             => instruction = (InstructionLabel)Params[0];
     }
 
-    [PushStack(Count = 1)]
-    public sealed record PushConstant : Macro, IStackPusher
+    public sealed partial record PushConstant : IStackPusher
     {
-        public PushConstant(Instruction instruction, ConstantLabel constant, TypeLabel constantType, SizeLabel constantSize) 
-            : base(instruction, new MacroLabel("pushConstant"), constant, constantType, constantSize) { }
-
-        public ConstantLabel Constant => (ConstantLabel)Params[0];
-        public TypeLabel Type => (TypeLabel)Params[1];
-        public SizeLabel Size => (SizeLabel)Params[2];
-
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(Type, Size);
-
-        public void Deconstruct(out ConstantLabel constant, out TypeLabel typeLabel, out SizeLabel size, out ImmutableArray<Instruction> instructions)
-        {
-            constant = Constant;
-            typeLabel = Type;
-            size = Size;
-            instructions = Instructions;
-        }
+            => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
     }
 
     public partial record PushGlobal : IStackPusher
