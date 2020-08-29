@@ -11,10 +11,12 @@ namespace Samples
         {
             while (true)
             {
-                // @TODO ColuBk = BackgroundColor++; causes a dup instruction which messes with
-                // optimizations. Is it something we can account for?
-                BackgroundColor++;
-                ColuBk = BackgroundColor;
+                // At the time of writing, these are the possible ways of getting the same
+                // effect, in order of descending efficiency:
+                // BackgroundColor++; ColuBk = BackgroundColor;
+                // ColuBk = ++BackgroundColor; OR ColuBk = BackgroundColor += 1;
+                // ColuBk = BackgroundColor++;
+                ColuBk = BackgroundColor += 1;
             }
         }
     }

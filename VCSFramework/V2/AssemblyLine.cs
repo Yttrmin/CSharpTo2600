@@ -103,6 +103,12 @@ namespace VCSFramework.V2
             => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
     }
 
+    public partial record Duplicate : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push((StackTypeArrayLabel)parameters[0], (StackSizeArrayLabel)parameters[1]);
+    }
+
     public partial record PushGlobal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)

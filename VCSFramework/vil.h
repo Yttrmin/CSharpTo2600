@@ -420,6 +420,16 @@ assignConstantToLocal .macro value, address, size
 	.assignConstantToGlobal \value, \address, \size
 .endmacro
 
+// @GENERATE @PUSH=1
+duplicate .macro stackType, stackSize
+	.errorif \stackSize != 1, "duplicate currently only supports 1-byte dups."
+	// We pull first since it's not guaranteed that the last operation ended in a push (which
+	// would mean the accumulator contains the pushed value).
+	PLA
+	PHA
+	PHA
+.endmacro
+
 initialize .macro
 	SEI
 	CLD

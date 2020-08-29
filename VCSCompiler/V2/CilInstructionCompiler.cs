@@ -182,6 +182,11 @@ namespace VCSCompiler.V2
 			yield break;
         }
 
+		private IEnumerable<AssemblyEntry> Dup(Instruction instruction)
+        {
+			yield return new Duplicate(instruction, new(0), new(0));
+        }
+
 		private IEnumerable<AssemblyEntry> Ldc_I4(Instruction instruction)
 			=> LoadConstant(instruction);
 
