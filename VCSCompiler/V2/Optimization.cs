@@ -126,10 +126,24 @@ namespace VCSCompiler.V2
                 (PushConstant(var constant, var constantType, var constantSize, var instB),
                 (AddFromStack(var instC, _, _, _, _), var trueNext)))
                     => new LinkedEntry(new AddFromGlobalAndConstant(instA.Concat(instB.Concat(instC)), global, globalType, globalSize, constant, constantType, constantSize), trueNext),
-                (PushConstant(var constant, var constantType, var constantSize, var instB),
-                (PushGlobal(var instA, var global, var globalType, var globalSize),
+                (PushConstant(var constant, var constantType, var constantSize, var instA),
+                (PushGlobal(var instB, var global, var globalType, var globalSize),
                 (AddFromStack(var instC, _, _, _, _), var trueNext)))
                     => new LinkedEntry(new AddFromGlobalAndConstant(instA.Concat(instB.Concat(instC)), global, globalType, globalSize, constant, constantType, constantSize), trueNext),
+                _ => next
+            };
+        }
+    }
+
+    internal sealed class AddFromGlobalAndConstantPopToGlobal_To_AddFromGlobalAndConstantToGlobal : Optimization
+    {
+        protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
+        {
+            return next switch
+            {
+                (AddFromGlobalAndConstant(var instA, var global, var globalType, var globalSize, var constant, var constantType, var constantSize),
+                (PopToGlobal(var instB, var targetGlobal, var targetType, var targetSize, _, _), var trueNext))
+                    => new LinkedEntry(new AddFromGlobalAndConstantToGlobal(instA.Concat(instB), global, globalType, globalSize, constant, constantType, constantSize, targetGlobal, targetType, targetSize), trueNext),
                 _ => next
             };
         }

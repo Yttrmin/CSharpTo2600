@@ -158,6 +158,7 @@ namespace VCSCompiler.V2
                 new PushConstantPopToGlobalOptimization(),
                 new PushGlobalPopToGlobal_To_CopyGlobalToGlobal(),
                 new PushGlobalPushConstantAddFromStack_To_AddFromGlobalAndConstant(),
+                new AddFromGlobalAndConstantPopToGlobal_To_AddFromGlobalAndConstantToGlobal(),
             };
 
             ImmutableArray<AssemblyEntry> preOptimize;

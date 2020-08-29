@@ -106,6 +106,8 @@ namespace VCSCompiler.V2
 
         public IEnumerable<ArrayLetOp> GenerateInitializationEntries()
         {
+            if (MaxDepth == 0)
+                yield break;
             yield return new(StackTypeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Type, MaxDepth).Select(e => e.ToString()));
             yield return new(StackSizeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Size, MaxDepth).Select(e => e.ToString()));
         }
