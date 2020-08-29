@@ -9,21 +9,19 @@ namespace VCSCompilerCLI
     class Program
     {
 		/// <summary>
-		/// 
+		/// A compiler that compiles C# source code into a VCS (Atari 2600) binary.
 		/// </summary>
-		/// /// <param name="arguments">A list of C# source files to compile.</param>
+		/// <param name="arguments">A list of C# source files to compile.</param>
 		/// <param name="outputPath">The path to save the compiled binary to. The same path with a different extension will be used for related files.
 		/// If a path is not provided, no files will be saved.</param>
-		/// <param name="frameworkPath">The path to the VCSFramework DLL to compile against. 
-		/// Defaults to looking in the same directory as this EXE.</param>
 		/// <param name="emulatorPath">Path of the emulator executable. 
 		/// If provided, it will be launched with the path to the output binary passed as an argument.</param>
-		/// <param name="textEditorPath">Path of the text edit executable.
+		/// <param name="textEditorPath">Path of the text editor executable.
 		/// If provided, it will be launched with the path to the output ASM file passed as an argument.</param>
-		/// <param name="sourceAnnotations">Whether to include C#, CIL, neither, or both source lines as comments
-		/// above the macros that they were compiled to.</param>
 		/// <param name="disableOptimizations">True to disable optimizations. Main use is to observe output of primitive
 		/// VIL macros and stack operations. Unoptimized code generally will not run correctly due to excessive cycles consumed.</param>
+		/// <param name="sourceAnnotations">Whether to include C#, CIL, neither, or both source lines as comments
+		/// above the VIL macros that they were compiled to.</param>
 		static int Main(
 			string[] arguments,
 			string? outputPath = null,
