@@ -49,20 +49,20 @@ namespace VCSCompiler.V2
 
         public StackTracker(ImmutableArray<AssemblyEntry> entries)
         {
-            var maxPush = 0;
-            var maxPop = 0;
+            var maxDepth = 0;
+            var depth = 0;
             foreach (var entry in entries.OfType<Macro>())
             {
                 if (entry.Effects.OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
                 {
-                    maxPush = Math.Max(maxPush, pushAttr.Count);
+                    depth += pushAttr.Count;
                 }
                 if (entry.Effects.OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
                 {
-                    maxPop = Math.Max(maxPop, popAttr.Count);
+                    depth -= popAttr.Count;
                 }
+                maxDepth = Math.Max(maxDepth, depth);
             }
-            var maxDepth = Math.Max(maxPush, maxPop);
 
             StackState = new BaseStackElement[maxDepth];
             // The compiler should emit the [Nothing,...] initializer at the
@@ -84,6 +84,16 @@ namespace VCSCompiler.V2
             PercolateUp();
 
             StackState[0] = new FunctionStackElement(typeFunction, sizeFunction);
+        }
+
+        public void Push(StackTypeArrayLabel type, StackSizeArrayLabel size)
+        {
+            CheckDepth();
+            PercolateUp();
+
+            if (type.Index != size.Index)
+                throw new ArgumentException($"Expected same index for type/size. Instead got type[{type.Index}] and size[{size.Index}]");
+            StackState[0] = new IndexedStackElement(type.Index);
         }
 
         public void Pop(int amount = 1)

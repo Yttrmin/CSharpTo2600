@@ -10,5 +10,6 @@ namespace VCSFramework.V2
         void Pop(int amount = 1);
         void Push(Function typeFunction, Function sizeFunction);
         void Push(TypeLabel type, SizeLabel size);
+        void Push(StackTypeArrayLabel type, StackSizeArrayLabel size);
     }
 }
