@@ -87,45 +87,44 @@ An incomplete list of supported features in no particular order.
   * :x: `sbyte`
 * :x: Array types
 * :x: Pointer Types
-* :o: Custom Types
-  * :heavy_check_mark: Value Types
-    * :heavy_check_mark: Single-byte types
-	* :heavy_check_mark: Multi-byte types
-	* :heavy_check_mark: Composite types (struct-in-struct)
+* :x: Custom Types
+  * :x: Value Types
+    * :x: Single-byte types
+	* :x: Multi-byte types
+	* :x: Composite types (struct-in-struct)
   * :o: Reference Types
     * :heavy_check_mark: Static reference types
     * :x: Instance reference types
 * :o: Static Members
   * :heavy_check_mark: Fields
   * :x: Properties
-  * :o: Methods
-	* :heavy_check_mark: 0-parameter
-	* :heavy_check_mark: >0-parameter
-	* :heavy_check_mark: `void` return
+  * :x: Methods
+	* :x: 0-parameter
+	* :x: >0-parameter
+	* :x: `void` return
 	* :x: Non-`void` return
-* :o: Inline Assembly
+* :o: Inline Assembly `TODO`
   * :x: Implied address mode inline assembly (`TXS`, `SEI`, etc)
   * :heavy_check_mark: Write-only `A`/`X`/`Y` registers
-* :o: Optimizations
-  * :heavy_check_mark: Redundant `PHA`/`PLA` removal
+* :o: Optimizations `TODO`
   * :x: Reuse memory addresses
-* :o: C#
+* :o: C# `TODO`
   * :heavy_check_mark: `goto`
   * :heavy_check_mark: `unsafe`
   * :heavy_check_mark: `default`
-* :o: CIL OpCodes
+* :o: CIL OpCodes `TODO`
   * :o: Arithmetic
     * :heavy_check_mark: Addition (`add`, no overflow check)
 	* :heavy_check_mark: Subtraction (`sub`, no overflow check)
 	* :x: Division
 	* :x: Multiplication
   * :o: Branching
-    * :heavy_check_mark: Branch if true (`brtrue`, `brtrue.s`)
+    * :x: Branch if true (`brtrue`, `brtrue.s`)
 	* :x: Branch if false
 	* :heavy_check_mark: Unconditional branch (`br`, `br.s`)
-  * :o: Comparison
+  * :x: Comparison
     * :x: Equal
-    * :heavy_check_mark: Greater than (`cgt.un`)
+    * :x: Greater than (`cgt.un`)
 	* :x: Less than
   * :o: Load
     * :heavy_check_mark: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
@@ -144,8 +143,9 @@ An incomplete list of supported features in no particular order.
 	* :heavy_check_mark: Field (instance) (`stfld`)
 	* :x: Indirect (`stind.i`, `stind.i1`)
 	* :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
-  * :o: Miscellaneous Object Model
+  * :o: Miscellaneous
     * :heavy_check_mark: Initialize value type (`initobj`)
+    * :heavy_check_mark: Duplicate (`dup`)
 
 ### Building
 Load the solution into [Visual Studio Community 2019](https://www.visualstudio.com/) and it should build and run fine.

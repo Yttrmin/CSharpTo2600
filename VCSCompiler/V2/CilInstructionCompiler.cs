@@ -169,6 +169,11 @@ namespace VCSCompiler.V2
 					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, true), LabelGenerator.ByteType, LabelGenerator.ByteSize, new(0), new(0));
 				}
             }
+			else if(method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
+            {
+				var type = method.ReturnType;
+				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, true), new(type), new(type));
+            }
 			else
             {
 				throw new InvalidOperationException($"Couldn't compile '{instruction}', 'call' has limited support now.");
