@@ -226,9 +226,10 @@ storeTo .macro address
 
 //
 
+// @GENERATE
 // Primitive
-branch .macro address
-	JMP \address
+branch .macro instruction
+	JMP \instruction
 .endmacro
 
 convertToByte .macro

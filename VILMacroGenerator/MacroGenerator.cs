@@ -96,17 +96,17 @@ namespace VILMacroGenerator
 
             var firstConstructorParam = "";
             if (info.InstructionParam == MacroInfo.InstructionParamType.Single)
-                firstConstructorParam = "Instruction instruction";
+                firstConstructorParam = "Instruction cilInstruction";
             else if (info.InstructionParam == MacroInfo.InstructionParamType.Multiple)
-                firstConstructorParam = "IEnumerable<Instruction> instructions";
+                firstConstructorParam = "IEnumerable<Instruction> cilInstructions";
             var constructorParamText = string.Join(", ", typesWithNames.Select(p => $"{p.Type} {p.Name}"));
             firstConstructorParam = constructorParamText.Any() ? firstConstructorParam + ", " : firstConstructorParam;
 
             var firstBaseParam = "";
             if (info.InstructionParam == MacroInfo.InstructionParamType.Single)
-                firstBaseParam = "instruction, ";
+                firstBaseParam = "cilInstruction, ";
             else if (info.InstructionParam == MacroInfo.InstructionParamType.Multiple)
-                firstBaseParam = "instructions, ";
+                firstBaseParam = "cilInstructions, ";
             var baseConstructorParamText = string.Join(", ", variables);
             var publicProperties = string.Join(Environment.NewLine,
                 typesWithNames.Zip(Enumerable.Range(0, typesWithNames.Length), (pair, index) =>
@@ -159,6 +159,8 @@ namespace VCSFramework.V2
                 return "GlobalLabel";
             else if (variableName.EndsWith("Constant", StringComparison.CurrentCultureIgnoreCase))
                 return "ConstantLabel";
+            else if (variableName.EndsWith("Instruction", StringComparison.CurrentCultureIgnoreCase))
+                return "InstructionLabel";
             else
                 throw new ArgumentException($"Could not determine type of: {variableName}");
         }

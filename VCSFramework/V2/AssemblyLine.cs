@@ -88,15 +88,6 @@ namespace VCSFramework.V2
         }
     }
 
-    public sealed record Branch : Macro
-    {
-        public Branch(Instruction instruction, InstructionLabel instructionLabel)
-            : base(instruction, new MacroLabel("branch"), instructionLabel) { }
-
-        public void Deconstruct(out InstructionLabel instruction)
-            => instruction = (InstructionLabel)Params[0];
-    }
-
     public sealed partial record PushConstant : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
