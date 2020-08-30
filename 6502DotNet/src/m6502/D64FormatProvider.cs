@@ -16,7 +16,7 @@ namespace Core6502DotNet.m6502
     /// </summary>
     public class D64FormatProvider : IBinaryFormatProvider
     {
-        static readonly Dictionary<int, int> _trackSectorTable = new Dictionary<int, int>
+        static readonly Dictionary<int, int> s_trackSectorTable = new Dictionary<int, int>
         {
             { 1, 21 },
             { 2, 21 },
@@ -55,7 +55,7 @@ namespace Core6502DotNet.m6502
             { 35, 17 }
         };
 
-        static readonly List<int> _trackOffsets = new List<int>
+        static readonly int[] s_trackOffsets = 
         {
             0x00000, // extra dummy track
             0x00000,
@@ -109,7 +109,7 @@ namespace Core6502DotNet.m6502
         public IEnumerable<byte> GetFormat()
         {
             var diskImage = new byte[DiskSize];
-            var availTrackSectors = _trackSectorTable.ToDictionary(k => k.Key, k => ToBitMap(k.Value));
+            var availTrackSectors = s_trackSectorTable.ToDictionary(k => k.Key, k => ToBitMap(k.Value));
 
             var fileName = Assembler.Options.OutputFile.ToUpper();
 
@@ -200,9 +200,9 @@ namespace Core6502DotNet.m6502
             for (; finx < fileBytes.Count - 253; finx += 254)
             {
                 availTrackSectors[currentTrack] = ResetBit(availTrackSectors[currentTrack], currentSector);
-                offset = _trackOffsets[currentTrack] + 256 * currentSector;
+                offset = s_trackOffsets[currentTrack] + 256 * currentSector;
                 currentSector += 10;
-                if (currentSector < 0 || currentSector >= _trackSectorTable[currentTrack])
+                if (currentSector < 0 || currentSector >= s_trackSectorTable[currentTrack])
                 {
                     stride += -2 * currentStrideDir;
                     if (stride == 0)
@@ -235,7 +235,7 @@ namespace Core6502DotNet.m6502
             }
             if (finx < fileBytes.Count)
             {
-                offset = _trackOffsets[currentTrack] + 256 * currentSector;
+                offset = s_trackOffsets[currentTrack] + 256 * currentSector;
                 availTrackSectors[currentTrack] = ResetBit(availTrackSectors[currentTrack], currentSector);
                 diskImage[offset++] = 0;
                 diskImage[offset++] = Convert.ToByte((fileBytes.Count % 254) + 1);
@@ -247,10 +247,9 @@ namespace Core6502DotNet.m6502
                 var bitmap = availTrackSectors[i];
                 var blocksFree = GetFreeBlockCount(bitmap);
                 diskImage[bamOffs++] = Convert.ToByte(blocksFree);
-                diskImage[bamOffs++] = Convert.ToByte(bitmap & 0b1111_1111);
-                diskImage[bamOffs++] = Convert.ToByte((bitmap >> 8) & 0b1111_1111);
+                diskImage[bamOffs++] = Convert.ToByte( bitmap        & 0b1111_1111);
+                diskImage[bamOffs++] = Convert.ToByte((bitmap >>  8) & 0b1111_1111);
                 diskImage[bamOffs++] = Convert.ToByte((bitmap >> 16) & 0b1111_1111);
-
             }
             return diskImage;
         }
@@ -263,7 +262,7 @@ namespace Core6502DotNet.m6502
 
         static int GetFreeBlockCount(int i)
         {
-            i = i - ((i >> 1) & 0x55555555);
+            i -= ((i >> 1) & 0x55555555);
             i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
             return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
         }

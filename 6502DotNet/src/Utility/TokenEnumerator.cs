@@ -7,6 +7,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 
 namespace Core6502DotNet
 {
@@ -45,8 +46,21 @@ namespace Core6502DotNet
         /// Gets a new instance of a <see cref="TokenEnumerator"/> class.
         /// </summary>
         /// <param name="token">The root token.</param>
-        /// <returns></returns>
+        /// <returns>A <see cref="TokenEnumerator"/> that iterates deep into the token graph.</returns>
         public static TokenEnumerator GetEnumerator(Token token) => new TokenEnumerator(token);
+
+        /// <summary>
+        /// Gets a new instance of a <see cref="TokenEnumerator"/> class.
+        /// </summary>
+        /// <param name="tokens">A token collection.</param>
+        /// <returns>A <see cref="TokenEnumerator"/> that iterates deep into the token graph.</returns>
+        public static TokenEnumerator GetEnumerator(IEnumerable<Token> tokens)
+        {
+            var parent = Token.SeparatorToken();
+            foreach (var token in tokens)
+                parent.AddChild(token);
+            return GetEnumerator(parent);
+        }
 
         public bool MoveNext()
         {
@@ -58,7 +72,7 @@ namespace Core6502DotNet
             if (_childEnumerator != null && _childEnumerator.MoveNext())
                 return _childEnumerator.Current != null;
 
-            if (_current.HasChildren && _current.Children.Count > _currentIndex)
+            if (_current.Children.Count > _currentIndex)
             {
                 _childEnumerator = new TokenEnumerator(_current.Children[_currentIndex++]);
                 return _childEnumerator.MoveNext();

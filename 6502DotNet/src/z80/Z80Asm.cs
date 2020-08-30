@@ -51,53 +51,53 @@ namespace Core6502DotNet.z80
                     "djnz", "jr"
                 );
 
-            Assembler.SymbolManager.AddValidSymbolNameCriterion(s => !_namedModes.ContainsKey(s));
+            Assembler.SymbolManager.AddValidSymbolNameCriterion(s => !s_namedModes.ContainsKey(s));
         }
 
-        Mode GetValueMode(IEnumerable<Token> tokens, int i)
+        Z80Mode GetValueMode(IEnumerable<Token> tokens, int i)
         {
             var value = Evaluator.Evaluate(tokens, short.MinValue, ushort.MaxValue);
-            _evals[i] = value;
+            s_evals[i] = value;
             if (value < sbyte.MinValue || value > byte.MaxValue)
-                return Mode.Extended;
-            return Mode.PageZero;
+                return Z80Mode.Extended;
+            return Z80Mode.PageZero;
         }
 
-        Mode GetValueMode(Token token, int i)
+        Z80Mode GetValueMode(Token token, int i)
         {
             var value = Evaluator.Evaluate(token, short.MinValue, ushort.MaxValue);
-            _evals[i] = value;
+            s_evals[i] = value;
             if (value < sbyte.MinValue || value > byte.MaxValue)
-                return Mode.Extended;
-            return Mode.PageZero;
+                return Z80Mode.Extended;
+            return Z80Mode.PageZero;
         }
 
-        Mode[] ParseExpressionToModes(SourceLine line)
+        Z80Mode[] ParseExpressionToModes(SourceLine line)
         {
-            _evals[0] = _evals[1] = _evals[2] = double.NaN;
-            var modes = new Mode[3];
+            s_evals[0] = s_evals[1] = s_evals[2] = double.NaN;
+            var modes = new Z80Mode[3];
             if (line.OperandHasToken)
             {
                 for (var i = 0; i < 3; i++)
                 {
-                    var mode = Mode.Implied;
+                    var mode = Z80Mode.Implied;
                     if (line.Operand.Children.Count > i)
                     {
                         var child = line.Operand.Children[i];
-                        if (child.HasChildren)
+                        if (child.Children.Count > 0)
                         {
                             if (child.Children[0].Name.Equals("("))
                             {
                                 if (child.Children.Count == 1)
                                 {
-                                    mode |= Mode.Indirect;
-                                    if (child.Children[0].HasChildren && child.Children[0].Children[0].HasChildren)
+                                    mode |= Z80Mode.Indirect;
+                                    if (child.Children[0].Children.Count > 0 && child.Children[0].Children[0].Children.Count > 0)
                                     {
                                         var firstExInParen = child.Children[0].Children[0];
                                         var firstInParen = firstExInParen.Children[0];
-                                        if (_namedModes.ContainsKey(firstInParen.Name))
+                                        if (s_namedModes.ContainsKey(firstInParen.Name))
                                         {
-                                            mode |= _namedModes[firstInParen.Name];
+                                            mode |= s_namedModes[firstInParen.Name];
                                             if (firstExInParen.Children.Count > 1)
                                             {
                                                 var nextInParen = firstExInParen.Children[1];
@@ -113,9 +113,9 @@ namespace Core6502DotNet.z80
                                                 }
                                                 else
                                                 {
-                                                    mode = mode | Mode.Indexed;
+                                                    mode |= Z80Mode.Indexed;
                                                     var expression = new List<Token>(firstExInParen.Children.Skip(1));
-                                                    expression[0].OperatorType = OperatorType.Unary;
+                                                    expression[0] = new Token(expression[0].Name, TokenType.Operator, OperatorType.Unary);
                                                     mode |= GetValueMode(expression, i);
                                                 }
                                             }
@@ -124,12 +124,12 @@ namespace Core6502DotNet.z80
                                         {
                                             mode |= GetValueMode(child.Children[0].Children[0], i);
                                             if (Reserved.IsOneOf("Relatives", line.InstructionName))
-                                                mode |= Mode.Extended;
+                                                mode |= Z80Mode.Extended;
                                         }
                                     }
                                     else
                                     {
-                                        Assembler.Log.LogEntry(Assembler.CurrentLine, child.Children[0].Position,
+                                        Assembler.Log.LogEntry(line, child.Children[0].Position,
                                             "Expected expression not given.");
                                     }
                                 }
@@ -137,13 +137,13 @@ namespace Core6502DotNet.z80
                                 {
                                     mode |= GetValueMode(child, i);
                                     if (Reserved.IsOneOf("Relatives", line.InstructionName))
-                                        mode |= Mode.Extended;
+                                        mode |= Z80Mode.Extended;
                                 }
 
                             }
-                            else if (_namedModes.ContainsKey(child.Children[0].Name))
+                            else if (s_namedModes.ContainsKey(child.Children[0].Name))
                             {
-                                mode |= _namedModes[child.Children[0].Name];
+                                mode |= s_namedModes[child.Children[0].Name];
                             }
                             else if (line.InstructionName.Equals("rst"))
                             {
@@ -154,19 +154,19 @@ namespace Core6502DotNet.z80
                                 }
                                 else
                                 {
-                                    mode |= ((Mode)(value / 8) | Mode.BitOp);
+                                    mode |= (Z80Mode)(value / 8) | Z80Mode.BitOp;
                                 }
                             }
                             else if (Reserved.IsOneOf("Bits", line.InstructionName) ||
                                 (line.InstructionName.Equals("out") && i == 1))
                             {
-                                mode = (Mode)Evaluator.Evaluate(child, 0, 7) | Mode.BitOp;
+                                mode = (Z80Mode)Evaluator.Evaluate(child, 0, 7) | Z80Mode.BitOp;
                             }
                             else
                             {
                                 mode |= GetValueMode(child, i);
                                 if (Reserved.IsOneOf("Relatives", line.InstructionName))
-                                    mode |= Mode.Extended;
+                                    mode |= Z80Mode.Extended;
                             }
                         }
                         else
@@ -180,70 +180,70 @@ namespace Core6502DotNet.z80
             return modes;
         }
 
-        (Mode[] modes, CpuInstruction instruction) GetModeAndInstruction(SourceLine line)
+        (Z80Mode[] modes, CpuInstruction instruction) GetModeAndInstruction(SourceLine line)
         {
             var modes = ParseExpressionToModes(line);
-            var mnemMode = new MnemMode(line.Instruction.Name, modes);
-            if (_z80Instructions.ContainsKey(mnemMode))
-                return (modes, _z80Instructions[mnemMode]);
+            var mnemMode = (line.Instruction.Name, modes[0], modes[1], modes[2]);
+            if (s_z80Instructions.ContainsKey(mnemMode))
+                return (modes, s_z80Instructions[mnemMode]);
 
-            if (modes.Any(m => (m & Mode.SizeMask) == Mode.PageZero))
+            if (modes.Any(m => (m & Z80Mode.SizeMask) == Z80Mode.PageZero))
             {
                 modes = modes.Select(m =>
                 {
-                    if ((m & Mode.SizeMask) == Mode.PageZero)
-                        return m | Mode.Extended;
+                    if ((m & Z80Mode.SizeMask) == Z80Mode.PageZero)
+                        return m | Z80Mode.Extended;
                     return m;
                 }).ToArray();
-                mnemMode = new MnemMode(line.Instruction.Name, modes);
-                if (_z80Instructions.ContainsKey(mnemMode))
-                    return (modes, _z80Instructions[mnemMode]);
+                mnemMode = (line.Instruction.Name, modes[0], modes[1], modes[2]);
+                if (s_z80Instructions.ContainsKey(mnemMode))
+                    return (modes, s_z80Instructions[mnemMode]);
             }
-
-            return (null, null);
+            return (null, default);
         }
 
         protected override string OnAssembleLine(SourceLine line)
         {
             var mnemMode = GetModeAndInstruction(line);
 
-            if (mnemMode.instruction != null)
+            if (!string.IsNullOrEmpty(mnemMode.instruction.CPU))
             {
                 var modes = mnemMode.modes;
                 var instruction = mnemMode.instruction;
-                var pc = Assembler.Output.LogicalPC;
                 var isCb00 = (instruction.Opcode & 0xFF00) == 0xCB00;
                 if ((instruction.Opcode & 0xFF) == 0xCB || isCb00)
-                    line.Assembly = Assembler.Output.Add(instruction.Opcode, 2);
+                    Assembler.Output.Add(instruction.Opcode, 2);
                 else
-                    line.Assembly = Assembler.Output.Add((double)instruction.Opcode);
+                    Assembler.Output.Add((double)instruction.Opcode);
 
                 var displayEvals = new int[3];
                 for (var i = 0; i < 3; i++)
                 {
-                    if (!double.IsNaN(_evals[i]))
+                    if (!double.IsNaN(s_evals[i]))
                     {
-                        var modeSize = modes[i] & Mode.SizeMask;
-                        if (modeSize == Mode.Extended)
-                            displayEvals[i] = (int)_evals[i] & 0xFFFF;
-                        else if (modeSize == Mode.PageZero)
-                            displayEvals[i] = (int)_evals[i] & 0xFF;
+                        var modeSize = modes[i] & Z80Mode.SizeMask;
+                        if (modeSize == Z80Mode.Extended)
+                            displayEvals[i] = (int)s_evals[i] & 0xFFFF;
+                        else if (modeSize == Z80Mode.PageZero)
+                            displayEvals[i] = (int)s_evals[i] & 0xFF;
                         if (Reserved.IsOneOf("Relatives", line.InstructionName))
                         {
-                            _evals[i] = Convert.ToSByte(Assembler.Output.GetRelativeOffset((int)_evals[i], 0));
-                            line.Assembly.AddRange(Assembler.Output.Add(_evals[i], 1));
+                            s_evals[i] = Convert.ToSByte(Assembler.Output.GetRelativeOffset((int)s_evals[i], 0));
+                            Assembler.Output.Add(s_evals[i], 1);
                         }
                         else
                         {
-                            line.Assembly.AddRange(Assembler.Output.Add(_evals[i], modeSize == Mode.PageZero ? 1 : 2));
+                            Assembler.Output.Add(s_evals[i], modeSize == Z80Mode.PageZero ? 1 : 2);
                         }
                     }
                 }
                 if (isCb00)
-                    line.Assembly.AddRange(Assembler.Output.Add(instruction.Opcode >> 16, 1));
-                if (line.Assembly.Count > instruction.Size)
+                    Assembler.Output.Add(instruction.Opcode >> 16, 1);
+                if (Assembler.Output.LogicalPC - PCOnAssemble != instruction.Size && !Assembler.PassNeeded)
                 {
-                    Assembler.Log.LogEntry(line, line.InstructionName, $"Mode not supported for instruction \"{line.InstructionName}\".");
+                    Assembler.Log.LogEntry(line, 
+                                           line.Instruction, 
+                                           $"Mode not supported for instruction \"{line.InstructionName}\".");
                 }
                 else
                 {
@@ -252,35 +252,35 @@ namespace Core6502DotNet.z80
                     var disasmBuilder = new StringBuilder();
                     if (!Assembler.Options.NoAssembly)
                     {
-                        var byteString = line.Assembly.ToString(pc, '.', true);
+                        var byteString = Assembler.Output.GetBytesFrom(PCOnAssemble).ToString(PCOnAssemble, '.', true);
                         disasmBuilder.Append(byteString.PadRight(25));
                     }
                     else
                     {
-                        disasmBuilder.Append($".{pc:x4}                        ");
+                        disasmBuilder.Append($".{PCOnAssemble:x4}                        ");
                     }
-                    if (!Assembler.Options.NoDissasembly)
+                    if (!Assembler.Options.NoDisassembly)
                     {
                         var asmBuilder = new StringBuilder($"{line.InstructionName} ");
                         for (var i = 0; i < 3; i++)
                         {
-                            if (modes[i] == Mode.Implied)
+                            if (modes[i] == Z80Mode.Implied)
                                 break;
                             if (i > 0)
                                 asmBuilder.Append(',');
                             if (line.InstructionName.Equals("rst"))
                             {
-                                asmBuilder.Append($"${(int)(modes[i] & Mode.Bit7) * 8:x2}");
+                                asmBuilder.Append($"${(int)(modes[i] & Z80Mode.Bit7) * 8:x2}");
                             }
                             else
                             {
-                                if (modes[i].HasFlag(Mode.BitOp))
+                                if (modes[i].HasFlag(Z80Mode.BitOp))
                                 {
-                                    asmBuilder.Append((int)(modes[i] & Mode.Bit7));
+                                    asmBuilder.Append((int)(modes[i] & Z80Mode.Bit7));
                                 }
                                 else
                                 {
-                                    var format = _disassemblyFormats[modes[i]];
+                                    var format = s_disassemblyFormats[modes[i]];
                                     asmBuilder.AppendFormat(format, displayEvals[i]);
                                 }
                             }
