@@ -45,7 +45,8 @@ namespace VCSCompiler.V2
                 "-o",
                 binPath,
                 "-L",
-                listPath
+                listPath,
+                "--format=flat"
             };
 
             using var stdoutStream = new MemoryStream();
@@ -98,7 +99,6 @@ namespace VCSCompiler.V2
             builder.AppendLine($"// Generated on {DateTime.Now:R}");
             builder.AppendLine();
             builder.AppendLine(@".cpu ""6502""");
-            builder.AppendLine(@".format ""flat""");
             builder.AppendLine("* = $F000");
             builder.AppendLine();
 
