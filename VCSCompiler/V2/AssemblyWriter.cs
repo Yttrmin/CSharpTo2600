@@ -237,28 +237,17 @@ namespace VCSCompiler.V2
                 builder.AppendLine(new Comment("End Constants"));
             }
 
+
             if (LabelMap.TypeToString.Any() || LabelMap.SizeToValue.Any())
             {
                 builder.AppendLine(new Comment("Begin Types"));
-                var allTypes = LabelMap.TypeToString.Keys
-                    .Select(k => k.Type)
-                    .Concat(LabelMap.SizeToValue.Keys.Select(k => k.Type))
-                    .Distinct();
-                var triplets = allTypes.Select(type =>
+                foreach (var typePair in LabelMap.TypeToString)
                 {
-                    var typeLabel = new TypeLabel(type);
-                    var sizeLabel = new SizeLabel(type);
-                    LabelMap.TypeToString.TryGetValue(typeLabel, out var typeString);
-                    LabelMap.SizeToValue.TryGetValue(sizeLabel, out var sizeString);
-                    return (TypeLabel: typeLabel, SizeLabel: sizeLabel, TypeString: typeString, SizeString: sizeString);
-                });
-
-                foreach (var triplet in triplets)
+                    builder.AppendLine($"{typePair.Key} = {typePair.Value}");
+                }
+                foreach (var sizePair in LabelMap.SizeToValue)
                 {
-                    if (triplet.TypeString != null)
-                        builder.AppendLine($"{triplet.TypeLabel} = {triplet.TypeString}");
-                    if (triplet.SizeString != null)
-                        builder.AppendLine($"{triplet.SizeLabel} = {triplet.SizeString}");
+                    builder.AppendLine($"{sizePair.Key} = {sizePair.Value}");
                 }
                 builder.AppendLine(new Comment("End Types"));
             }
