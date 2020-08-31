@@ -127,6 +127,52 @@ namespace VCSCompiler.V2
 			yield return new PushConstant(instruction, LabelGenerator.Constant(value), LabelGenerator.ByteType, LabelGenerator.ByteSize);
 		}
 
+		private IEnumerable<AssemblyEntry> LoadLocal(Instruction instruction)
+        {
+			switch (instruction.OpCode.Code)
+            {
+				case Code.Ldloc_0:
+					return LoadLocal(0);
+				case Code.Ldloc_1:
+					return LoadLocal(1);
+				case Code.Ldloc_2:
+					return LoadLocal(2);
+				case Code.Ldloc_3:
+					return LoadLocal(3);
+            }
+			return LoadLocal((int)instruction.Operand);
+
+			IEnumerable<AssemblyEntry> LoadLocal(int index)
+            {
+				var variable = MethodDefinition.Body.Variables[index];
+				var variableType = variable.VariableType;
+				yield return new PushLocal(instruction, new(MethodDefinition, index), new(variableType), new(variableType));
+            }
+        }
+
+		private IEnumerable<AssemblyEntry> StoreLocal(Instruction instruction)
+        {
+			switch (instruction.OpCode.Code)
+            {
+				case Code.Stloc_0:
+					return StoreLocal(0);
+				case Code.Stloc_1:
+					return StoreLocal(1);
+				case Code.Stloc_2:
+					return StoreLocal(2);
+				case Code.Stloc_3:
+					return StoreLocal(3);
+            }
+			return StoreLocal((int)instruction.Operand);
+
+			IEnumerable<AssemblyEntry> StoreLocal(int index)
+            {
+				var variable = MethodDefinition.Body.Variables[index];
+				var variableType = variable.VariableType;
+				yield return new PopToLocal(instruction, new(MethodDefinition, index), new(variableType), new(variableType), new(0), new(0));
+            }
+        }
+
 		private IEnumerable<AssemblyEntry> Add(Instruction instruction)
         {
 			yield return new AddFromStack(instruction, new(1), new(1), new(0), new(0));
@@ -139,6 +185,14 @@ namespace VCSCompiler.V2
         }
 
 		private IEnumerable<AssemblyEntry> Br_S(Instruction instruction) => Br(instruction);
+
+		private IEnumerable<AssemblyEntry> Brtrue(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new BranchTrueFromStack(instruction, LabelGenerator.Instruction(targetInstruction));
+        }
+
+		private IEnumerable<AssemblyEntry> Brtrue_S(Instruction instruction) => Brtrue(instruction);
 
 		private IEnumerable<AssemblyEntry> Call(Instruction instruction)
         {
@@ -198,10 +252,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Ldc_I4_S(Instruction instruction)
 			=> LoadConstant(instruction);
 
-		private IEnumerable<AssemblyEntry> Ldloc(Instruction instruction)
-        {
-			throw new NotImplementedException();
-        }
+		private IEnumerable<AssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
 
 		private IEnumerable<AssemblyEntry> Ldsfld(Instruction instruction)
         {
@@ -218,6 +269,8 @@ namespace VCSCompiler.V2
 			yield break;
         }
 
+		private IEnumerable<AssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);
+
 		private IEnumerable<AssemblyEntry> Stsfld(Instruction instruction)
         {
 			var field = (FieldReference)instruction.Operand;
@@ -226,6 +279,11 @@ namespace VCSCompiler.V2
 			var fieldSizeLabel = LabelGenerator.Size(field.FieldType);
 
 			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
+        }
+
+		private IEnumerable<AssemblyEntry> Sub(Instruction instruction)
+        {
+			yield return new SubFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
 		private IEnumerable<AssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);

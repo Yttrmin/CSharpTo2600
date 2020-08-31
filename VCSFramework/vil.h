@@ -53,10 +53,9 @@ popToGlobal .macro global, globalType, globalSize, stackType, stackSize
 	.errorif \globalType != \stackType, "popToGlobal to @{global}: type mismatch."
 	.errorif \globalSize != 1, "size not 1"
 	.errorif \stackSize != 1, "size not 1"
-	.let startOffset = \globalSize - 1 // @REPORTME - If we inline this we get ProgramOverflowException
-	.for i = \global + startOffset, i >= \global, i = i - 1
+	.for i = \global + \globalSize - 1, i >= \global, i = i - 1
 		PLA
-		STA i
+		STA \global
 	.next
 .endmacro
 
@@ -171,14 +170,20 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 	.endif
 .endmacro
 
+// @GENERATE @POP=2 @PUSH=1
 // Primitive
-subFromStack .macro // @TODO sizes
-	PLA
-	STA INTERNAL_RESERVED_0
-	PLA
-	SEC
-	SBC INTERNAL_RESERVED_0
-	PHA
+subFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
+	.invoke getAddResultType(\firstOperandStackType, \secondOperandStackType) // @TODO - Does this apply to add+sub?
+	.if \firstOperandStackSize == 1 && \secondOperandStackSize == 1
+		PLA
+		STA INTERNAL_RESERVED_0
+		PLA
+		SEC
+		SBC INTERNAL_RESERVED_0
+		PHA
+	.else
+		.error "Invalid subFromStack param sizes"
+	.endif
 .endmacro
 
 // pushLocal + pushConstant + subFromStack
@@ -373,16 +378,17 @@ branchIfGreaterThanFromLocalAndConstantToLocal .macro local, constant, targetLoc
 	BNE \branchTarget
 .endmacro
 
+// @GENERATE @POP=1
 // Primitive
-branchTrueFromStack .macro address
+branchTrueFromStack .macro instruction
 	PLA
-	BNE \address
+	JNE \instruction
 .endmacro
 
 // pushLocal + branchTrueFromStack
-branchTrueFromLocal .macro local, address
+branchTrueFromLocal .macro local, instruction
 	LDA \local
-	BNE \address
+	BNE \instruction
 .endmacro
 
 
@@ -398,14 +404,16 @@ pushConstant .macro constant, type, size
 	.next
 .endmacro
 
+// @GENERATE @PUSH=1
 // Primitive
-pushLocal .macro address, size
-	.pushGlobal \address, \size
+pushLocal .macro local, type, size
+	.pushGlobal \local, \type, \size
 .endmacro
 
+// @GENERATE @POP=1
 // Primitive
-popToLocal .macro address, size
-	.popToGlobal \address, \size
+popToLocal .macro local, localType, localSize, stackType, stackSize
+	.popToGlobal \local, \localType, \localSize, \stackType, \stackSize
 .endmacro
 
 // pushConstant + popToGlobal

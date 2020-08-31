@@ -128,23 +128,6 @@ namespace VCSFramework.V2
         }
     }
 
-    /*record Bar
-    {
-        public Bar(string q) { qqq = q; }
-        public string qqq;
-    }
-
-    partial record Foo : Bar
-    {
-        public Foo() : base("zzz") { }
-        void A() { qqq = null; }
-    }
-
-    abstract partial record Foo
-    {
-        void B() { this.A(); this.qqq = null; }
-    }*/
-
     public partial record AddFromStack : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
@@ -155,56 +138,21 @@ namespace VCSFramework.V2
         }
     }
 
-    /*public sealed record AddFromStack : Macro, IStackPusher
+    public partial record PushLocal : IStackPusher
     {
-        public AddFromStack(Instruction instruction, StackTypeArrayLabel firstOperandType, StackSizeArrayLabel firstOperandSize, StackTypeArrayLabel secondOperandType, StackSizeArrayLabel secondOperandSize)
-            : base(instruction, new MacroLabel("addFromStack"), firstOperandType, firstOperandSize, secondOperandType, secondOperandSize) { }
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
+    }
 
-        public StackTypeArrayLabel FirstOperandType => (StackTypeArrayLabel)Params[0];
-        public StackSizeArrayLabel FirstOperandSize => (StackSizeArrayLabel)Params[1];
-        public StackTypeArrayLabel SecondOperandType => (StackTypeArrayLabel)Params[2];
-        public StackSizeArrayLabel SecondOperandSize => (StackSizeArrayLabel)Params[3];
-
-        public void PerformStackPushOps(IStackTracker stackTracker)
+    public partial record SubFromStack : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
         {
             stackTracker.Push(
-                new GetAddResultType(FirstOperandType, SecondOperandType),
+                new GetAddResultType((StackTypeArrayLabel)parameters[0], (StackTypeArrayLabel)parameters[2]),
                 new GetSizeFromBuiltInType(new StackTypeArrayLabel(0)));
         }
-
-        public void Deconstruct(out ImmutableArray<Instruction> instructions, out StackTypeArrayLabel firstOperandType, out StackSizeArrayLabel firstOperandSize, out StackTypeArrayLabel secondOperandType, out StackSizeArrayLabel secondOperandSize)
-        {
-            instructions = Instructions;
-            firstOperandType = FirstOperandType;
-            firstOperandSize = FirstOperandSize;
-            secondOperandType = SecondOperandType;
-            secondOperandSize = SecondOperandSize;
-        }
-    }*/
-
-    /*public sealed record AddFromGlobalAndConstant : Macro
-    {
-        public AddFromGlobalAndConstant(Instruction instruction, GlobalLabel global, TypeLabel globalType, SizeLabel globalSize, ConstantLabel constant, TypeLabel constantType, SizeLabel constantSize)
-            : base(instruction, new MacroLabel("addFromGlobalAndConstant"), global, globalType, globalSize, constant, constantType, constantSize) { }
-
-        public GlobalLabel Global => (GlobalLabel)Params[0];
-        public TypeLabel GlobalType => (TypeLabel)Params[1];
-        public SizeLabel GlobalSize => (SizeLabel)Params[2];
-        public ConstantLabel Constant => (ConstantLabel)Params[3];
-        public TypeLabel ConstantType => (TypeLabel)Params[4];
-        public SizeLabel ConstantSize => (SizeLabel)Params[5];
-
-        public void Deconstruct(out ImmutableArray<Instruction> instructions, out GlobalLabel global, out TypeLabel globalType, out SizeLabel globalSize, out ConstantLabel constant, out TypeLabel constantType, out SizeLabel constantSize)
-        {
-            instructions = Instructions;
-            global = Global;
-            globalType = GlobalType;
-            globalSize = GlobalSize;
-            constant = Constant;
-            constantType = ConstantType;
-            constantSize = ConstantSize;
-        }
-    }*/
+    }
 
     public sealed record AssignConstantToGlobal : Macro
     {
@@ -314,8 +262,15 @@ namespace VCSFramework.V2
     /// <summary>Label referring to the address of a global.</summary>
     public sealed record GlobalLabel(string Name, bool Predefined = false) : Label(Name);
 
+    // @TODO - Handle overloaded methods (same name).
     /// <summary>Label referring to the address of a local.</summary>
-    public sealed record LocalLabel(string Name) : Label(Name);
+    public sealed record LocalLabel(MethodDefinition Method, int Index)
+        : Label($"LOCAL_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}_{Index}"), IEquatable<LocalLabel>
+    {
+        public bool Equals(LocalLabel? other) => ToString() == other?.ToString();
+
+        public override int GetHashCode() => ToString().GetHashCode();
+    }
 
     /// <summary>Label referring to a defined macro.</summary>
     public sealed record MacroLabel(string Name) : Label(Name);
