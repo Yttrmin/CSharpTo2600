@@ -1,4 +1,11 @@
 # CSharpTo2600
+
+>:warning:\
+This project is currently undergoing a major rewrite on the [`MajorRewrite`](https://github.com/Yttrmin/CSharpTo2600/tree/MajorRefactor) branch.\
+The rewrite's purpose is to replace DASM with [6502.Net](https://github.com/informedcitizenry/6502.Net) and to output assembler macros instead of 6502 instructions. Outputting macros doesn't sound too significant, but it has so far yielded very promising results in terms of performance and ease of optimization. The codebase has also been drastically simplified compared to `master`.\
+When there is an appropriate level of feature parity, `MajorRewrite` will be merged into `master`.\
+:warning:
+
 A compiler and framework for creating Atari 2600 games using C#. It uses the .NET Compiler Platform (Roslyn) to compile C# files, and Mono.Cecil to compile the resulting CIL into 6502 assembly.
 
 ### Current Status
