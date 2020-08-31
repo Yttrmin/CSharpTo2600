@@ -41,7 +41,6 @@ namespace VCSCompiler.V2
 
             var assemblerArgs = new[]
             {
-                "6502.Net.exe",
                 asmPath,
                 "-o",
                 binPath,
@@ -164,7 +163,7 @@ namespace VCSCompiler.V2
                 if (SourceAnnotations.HasFlag(SourceAnnotation.CSharp))
                 {
                     var point = method.DebugInformation.GetSequencePoint(instruction);
-                    if (point != null)
+                    if (point != null && !point.IsHidden)
                     {
                         var source = ReadSource(
                             ReadSourceFile(point.Document.Url),
