@@ -210,7 +210,7 @@ namespace VCSCompiler.V2
             if (LabelMap.GlobalToAddress.Any())
             {
                 builder.AppendLine(new Comment("Begin Globals"));
-                foreach (var globalPair in LabelMap.GlobalToAddress)
+                foreach (var globalPair in LabelMap.GlobalToAddress.OrderBy(p => p.Value))
                 {
                     builder.AppendLine($"{globalPair.Key} = {globalPair.Value}");
                 }
@@ -220,7 +220,7 @@ namespace VCSCompiler.V2
             if (LabelMap.LocalToAddress.Any())
             {
                 builder.AppendLine(new Comment("Begin Locals"));
-                foreach (var localPair in LabelMap.LocalToAddress)
+                foreach (var localPair in LabelMap.LocalToAddress.OrderBy(p => p.Value))
                 {
                     builder.AppendLine($"{localPair.Key} = {localPair.Value}");
                 }
@@ -230,7 +230,7 @@ namespace VCSCompiler.V2
             if (LabelMap.ConstantToValue.Any())
             {
                 builder.AppendLine(new Comment("Begin Constants"));
-                foreach (var constantPair in LabelMap.ConstantToValue)
+                foreach (var constantPair in LabelMap.ConstantToValue.OrderBy(p => Convert.ToInt32(p.Value)))
                 {
                     builder.AppendLine($"{constantPair.Key} = {constantPair.Value}");
                 }
@@ -241,7 +241,7 @@ namespace VCSCompiler.V2
             if (LabelMap.TypeToString.Any() || LabelMap.SizeToValue.Any())
             {
                 builder.AppendLine(new Comment("Begin Types"));
-                foreach (var typePair in LabelMap.TypeToString)
+                foreach (var typePair in LabelMap.TypeToString.OrderBy(p => p.Value))
                 {
                     builder.AppendLine($"{typePair.Key} = {typePair.Value}");
                 }
