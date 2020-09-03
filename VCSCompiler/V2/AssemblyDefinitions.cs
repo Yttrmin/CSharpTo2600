@@ -1,11 +1,13 @@
 ﻿#nullable enable
 using Mono.Cecil;
+using System;
 using System.Collections.Immutable;
 using System.Reflection;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
+    [Obsolete]
     internal static class AssemblyDefinitions
     {
         public static readonly AssemblyDefinition System

@@ -50,7 +50,13 @@ pushGlobal .macro global, type, size
 // Pops {globalSize} bytes off the stack and stores them at {targetAddress}.
 // Effects: STACK-1, AccChange, MemChange
 popToGlobal .macro global, globalType, globalSize, stackType, stackSize
-	.errorif \globalType != \stackType, "popToGlobal to @{global}: type mismatch."
+	// CIL may do things like push a byte and pop to a bool. If we're storing
+	// to a built-in short int assume this is correct and just pop the
+	// last x bytes.
+	.if isShortInteger(\globalType) == true
+	.else
+		.errorif \globalType != \stackType, "popToGlobal to @{global}: type mismatch."
+	.endif
 	.errorif \globalSize != 1, "size not 1"
 	.errorif \stackSize != 1, "size not 1"
 	.for i = \global + \globalSize - 1, i >= \global, i = i - 1
@@ -80,9 +86,34 @@ getAddResultType .function firstOperandType, secondOperandType
 	.endif
 .endfunction
 
+getBitOpResultType .function firstOperandType, secondOperandType
+	.if firstOperandType == TYPE_System_Boolean && secondOperandType == TYPE_System_Boolean
+		.return TYPE_System_Boolean
+	.else
+		.error "Unsupported bit op types"
+	.endif
+.endfunction
+
+/*
+Numeric data types
+  Short integers
+    Storing to integers, booleans, and characters (stloc, stfld, stind.i1, stelem.i2, etc.)
+    truncates. Use the conv.ovf.* instructions to detect when this truncation results in a
+    value that doesn’t correctly represent the original value.
+	...
+	Assignment to a local (stloc) or argument (starg) whose type is declared to be
+    a short integer type automatically truncates to the size specified for the local
+    or argument. 
+*/
+isShortInteger .function type
+	.return type == TYPE_System_Byte || type == TYPE_System_Boolean
+.endfunction
+
 getSizeFromBuiltInType .function type
 	.if type == TYPE_System_Byte
 		.return SIZE_System_Byte
+	.else if type == TYPE_System_Boolean
+		.return SIZE_System_Boolean
 	.else
 		.error "Unknown builtin type"
 	.endif 
@@ -239,6 +270,36 @@ branch .macro instruction
 
 convertToByte .macro
 	// @TODO
+.endmacro
+
+// @GENERATE @POP=2 @PUSH=1
+orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
+	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for orFromStack"
+	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for orFromStack"
+	PLA
+	STA INTERNAL_RESERVED_0
+	PLA
+	ORA INTERNAL_RESERVED_0
+	PHA
+.endmacro
+
+// @GENERATE @POP=2 @PUSH=1
+compareEqualToFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
+	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for compareEqualToFromStack"
+	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for compareEqualToFromStack"
+	PLA
+	STA INTERNAL_RESERVED_0
+	PLA
+	CMP INTERNAL_RESERVED_0
+	BEQ _true
+	LDA #0
+	BEQ _end
+
+_true
+	LDA #1
+
+_end
+	PHA
 .endmacro
 
 // Primitive

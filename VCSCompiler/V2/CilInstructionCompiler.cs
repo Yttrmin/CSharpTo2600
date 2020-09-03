@@ -234,6 +234,11 @@ namespace VCSCompiler.V2
             }
         }
 
+		private IEnumerable<AssemblyEntry> Ceq(Instruction instruction)
+        {
+			yield return new CompareEqualToFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
+
 		private IEnumerable<AssemblyEntry> Conv_U1(Instruction instruction)
         {
 			// @TODO - Do we have to support this? We obviously can't expand byte+byte addition
@@ -267,6 +272,11 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)
         {
 			yield break;
+        }
+
+		private IEnumerable<AssemblyEntry> Or(Instruction instruction)
+        {
+			yield return new OrFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
 		private IEnumerable<AssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);

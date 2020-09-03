@@ -20,6 +20,8 @@ namespace VCSCompiler.V2
 
         public static TypeData Byte { get; } = new(GetBuiltInTypeDef<byte>(), 1);
 
+        public static TypeData Bool { get; } = new(GetBuiltInTypeDef<bool>(), 1);
+
         // @TODO - Give hardcode typeNum so VIL can check against it
         public static TypeData Nothing { get; } = new(GetBuiltInTypeDef<Nothing>(), 0);
 
@@ -52,13 +54,12 @@ namespace VCSCompiler.V2
 
         private static TypeData GetSystemTypeData(TypeDefinition type)
         {
-            switch (type.Name)
-            {
-                case var b when b == typeof(byte).Name:
-                    return Byte;
-                default:
-                    throw new ArgumentException($"No support for System type: '{type.FullName}'");
-            }
+            if (type.FullName == typeof(byte).FullName)
+                return Byte;
+            else if (type.FullName == typeof(bool).FullName)
+                return Bool;
+            else
+                throw new ArgumentException($"No support for System type: '{type.FullName}'");
         }
     }
 }

@@ -154,6 +154,18 @@ namespace VCSFramework.V2
         }
     }
 
+    public partial record OrFromStack : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(new GetBitOpResultType(new StackTypeArrayLabel(0), new StackTypeArrayLabel(1)), new GetSizeFromBuiltInType(new(0)));
+    }
+
+    public partial record CompareEqualToFromStack : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Bool), new SizeLabel(BuiltInDefinitions.Bool));
+    }
+
     public sealed record AssignConstantToGlobal : Macro
     {
         public AssignConstantToGlobal(IEnumerable<Instruction> instructions, ConstantLabel constant, GlobalLabel global, SizeLabel size)
@@ -317,6 +329,12 @@ namespace VCSFramework.V2
 
         public GetAddResultType(TypeLabel first, TypeLabel second)
             : base(new FunctionLabel("getAddResultType"), first, second) { }
+    }
+
+    public sealed record GetBitOpResultType : Function
+    {
+        public GetBitOpResultType(StackTypeArrayLabel first, StackTypeArrayLabel second)
+            : base(new FunctionLabel("getBitOpResultType"), first, second) { }
     }
 
     public sealed record GetSizeFromBuiltInType : Function
