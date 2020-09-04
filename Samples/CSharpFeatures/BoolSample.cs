@@ -1,4 +1,5 @@
-﻿using static VCSFramework.Registers;
+﻿using VCSFramework;
+using static VCSFramework.Registers;
 
 namespace Samples.CSharpFeatures
 {
@@ -8,7 +9,7 @@ namespace Samples.CSharpFeatures
 
         static void Main()
         {
-            ShouldLoop = true;
+            SetShouldLoopToTrue();
             Loop:
             while (ShouldLoop)
             {
@@ -17,6 +18,12 @@ namespace Samples.CSharpFeatures
                 ColuBk = 0x0E;
             }
             goto Loop;
+        }
+        
+        [AlwaysInline]
+        static void SetShouldLoopToTrue()
+        {
+            ShouldLoop = true;
         }
     }
 }

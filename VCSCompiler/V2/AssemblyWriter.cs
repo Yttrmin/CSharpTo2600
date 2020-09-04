@@ -21,7 +21,7 @@ namespace VCSCompiler.V2
         private static readonly string StackIndex = "        ";
 
         public AssemblyWriter(
-            Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> compiledMethods,
+            ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> compiledMethods,
             LabelMap labelMap,
             SourceAnnotation sourceAnnotations)
         {
@@ -109,34 +109,45 @@ namespace VCSCompiler.V2
             builder.AppendLine();
 
             builder.AppendLine(new Comment("Begin function definitions"));
-            builder.AppendLine(LabelGenerator.Start);
+            builder.AppendLine("START");
             // Entry point needs to come first so we execute it after init/clear.
             var entryPointPair = CompiledMethods.Single(it => it.Value.OfType<EntryPoint>().Any());
-            AppendMethodText(entryPointPair, builder);
-            foreach (var pair in CompiledMethods.Where(it => !it.Equals(entryPointPair)))
+            AppendEntryPoint(entryPointPair, builder);
+            /*foreach (var pair in CompiledMethods.Where(it => !it.Equals(entryPointPair)))
             {
                 builder.AppendLine();
-                AppendMethodText(pair, builder);
-            }
+                AppendMethod(pair, builder);
+            }*/
 
             builder.AppendLine(new Comment("End function definitions"));
             builder.AppendLine();
             builder.AppendLine("* = $FFFC");
-            builder.AppendLine($".word {LabelGenerator.Start}");
-            builder.AppendLine($".word {LabelGenerator.Start}");
+            builder.AppendLine(".word START");
+            builder.AppendLine(".word START");
             return builder.ToString();
         }
 
-        private void AppendMethodText(KeyValuePair<MethodDefinition, ImmutableArray<AssemblyEntry>> methodPair, StringBuilder builder)
+        private void AppendEntryPoint(KeyValuePair<MethodDefinition, ImmutableArray<AssemblyEntry>> methodPair, StringBuilder builder)
         {
             builder.AppendLine(new Comment($"Begin {methodPair.Key.FullName}"));
             builder.AppendLine(LabelGenerator.Function(methodPair.Key));
-            foreach (var entry in methodPair.Value)
+            AppendAssemblyEntries(methodPair.Key, methodPair.Value, builder);
+            builder.AppendLine(new Comment($"End {methodPair.Key.FullName}"));
+        }
+
+        private void AppendAssemblyEntries(MethodDefinition method, ImmutableArray<AssemblyEntry> entries, StringBuilder builder)
+        {
+            foreach (var entry in entries)
             {
+                if (entry is InlineMethod inlineMethod)
+                {
+                    AppendAssemblyEntries(inlineMethod.Method, inlineMethod.Entries, builder);
+                    continue;
+                }
                 var macro = entry as Macro;
                 if (macro != null)
                 {
-                    AppendSource(methodPair.Key, macro, builder);
+                    AppendSource(method, macro, builder);
                 }
                 var indent = entry is InstructionLabel ? "" : Indent;
                 builder.AppendLine($"{indent}{entry}");
@@ -148,7 +159,6 @@ namespace VCSCompiler.V2
                     }
                 }
             }
-            builder.AppendLine(new Comment($"End {methodPair.Key.FullName}"));
         }
 
         private void AppendSource(MethodDefinition method, Macro macro, StringBuilder builder)

@@ -178,16 +178,43 @@ namespace VCSFramework.V2
 
     public abstract record AssemblyEntry
     {
-        //public string? SourceText { get; init; }
-        //public string? CilText { get; init; }
-
         public static implicit operator string(AssemblyEntry entry) => entry.ToString();
 
         public abstract override string ToString();
     }
 
+    public record InlineMethod : AssemblyEntry
+    {
+        public Instruction Instruction { get; init; }
+        public MethodDefinition Method { get; }
+        public ImmutableArray<AssemblyEntry> Entries { get; init; } = ImmutableArray<AssemblyEntry>.Empty;
+
+        public InlineMethod(Instruction instruction, MethodDefinition method, ImmutableArray<AssemblyEntry> entries)
+        {
+            Instruction = instruction;
+            Method = method;
+            Entries = entries.Prepend(new Comment("Begin inline method body")).Append(new Comment("End inline method body")).ToImmutableArray();
+        }
+
+        public override string ToString()
+        {
+            // Shouldn't really use this since only the first line will have indentation.
+            return string.Join(Environment.NewLine, Entries.Select(e => e.ToString()));
+        }
+    }
+
     public abstract record PsuedoOp : AssemblyEntry
     {
+    }
+
+    public record BeginBlock : PsuedoOp
+    {
+        public override string ToString() => ".block";
+    }
+
+    public record EndBlock : PsuedoOp
+    {
+        public override string ToString() => ".endblock";
     }
 
     public record LetOp : PsuedoOp
@@ -287,12 +314,15 @@ namespace VCSFramework.V2
     /// <summary>Label referring to a defined macro.</summary>
     public sealed record MacroLabel(string Name) : Label(Name);
 
+    public sealed record FunctionLabel(string Name) : Label(Name);
+
     /// <summary>Label referring to the left hand size of a `.let` psuedop.</summary>
     public sealed record LetLabel(string Name) : Label(Name);
 
     public sealed record InstructionLabel(string Name) : Label(Name);
 
-    public sealed record FunctionLabel(string Name) : Label(Name);
+    public sealed record MethodLabel(MethodDefinition Method, bool Inline) 
+        : Label(Inline ? $"BODY_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}" : $"FUNC_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}");
 
     public sealed record StackTypeArrayLabel(int Index)
         : Label($"STACK_TYPEOF[{Index}]");

@@ -65,12 +65,10 @@ namespace VCSCompiler.V2
                 entryPointBody = compiler.Optimize(entryPointBody);
             }
             entryPointBody = compiler.GenerateStackOps(entryPointBody);
-            var labelMap = new LabelMap(new[] { entryPointBody }, userAssemblyDefinition);
+            var allFunctions = compiler.GetAllFunctions(entryPointBody).Prepend(entryPointBody);
+            var labelMap = new LabelMap(allFunctions, userAssemblyDefinition);
 
-            var assemblyWriter = new AssemblyWriter(new()
-            {
-                { userAssemblyDefinition.MainModule.EntryPoint, entryPointBody }
-            }, labelMap, options.SourceAnnotations);
+            var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
 
             RomInfo romInfo;
             
@@ -149,6 +147,39 @@ namespace VCSCompiler.V2
 
             // Mark as entry point so we can find it later.
             return roughCompilation.Prepend(new EntryPoint()).ToImmutableArray();
+
+            /*var entryPoint = UserAssembly.EntryPoint;
+            var cilCompiler = new CilInstructionCompiler(entryPoint, UserAssembly);
+            var roughCompilation = cilCompiler.Compile();
+
+            var entryPointPrefix = new AssemblyEntry[] { new EntryPoint() };
+            var cctorBody = Enumerable.Empty<AssemblyEntry>();
+            if (entryPoint.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor") is MethodDefinition staticConstructor)
+            {
+                var staticConstructorCompiler = new CilInstructionCompiler(staticConstructor, UserAssembly);
+                cctorBody = staticConstructorCompiler.Compile().Prepend(new Comment("Begin .cctor body")).Append(new Comment("End .cctor body"));
+            }
+
+            return entryPointPrefix.Concat(cctorBody).Concat(roughCompilation).ToImmutableArray();*/
+        }
+
+        private IEnumerable<ImmutableArray<AssemblyEntry>> GetAllFunctions(ImmutableArray<AssemblyEntry> body)
+        {
+            foreach (var entry in body)
+            {
+                if (entry is InlineMethod inlineMethod)
+                {
+                    yield return inlineMethod.Entries;
+                    foreach (var function in GetAllFunctions(inlineMethod.Entries))
+                    {
+                        yield return function;
+                    }
+                }
+                /*else if (entry is Call call)
+                {
+                    throw new NotImplementedException();
+                }*/
+            }
         }
 
         private ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries)

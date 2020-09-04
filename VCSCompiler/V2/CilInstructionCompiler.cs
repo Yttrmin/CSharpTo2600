@@ -16,12 +16,14 @@ namespace VCSCompiler.V2
     {
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
+		private readonly AssemblyDefinition UserAssembly;
 		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
 
 		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyDefinition userAssembly)
         {
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
+			UserAssembly = userAssembly;
 			Assemblies = AssemblyDefinitions.BuiltIn.Append(userAssembly).ToImmutableArray();
         }
 
@@ -228,6 +230,10 @@ namespace VCSCompiler.V2
 				var type = method.ReturnType;
 				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, true), new(type), new(type));
             }
+			else if (method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _))
+            {
+				yield return new InlineMethod(instruction, method, MethodCompiler.Compile(method, UserAssembly, true));
+            }
 			else
             {
 				throw new InvalidOperationException($"Couldn't compile '{instruction}', 'call' has limited support now.");
@@ -277,6 +283,11 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Or(Instruction instruction)
         {
 			yield return new OrFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
+
+		private IEnumerable<AssemblyEntry> Ret(Instruction instruction)
+        {
+			yield return new ReturnFromCall(instruction);
         }
 
 		private IEnumerable<AssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);

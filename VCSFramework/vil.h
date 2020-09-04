@@ -500,6 +500,11 @@ duplicate .macro stackType, stackSize
 	PHA
 .endmacro
 
+// @GENERATE
+returnFromCall .macro
+	RTS
+.endmacro
+
 initialize .macro
 	SEI
 	CLD
