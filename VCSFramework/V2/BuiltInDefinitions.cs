@@ -20,7 +20,7 @@ namespace VCSFramework.V2
         private static IEnumerable<TypeDefinition> AllTypeDefinitions
             => Assemblies.SelectMany(a => a.MainModule.Types);
 
-        public static IEnumerable<TypeDefinition> BuiltInTypes
+        public static IEnumerable<TypeDefinition> Types
             => new[] { Byte, Bool, Nothing };
 
         public static readonly TypeDefinition Byte = AllTypeDefinitions.Single(t => t.FullName == typeof(byte).FullName);

@@ -31,7 +31,7 @@ namespace VCSCompiler.V2
                 .SelectMany(it => it)
                 .OfType<Macro>()
                 .SelectMany(it => it.Params)
-                .Concat(BuiltInDefinitions.BuiltInTypes.SelectMany(t => new Label[] { new TypeLabel(t), new SizeLabel(t) })) // Force built-in types since there are VIL checks that rely on them.
+                .Concat(BuiltInDefinitions.Types.SelectMany(t => new Label[] { new TypeLabel(t), new SizeLabel(t) })) // Force built-in types since there are VIL checks that rely on them.
                 .Prepend(new GlobalLabel("INTERNAL_RESERVED_0")) // @TODO - Find a better way
                 .Where(it => !(it is InstructionLabel))
                 .Where(it => !(it is StackSizeArrayLabel))

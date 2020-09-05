@@ -24,7 +24,7 @@ namespace VCSCompiler.V2
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
 			UserAssembly = userAssembly;
-			Assemblies = AssemblyDefinitions.BuiltIn.Append(userAssembly).ToImmutableArray();
+			Assemblies = BuiltInDefinitions.Assemblies.Append(userAssembly).ToImmutableArray();
         }
 
 		public IEnumerable<AssemblyEntry> Compile()
