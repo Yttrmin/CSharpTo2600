@@ -440,6 +440,12 @@ branchIfGreaterThanFromLocalAndConstantToLocal .macro local, constant, targetLoc
 .endmacro
 
 // @GENERATE @POP=1
+branchFalseFromStack .macro instruction
+	PLA
+	JEQ \instruction
+.endmacro
+
+// @GENERATE @POP=1
 // Primitive
 branchTrueFromStack .macro instruction
 	PLA

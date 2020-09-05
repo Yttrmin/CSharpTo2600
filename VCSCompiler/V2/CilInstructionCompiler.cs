@@ -196,6 +196,14 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<AssemblyEntry> Brtrue_S(Instruction instruction) => Brtrue(instruction);
 
+		private IEnumerable<AssemblyEntry> Brfalse(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new BranchFalseFromStack(instruction, LabelGenerator.Instruction(targetInstruction));
+        }
+
+		private IEnumerable<AssemblyEntry> Brfalse_S(Instruction instruction) => Brfalse(instruction);
+
 		private IEnumerable<AssemblyEntry> Call(Instruction instruction)
         {
 			var methodReference = (MethodReference)instruction.Operand;

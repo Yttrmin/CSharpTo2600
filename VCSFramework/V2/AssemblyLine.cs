@@ -193,7 +193,10 @@ namespace VCSFramework.V2
         {
             Instruction = instruction;
             Method = method;
-            Entries = entries.Prepend(new Comment("Begin inline method body")).Append(new Comment("End inline method body")).ToImmutableArray();
+            Entries = entries
+                .Prepend(new Comment($"Begin inline method body of: '{Method.FullName}'"))
+                .Append(new Comment($"End inline method body of: '{Method.FullName}'"))
+                .ToImmutableArray();
         }
 
         public override string ToString()
