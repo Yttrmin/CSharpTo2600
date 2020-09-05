@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -140,8 +141,18 @@ namespace VCSCompiler.V2
             var compiledBody = MethodCompiler.Compile(entryPoint, UserAssembly, false);
             // @TODO - Check for return calls, which should never happen for a VCS program.
 
+            // Prepend the .cctor if there is one.
+            var cctor = entryPoint.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor");
+            if (cctor != null)
+            {
+                var inlineCctorCall = new InlineMethod(Instruction.Create(OpCodes.Call, cctor), cctor, MethodCompiler.Compile(cctor, UserAssembly, true));
+                compiledBody = compiledBody.Prepend(inlineCctorCall).ToImmutableArray();
+            }
+
             // Prepend EntryPoint(), which performs CPU/memory initialization.
-            return compiledBody.Prepend(new EntryPoint()).ToImmutableArray();
+            return compiledBody
+                .Prepend(new EntryPoint())
+                .ToImmutableArray();
         }
 
         private IEnumerable<ImmutableArray<AssemblyEntry>> GetAllFunctions(ImmutableArray<AssemblyEntry> body)

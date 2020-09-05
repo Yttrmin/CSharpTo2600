@@ -9,7 +9,7 @@ namespace Samples.CSharpFeatures
 
         static void Main()
         {
-            SetShouldLoopToTrue();
+            //SetShouldLoopToTrue();
             Loop:
             while (ShouldLoop)
             {
