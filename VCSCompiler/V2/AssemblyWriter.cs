@@ -112,12 +112,12 @@ namespace VCSCompiler.V2
             builder.AppendLine("START");
             // Entry point needs to come first so we execute it after init/clear.
             var entryPointPair = CompiledMethods.Single(it => it.Value.OfType<EntryPoint>().Any());
-            AppendEntryPoint(entryPointPair, builder);
-            /*foreach (var pair in CompiledMethods.Where(it => !it.Equals(entryPointPair)))
+            AppendMethod(entryPointPair, builder);
+            foreach (var pair in CompiledMethods.Where(it => !it.Equals(entryPointPair)))
             {
                 builder.AppendLine();
                 AppendMethod(pair, builder);
-            }*/
+            }
 
             builder.AppendLine(new Comment("End function definitions"));
             builder.AppendLine();
@@ -127,7 +127,7 @@ namespace VCSCompiler.V2
             return builder.ToString();
         }
 
-        private void AppendEntryPoint(KeyValuePair<MethodDefinition, ImmutableArray<AssemblyEntry>> methodPair, StringBuilder builder)
+        private void AppendMethod(KeyValuePair<MethodDefinition, ImmutableArray<AssemblyEntry>> methodPair, StringBuilder builder)
         {
             builder.AppendLine(new Comment($"Begin {methodPair.Key.FullName}"));
             builder.AppendLine(LabelGenerator.Function(methodPair.Key));

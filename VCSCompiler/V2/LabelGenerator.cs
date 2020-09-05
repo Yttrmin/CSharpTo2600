@@ -34,6 +34,7 @@ namespace VCSCompiler.V2
         public static MethodLabel Function(MethodDefinition method)
             => new(method, false);
 
+        [Obsolete]
         public static MethodLabel InlineFunction(MethodDefinition method)
             => new(method, true);
 

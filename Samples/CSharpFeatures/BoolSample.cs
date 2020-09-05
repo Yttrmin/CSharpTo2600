@@ -20,7 +20,6 @@ namespace Samples.CSharpFeatures
             goto Loop;
         }
         
-        [AlwaysInline]
         static void SetShouldLoopToTrue()
         {
             ShouldLoop = true;

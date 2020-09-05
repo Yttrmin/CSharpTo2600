@@ -175,10 +175,18 @@ namespace VCSCompiler.V2
                         yield return function;
                     }
                 }
-                /*else if (entry is Call call)
+                else if (entry is CallVoid call)
                 {
-                    throw new NotImplementedException();
-                }*/
+                    // Non-inline methods are compiled twice. Here it's compiled just so we can extract
+                    // labels for LabelMap. LabelMap will re-compile it (hopefully identically), and
+                    // that's what will actually be written out.
+                    var compiledBody = MethodCompiler.Compile(call.Method.Method, UserAssembly, false);
+                    yield return compiledBody;
+                    foreach (var function in GetAllFunctions(compiledBody))
+                    {
+                        yield return function;
+                    }
+                }
             }
         }
 

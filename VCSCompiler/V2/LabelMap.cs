@@ -14,6 +14,7 @@ namespace VCSCompiler.V2
         public ImmutableDictionary<ConstantLabel, string> ConstantToValue { get; }
         public ImmutableDictionary<TypeLabel, string> TypeToString { get; }
         public ImmutableDictionary<SizeLabel, string> SizeToValue { get; }
+        public ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> FunctionToBody { get; }
 
         public LabelMap(
             IEnumerable<ImmutableArray<AssemblyEntry>> functions,
@@ -24,6 +25,7 @@ namespace VCSCompiler.V2
             var constantToValue = new Dictionary<ConstantLabel, string>();
             var typeToString = new Dictionary<TypeLabel, string>();
             var sizeToValue = new Dictionary<SizeLabel, string>();
+            var functionToBody = new Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>>();
 
             var allLabelParams = functions
                 .SelectMany(it => it)
@@ -65,11 +67,18 @@ namespace VCSCompiler.V2
                 localToAddress[localLabel] = $"${ramStart++:X2}";
             }
 
+            foreach (var method in allLabelParams.OfType<MethodLabel>().Select(l => l.Method).Distinct())
+            {
+                var compiler = new CilInstructionCompiler(method, userAssembly);
+                functionToBody[method] = MethodCompiler.Compile(method, userAssembly, false);
+            }
+
             GlobalToAddress = globalToAddress.ToImmutableDictionary();
             LocalToAddress = localToAddress.ToImmutableDictionary();
             ConstantToValue = constantToValue.ToImmutableDictionary();
             TypeToString = typeToString.ToImmutableDictionary();
             SizeToValue = sizeToValue.ToImmutableDictionary();
+            FunctionToBody = functionToBody.ToImmutableDictionary();
         }
     }
 }

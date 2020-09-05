@@ -232,11 +232,19 @@ namespace VCSCompiler.V2
             }
 			else if (method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _))
             {
+				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
+				{
+					throw new InvalidOperationException($"Methods must have 0 arity and void return type for now");
+				}
 				yield return new InlineMethod(instruction, method, MethodCompiler.Compile(method, UserAssembly, true));
             }
 			else
             {
-				throw new InvalidOperationException($"Couldn't compile '{instruction}', 'call' has limited support now.");
+				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
+                {
+					throw new InvalidOperationException($"Methods must have 0 arity and void return type for now");
+                }
+				yield return new CallVoid(instruction, new(method, false));
             }
         }
 
