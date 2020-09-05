@@ -14,14 +14,19 @@ namespace VCSFramework.V2
         public static readonly AssemblyDefinition Framework
             = AssemblyDefinition.ReadAssembly(typeof(Macro).GetTypeInfo().Assembly.Location);
 
-        public static readonly ImmutableArray<AssemblyDefinition> BuiltInAssemblies
+        public static readonly ImmutableArray<AssemblyDefinition> Assemblies
             = new[] { System, Framework }.ToImmutableArray();
 
         private static IEnumerable<TypeDefinition> AllTypeDefinitions
-            => BuiltInAssemblies.SelectMany(a => a.MainModule.Types);
+            => Assemblies.SelectMany(a => a.MainModule.Types);
+
+        public static IEnumerable<TypeDefinition> BuiltInTypes
+            => new[] { Byte, Bool, Nothing };
 
         public static readonly TypeDefinition Byte = AllTypeDefinitions.Single(t => t.FullName == typeof(byte).FullName);
 
         public static readonly TypeDefinition Bool = AllTypeDefinitions.Single(t => t.FullName == typeof(bool).FullName);
+
+        public static readonly TypeDefinition Nothing = AllTypeDefinitions.Single(t => t.FullName == typeof(Nothing).FullName);
     }
 }
