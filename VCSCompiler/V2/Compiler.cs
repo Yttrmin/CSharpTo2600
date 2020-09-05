@@ -60,11 +60,6 @@ namespace VCSCompiler.V2
 
             var compiler = new Compiler(userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
-            if (!options.DisableOptimizations)
-            {
-                entryPointBody = compiler.Optimize(entryPointBody);
-            }
-            entryPointBody = compiler.GenerateStackOps(entryPointBody);
             var allFunctions = compiler.GetAllFunctions(entryPointBody).Prepend(entryPointBody);
             var labelMap = new LabelMap(allFunctions, userAssemblyDefinition);
 
@@ -142,25 +137,11 @@ namespace VCSCompiler.V2
         public ImmutableArray<AssemblyEntry> CompileEntryPoint()
         {
             var entryPoint = UserAssembly.EntryPoint;
-            var cilCompiler = new CilInstructionCompiler(entryPoint, UserAssembly);
-            var roughCompilation = cilCompiler.Compile();
+            var compiledBody = MethodCompiler.Compile(entryPoint, UserAssembly, false);
+            // @TODO - Check for return calls, which should never happen for a VCS program.
 
-            // Mark as entry point so we can find it later.
-            return roughCompilation.Prepend(new EntryPoint()).ToImmutableArray();
-
-            /*var entryPoint = UserAssembly.EntryPoint;
-            var cilCompiler = new CilInstructionCompiler(entryPoint, UserAssembly);
-            var roughCompilation = cilCompiler.Compile();
-
-            var entryPointPrefix = new AssemblyEntry[] { new EntryPoint() };
-            var cctorBody = Enumerable.Empty<AssemblyEntry>();
-            if (entryPoint.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor") is MethodDefinition staticConstructor)
-            {
-                var staticConstructorCompiler = new CilInstructionCompiler(staticConstructor, UserAssembly);
-                cctorBody = staticConstructorCompiler.Compile().Prepend(new Comment("Begin .cctor body")).Append(new Comment("End .cctor body"));
-            }
-
-            return entryPointPrefix.Concat(cctorBody).Concat(roughCompilation).ToImmutableArray();*/
+            // Prepend EntryPoint(), which performs CPU/memory initialization.
+            return compiledBody.Prepend(new EntryPoint()).ToImmutableArray();
         }
 
         private IEnumerable<ImmutableArray<AssemblyEntry>> GetAllFunctions(ImmutableArray<AssemblyEntry> body)
@@ -188,56 +169,6 @@ namespace VCSCompiler.V2
                     }
                 }
             }
-        }
-
-        private ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries)
-        {
-            var optimizers = new Optimization[]
-            {
-                new PushConstantPopToGlobalOptimization(),
-                new PushGlobalPopToGlobal_To_CopyGlobalToGlobal(),
-                new PushGlobalPushConstantAddFromStack_To_AddFromGlobalAndConstant(),
-                new AddFromGlobalAndConstantPopToGlobal_To_AddFromGlobalAndConstantToGlobal(),
-                new AddFromGlobalAndConstantToGlobal_To_IncrementGlobal(),
-            };
-
-            ImmutableArray<AssemblyEntry> preOptimize;
-            var postOptimize = entries;
-
-            // Optimizers may rely on the output of other optimizers. So loop until there's 
-            // no more changes being made.
-            do
-            {
-                preOptimize = postOptimize;
-                foreach (var optimizer in optimizers)
-                {
-                    postOptimize = optimizer.Optimize(postOptimize);
-                }
-            } while (!preOptimize.SequenceEqual(postOptimize));
-            return postOptimize;
-        }
-
-        /// <summary>
-        /// Generates stack-related let psuedoops that let us attempt to track the size/type of elements on the stack.
-        /// This must be called AFTER optimizations. Most optimizations eliminate stack operations anyways. But the
-        /// presence of the psuedoops will likely interfere with most optimizer's pattern matching too.
-        /// </summary>
-        private ImmutableArray<AssemblyEntry> GenerateStackOps(ImmutableArray<AssemblyEntry> entries)
-        {
-            var stackTracker = new StackTracker(entries);
-
-            var initialization = stackTracker.GenerateInitializationEntries();
-            var entriesWithStackLets = entries
-                .Select(entry =>
-                {
-                    if (entry is Macro macro)
-                    {
-                        return macro.WithStackLets(stackTracker, LabelGenerator.NothingType, LabelGenerator.NothingSize);
-                    }
-                    return entry;
-                });
-
-            return initialization.Concat(entriesWithStackLets).ToImmutableArray();
         }
     }
 }

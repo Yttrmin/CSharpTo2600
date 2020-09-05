@@ -30,7 +30,6 @@ namespace VCSCompiler.V2
         {
             // @TODO - Options
             var cilCompiler = new CilInstructionCompiler(Method, UserAssembly);
-            // @TODO - Special treatment for inlining
             var body = cilCompiler.Compile().ToImmutableArray();
             body = Optimize(body);
             body = GenerateStackOps(body);
@@ -77,6 +76,11 @@ namespace VCSCompiler.V2
             return postOptimize;
         }
 
+        /// <summary>
+        /// Generates stack-related let psuedoops that let us attempt to track the size/type of elements on the stack.
+        /// This must be called AFTER optimizations. Most optimizations eliminate stack operations anyways. But the
+        /// presence of the psuedoops will likely interfere with most optimizer's pattern matching too.
+        /// </summary>
         private ImmutableArray<AssemblyEntry> GenerateStackOps(ImmutableArray<AssemblyEntry> entries)
         {
             var stackTracker = new StackTracker(entries);
