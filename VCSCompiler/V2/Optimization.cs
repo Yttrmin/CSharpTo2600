@@ -90,11 +90,11 @@ namespace VCSCompiler.V2
     {
         protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
         {
+            // Pushing an integer and popping to a boolean is valid CIL, so requiring identical types would be incorrect.
             return next switch
             {
-                (PushConstant(var instA, var constant, var constType, var size), 
-                (PopToGlobal(var instB, var global, var globalType, _, _, _), var trueNext))
-                    when constType.Equals(globalType) 
+                (PushConstant(var instA, var constant, _, var size), 
+                (PopToGlobal(var instB, var global, _, _, _, _), var trueNext))
                     => new LinkedEntry(new AssignConstantToGlobal(instA.Concat(instB), constant, global, size), trueNext),
                 _ => next
             };
@@ -158,6 +158,23 @@ namespace VCSCompiler.V2
                 (AddFromGlobalAndConstantToGlobal(var inst, var sourceGlobal, var globalType, var globalSize, var constant, _, _, var targetGlobal, _, _), var trueNext)
                     when sourceGlobal == targetGlobal && constant.Value is byte b && b == 1
                     => new LinkedEntry(new IncrementGlobal(inst, targetGlobal, globalType, globalSize), trueNext),
+                _ => next
+            };
+        }
+    }
+
+    internal sealed class EliminateUnconditionalBranchToNextInstruction : Optimization
+    {
+        protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
+        {
+            // This primarily happens when inlining methods that have a single exit point. The 'ret' gets replaced with an
+            // unconditional jump to the end of the method, which the 'ret' is already at, so it's completely useless.
+            // This removes that unconditonal jump but leaves the label (in case there's other instructions in the
+            // method that branch to it).
+            return next switch
+            {
+                (Branch(_, var targetLabel), (InstructionLabel instructionLabel, var trueNext)) when targetLabel == instructionLabel 
+                    => new LinkedEntry(instructionLabel, trueNext),
                 _ => next
             };
         }

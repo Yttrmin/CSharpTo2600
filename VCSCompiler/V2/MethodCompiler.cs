@@ -27,11 +27,6 @@ namespace VCSCompiler.V2
         {
             var cilCompiler = new CilInstructionCompiler(Method, UserAssembly);
             var body = cilCompiler.Compile().ToImmutableArray();
-            if (!Compiler.Options.DisableOptimizations)
-            {
-                body = Optimize(body);
-            }
-            body = GenerateStackOps(body);
             if (Inline)
             {
                 var endLabel = new InstructionLabel("INLINE_RET_TARGET");
@@ -45,6 +40,11 @@ namespace VCSCompiler.V2
                     return entry;
                 }).ToImmutableArray();
             }
+            if (!Compiler.Options.DisableOptimizations)
+            {
+                body = Optimize(body);
+            }
+            body = GenerateStackOps(body);
             return body;
         }
 
@@ -57,6 +57,7 @@ namespace VCSCompiler.V2
                 new PushGlobalPushConstantAddFromStack_To_AddFromGlobalAndConstant(),
                 new AddFromGlobalAndConstantPopToGlobal_To_AddFromGlobalAndConstantToGlobal(),
                 new AddFromGlobalAndConstantToGlobal_To_IncrementGlobal(),
+                new EliminateUnconditionalBranchToNextInstruction(),
             };
 
             ImmutableArray<AssemblyEntry> preOptimize;
