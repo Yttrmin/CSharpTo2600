@@ -501,6 +501,11 @@ duplicate .macro stackType, stackSize
 .endmacro
 
 // @GENERATE
+callVoid .macro method
+	JSR \method
+.endmacro
+
+// @GENERATE
 returnFromCall .macro
 	RTS
 .endmacro

@@ -163,6 +163,8 @@ namespace VCSFramework.V2
                 return "ConstantLabel";
             else if (variableName.EndsWith("Instruction", StringComparison.CurrentCultureIgnoreCase))
                 return "InstructionLabel";
+            else if (variableName.EndsWith("Method", StringComparison.CurrentCultureIgnoreCase))
+                return "MethodLabel";
             else
                 throw new ArgumentException($"Could not determine type of: {variableName}");
         }

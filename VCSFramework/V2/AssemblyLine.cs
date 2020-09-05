@@ -322,7 +322,7 @@ namespace VCSFramework.V2
     public sealed record InstructionLabel(string Name) : Label(Name);
 
     public sealed record MethodLabel(MethodDefinition Method, bool Inline) 
-        : Label(Inline ? $"BODY_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}" : $"FUNC_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}");
+        : Label($"METHOD_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}");
 
     public sealed record StackTypeArrayLabel(int Index)
         : Label($"STACK_TYPEOF[{Index}]");
