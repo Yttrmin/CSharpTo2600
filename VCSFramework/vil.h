@@ -46,6 +46,20 @@ pushGlobal .macro global, type, size
 	.next
 .endmacro
 
+// @GENERATE @PUSH=1
+pushAddressOfGlobal .macro global
+	LDA #\global
+	PHA
+.endmacro
+
+// @GENERATE @POP=1 @PUSH=1
+pushAddressOfField .macro offsetConstant
+	PLA
+	CLC
+	ADC \offsetConstant
+	PHA
+.endmacro
+
 // @GENERATE @POP=1
 // Pops {globalSize} bytes off the stack and stores them at {targetAddress}.
 // Effects: STACK-1, AccChange, MemChange

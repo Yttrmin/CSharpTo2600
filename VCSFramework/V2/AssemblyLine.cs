@@ -106,6 +106,22 @@ namespace VCSFramework.V2
             => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
     }
 
+    public partial record PushAddressOfGlobal : IStackPusher
+    {
+        // @TODO - While it may be byte-sized, we need to push an actual pointer type so we can track what it
+        // is when we eventually dereference it.
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+    }
+
+    public partial record PushAddressOfField : IStackPusher
+    {
+        // @TODO - While it may be byte-sized, we need to push an actual pointer type so we can track what it
+        // is when we eventually dereference it.
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+    }
+
     public partial record AddFromGlobalAndConstant : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)

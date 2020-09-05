@@ -3,6 +3,7 @@ using static VCSFramework.Registers;
 
 namespace Samples.CSharpFeatures
 {
+    // Not a proper VCS program.
     static class BoolAndMethodSample
     {
         private static bool ShouldLoopA;
