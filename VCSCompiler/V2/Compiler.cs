@@ -9,7 +9,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -17,12 +16,21 @@ namespace VCSCompiler.V2
     public sealed class Compiler
     {
         private readonly AssemblyDefinition UserAssembly;
-        private readonly CompilerOptions Options;
+        private static CompilerOptions? _Options;
+        internal static CompilerOptions Options
+        {
+            get
+            {
+                if (_Options == null)
+                    throw new InvalidOperationException($"Attempted to fetch {nameof(Options)} but it's null, this should never happen.");
+                return _Options;
+            }
+        }
 
         private Compiler(AssemblyDefinition userAssemblyDefinition, CompilerOptions options)
         {
             UserAssembly = userAssemblyDefinition;
-            Options = options;
+            _Options = options;
         }
 
         public static RomInfo CompileFromFile(string sourcePath, CompilerOptions options)
@@ -111,6 +119,7 @@ namespace VCSCompiler.V2
 
             var final = romInfo.IsSuccessful ? "Compilation succeeded." : "Compilation failed";
             Console.WriteLine(final);
+            _Options = null;
             return romInfo;
         }
 

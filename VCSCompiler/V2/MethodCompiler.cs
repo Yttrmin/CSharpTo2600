@@ -1,11 +1,8 @@
 ﻿#nullable enable
 using Mono.Cecil;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -28,10 +25,12 @@ namespace VCSCompiler.V2
 
         public ImmutableArray<AssemblyEntry> Compile()
         {
-            // @TODO - Options
             var cilCompiler = new CilInstructionCompiler(Method, UserAssembly);
             var body = cilCompiler.Compile().ToImmutableArray();
-            body = Optimize(body);
+            if (!Compiler.Options.DisableOptimizations)
+            {
+                body = Optimize(body);
+            }
             body = GenerateStackOps(body);
             if (Inline)
             {
