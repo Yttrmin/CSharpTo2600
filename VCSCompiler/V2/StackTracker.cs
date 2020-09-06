@@ -96,6 +96,14 @@ namespace VCSCompiler.V2
             StackState[0] = new TypedStackElement(type, size);
         }
 
+        public void Push(PointerTypeLabel type, StackSizeArrayLabel size)
+        {
+            CheckDepth();
+            PercolateUp();
+
+            StackState[0] = new TypedStackElement(type, size);
+        }
+
         public void Push(Function typeFunction, Function sizeFunction)
         {
             CheckDepth();

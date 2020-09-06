@@ -12,6 +12,7 @@ namespace VCSFramework.V2
         void Push(TypeLabel type, SizeLabel size);
         void Push(TypeLabel type, BaseSizeLabel size);
         void Push(PointerTypeLabel type, PointerSizeLabel size);
+        void Push(PointerTypeLabel type, StackSizeArrayLabel size);
         void Push(StackTypeArrayLabel type, StackSizeArrayLabel size);
     }
 }

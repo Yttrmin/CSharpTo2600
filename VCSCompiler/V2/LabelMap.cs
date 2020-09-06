@@ -1,7 +1,9 @@
-﻿using Mono.Cecil;
+﻿#nullable enable
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using VCSFramework.V2;
 
@@ -44,37 +46,37 @@ namespace VCSCompiler.V2
                 .ToImmutableArray();
 
             var typeNumber = 100;
-            foreach (var foo in allLabelParams.OfType<TypeLabel>().Select(l => l.Type).Concat(allLabelParams.OfType<PointerTypeLabel>().Select(l => l.Type).Concat(allLabelParams.OfType<SizeLabel>().Select(l => l.Type))))
+            // @TODO - An interface for labels with TypeReferences may be more appropriate.
+            var allTypes = allLabelParams
+                .OfType<TypeLabel>()
+                .Select(l => l.Type)
+                .Concat(
+                    allLabelParams
+                    .OfType<PointerTypeLabel>()
+                    .Select(l => l.Type)
+                    .Concat(
+                        allLabelParams
+                        .OfType<SizeLabel>()
+                        .Select(l => l.Type)))
+                .Distinct(new TypeReferenceEqualityComparer());
+            foreach (var type in allTypes)
             {
+                // For every type, we give it a type number, give its pointer a type number, and give it a size.
+                // This is to avoid cases where we e.g. generate a pointer type, but not its non-pointer type,
+                // and some function goes to fetch the non-pointer type and fails.
                 var thisTypeNumber = typeNumber;
                 typeNumber += 2;
 
-                typeToString[new TypeLabel(foo)] = thisTypeNumber.ToString();
-                typeToString[new PointerTypeLabel(foo)] = (thisTypeNumber | 0x1).ToString();
-                sizeToValue[new SizeLabel(foo)] = $"{TypeData.Of(foo, userAssembly).Size}";
-                typeToSize[new TypeLabel(foo)] = new SizeLabel(foo);
-            }
-            /*foreach (var typeLabel in allLabelParams.OfType<BaseTypeLabel>())
-            {
-                TypeReference type;
-                if (typeLabel is PointerTypeLabel pointerType)
-                    type = pointerType.Type;
-                else
-                    type = ((TypeLabel)typeLabel).Type;
-                typeToString[new TypeLabel(type)] = typeNumber++.ToString();
-                typeToString[new PointerTypeLabel(type)] = typeNumber++.ToString();
+                typeToString[new TypeLabel(type)] = thisTypeNumber.ToString();
+                // Pointer types use the same number as the type they're pointing to, but with the LSB set to 1.
+                typeToString[new PointerTypeLabel(type)] = (thisTypeNumber | 0x1).ToString();
                 sizeToValue[new SizeLabel(type)] = $"{TypeData.Of(type, userAssembly).Size}";
                 typeToSize[new TypeLabel(type)] = new SizeLabel(type);
             }
 
-            foreach (var sizeLabel in allLabelParams.OfType<SizeLabel>())
-            {
-                sizeToValue[sizeLabel] = $"{TypeData.Of(sizeLabel.Type, userAssembly).Size}";
-            }*/
-
             foreach (var constantLabel in allLabelParams.OfType<ConstantLabel>())
             {
-                constantToValue[constantLabel] = constantLabel.Value.ToString();
+                constantToValue[constantLabel] = constantLabel.Value.ToString()!;
             }
 
             // @TODO - Need to reserve some for VIL.
@@ -107,6 +109,13 @@ namespace VCSCompiler.V2
             TypeToSize = typeToSize.ToImmutableDictionary();
             PointerToType = pointerToType.ToImmutableDictionary();
             FunctionToBody = functionToBody.ToImmutableDictionary();
+        }
+
+        private class TypeReferenceEqualityComparer : EqualityComparer<TypeReference>
+        {
+            public override bool Equals(TypeReference? x, TypeReference? y) => x?.FullName?.Equals(y?.FullName) ?? false;
+
+            public override int GetHashCode(TypeReference obj) => obj.ToString().GetHashCode();
         }
     }
 }

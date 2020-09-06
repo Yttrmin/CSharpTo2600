@@ -64,7 +64,7 @@ pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 
 // @GENERATE @POP=1 @PUSH=1
 pushDereferenceFromStack .macro type, size
-	// Need to figure out the non-pointer version of what this pointer is pointing to.
+	// @TODO - Take pointer size
 	.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack"
 	PLA
 	TAX

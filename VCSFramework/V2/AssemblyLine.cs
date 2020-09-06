@@ -114,24 +114,20 @@ namespace VCSFramework.V2
 
     public partial record PushAddressOfField : IStackPusher
     {
-        // @TODO - While it may be byte-sized, we need to push an actual pointer type so we can track what it
-        // is when we eventually dereference it.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(new GetTypeFromPointer(new(0)), new GetSizeFromType(new(0)));
+            => stackTracker.Push(PointerType, PointerStackSize);
     }
 
     public partial record PushDereferenceFromStack : IStackPusher
     {
-        // @TODO - Need function for getting non-pointer type from pointer type.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+            => stackTracker.Push(Type, Size);
     }
 
     public partial record PushFieldFromStack : IStackPusher
     {
-        // @TODO - Need function for getting non-pointer type from pointer type.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], (BaseSizeLabel)parameters[2]);
+            => stackTracker.Push(FieldType, FieldSize);
     }
 
     public partial record AddFromGlobalAndConstant : IStackPusher
@@ -366,7 +362,7 @@ namespace VCSFramework.V2
         : Label($"STACK_TYPEOF[{Index}]");
 
     public sealed record StackSizeArrayLabel(int Index)
-        : Label($"STACK_SIZEOF[{Index}]");
+        : BaseSizeLabel($"STACK_SIZEOF[{Index}]");
 
     /// <summary>Type used to indicate a stack element is empty.</summary>
     public struct Nothing { }
