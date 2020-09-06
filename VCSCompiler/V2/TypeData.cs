@@ -24,7 +24,7 @@ namespace VCSCompiler.V2
 
         public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
         {
-            if (type.IsPointer || type.IsPinned)
+            if (type.IsPointer || type.IsPinned || type.IsByReference)
             {
                 // IsPinned catches e.g. System.Byte&
 

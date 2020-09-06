@@ -113,6 +113,13 @@ popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackTyp
 .endmacro
 
 // @GENERATE @POP=1
+popStack .macro stackSize
+	.for i = 0, i < \stackSize, i = i + 1
+		PLA
+	.next
+.endmacro
+
+// @GENERATE @POP=1
 initializeObject .macro size, pointerStackSize
 	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for initializeObject"
 	PLA

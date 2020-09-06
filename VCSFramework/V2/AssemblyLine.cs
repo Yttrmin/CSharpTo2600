@@ -317,6 +317,8 @@ namespace VCSFramework.V2
 
     public abstract record BaseTypeLabel(string Name) : Label(Name);
 
+    // @TODO - This should probably throw on pointer like SizeLabel.
+    // Can have MacroGenerator use BaseTypeLabel too so we can provide either this or PointerTypeLabel.
     public sealed record TypeLabel(TypeReference Type)
         : BaseTypeLabel($"TYPE_{Type.NamespaceAndName()}"), IEquatable<TypeLabel>
     {
@@ -451,7 +453,7 @@ namespace VCSFramework.V2
 
         public static TypeReference ThrowIfPointer(this TypeReference @this)
         {
-            if (@this.IsPointer || @this.IsPinned)
+            if (@this.IsPointer || @this.IsPinned || @this.IsByReference)
                 throw new InvalidOperationException($"Unexpected pointer type: '{@this.FullName}'");
             return @this;
         }

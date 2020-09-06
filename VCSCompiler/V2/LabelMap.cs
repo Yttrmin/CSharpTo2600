@@ -59,8 +59,10 @@ namespace VCSCompiler.V2
                         .OfType<SizeLabel>()
                         .Select(l => l.Type)))
                 .Distinct(new TypeReferenceEqualityComparer());
-            foreach (var type in allTypes)
+            foreach (var typeRef in allTypes)
             {
+                // Resolving pointers returns the type they point to.
+                var type = typeRef.Resolve();
                 // For every type, we give it a type number, give its pointer a type number, and give it a size.
                 // This is to avoid cases where we e.g. generate a pointer type, but not its non-pointer type,
                 // and some function goes to fetch the non-pointer type and fails.
@@ -111,9 +113,12 @@ namespace VCSCompiler.V2
 
         private class TypeReferenceEqualityComparer : EqualityComparer<TypeReference>
         {
-            public override bool Equals(TypeReference? x, TypeReference? y) => x?.FullName?.Equals(y?.FullName) ?? false;
+            public override bool Equals(TypeReference? x, TypeReference? y) => x != null && TrimSymbols(x) == TrimSymbols(y);
 
-            public override int GetHashCode(TypeReference obj) => obj.ToString().GetHashCode();
+            public override int GetHashCode(TypeReference obj) => TrimSymbols(obj).GetHashCode();
+
+            [return: NotNullIfNotNull("obj")]
+            private string? TrimSymbols(TypeReference? obj) => obj?.FullName?.Replace("*", "")?.Replace("&", "");
         }
     }
 }

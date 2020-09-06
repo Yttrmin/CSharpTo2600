@@ -40,6 +40,7 @@ namespace VCSCompiler.V2
 
         public static BaseSizeLabel FieldSize(FieldReference field)
         {
+            // @TODO - IsByRef?
             if (field.FieldType.IsPointer)
             {
                 return new PointerSizeLabel(true);
@@ -49,11 +50,12 @@ namespace VCSCompiler.V2
 
         public static BaseSizeLabel LocalSize(VariableDefinition variable)
         {
-            if (variable.VariableType.IsPointer || variable.VariableType.IsPinned)
+            var type = variable.VariableType;
+            if (type.IsPointer || type.IsPinned || type.IsByReference)
             {
                 return new PointerSizeLabel(true);
             }
-            return new SizeLabel(variable.VariableType);
+            return new SizeLabel(type);
         }
 
         public static TypeLabel Type(TypeReference type)

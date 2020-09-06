@@ -360,6 +360,11 @@ namespace VCSCompiler.V2
 			yield break;
         }
 
+		private IEnumerable<AssemblyEntry> Pop(Instruction instruction)
+        {
+			yield return new PopStack(instruction, new(0));
+        }
+
 		private IEnumerable<AssemblyEntry> Or(Instruction instruction)
         {
 			yield return new OrFromStack(instruction, new(1), new(1), new(0), new(0));
