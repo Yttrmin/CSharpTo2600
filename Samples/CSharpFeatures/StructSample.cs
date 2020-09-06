@@ -11,11 +11,12 @@ namespace Samples.CSharpFeatures
 
         public static void Main()
         {
-            MultiByteStruct.ValueB = 0;
+            MultiByteStruct.ValueA = 1;
             while (true)
             {
-                SingleByteStruct.Value++;
-                ColuBk = SingleByteStruct.Value;
+                MultiByteStruct.ValueB = (byte)(SingleByteStruct.Value + MultiByteStruct.ValueA);
+                ColuBk = MultiByteStruct.ValueB;
+                SingleByteStruct.Value = MultiByteStruct.ValueB;
             }
         }
     }

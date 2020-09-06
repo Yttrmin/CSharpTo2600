@@ -92,7 +92,7 @@ popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackTyp
 		TAY
 		PLA
 		TAX
-		STY 0,X
+		STY \offsetConstant,X
 	.endif
 .endmacro
 
