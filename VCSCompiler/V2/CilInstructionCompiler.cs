@@ -148,7 +148,7 @@ namespace VCSCompiler.V2
             {
 				var variable = MethodDefinition.Body.Variables[index];
 				var variableType = variable.VariableType;
-				yield return new PushLocal(instruction, new(MethodDefinition, index), new(variableType), new(variableType));
+				yield return new PushLocal(instruction, new(MethodDefinition, index), new(variableType), LabelGenerator.LocalSize(variable));
             }
         }
 
@@ -171,7 +171,7 @@ namespace VCSCompiler.V2
             {
 				var variable = MethodDefinition.Body.Variables[index];
 				var variableType = variable.VariableType;
-				yield return new PopToLocal(instruction, new(MethodDefinition, index), new(variableType), new(variableType), new(0), new(0));
+				yield return new PopToLocal(instruction, new(MethodDefinition, index), new(variableType), LabelGenerator.LocalSize(variable), new(0), new(0));
             }
         }
 
@@ -236,7 +236,7 @@ namespace VCSCompiler.V2
 			else if(method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
             {
 				var type = method.ReturnType;
-				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, true), new(type), new(type));
+				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, true), new(type), new SizeLabel(type));
             }
 			else if (method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _))
             {
@@ -315,7 +315,7 @@ namespace VCSCompiler.V2
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
 			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
-			var fieldSizeLabel = LabelGenerator.Size(field.FieldType);
+			var fieldSizeLabel = LabelGenerator.FieldSize(field);
 
 			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
 		}
@@ -356,7 +356,7 @@ namespace VCSCompiler.V2
 			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
 			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
-			var fieldSizeLabel = LabelGenerator.Size(field.FieldType);
+			var fieldSizeLabel = LabelGenerator.FieldSize(field);
 
 			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
         }

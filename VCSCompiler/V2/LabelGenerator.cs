@@ -38,6 +38,24 @@ namespace VCSCompiler.V2
         public static MethodLabel InlineFunction(MethodDefinition method)
             => new(method, true);
 
+        public static BaseSizeLabel FieldSize(FieldReference field)
+        {
+            if (field.FieldType.IsPointer)
+            {
+                return new PointerSizeLabel(true);
+            }
+            return new SizeLabel(field.FieldType);
+        }
+
+        public static BaseSizeLabel LocalSize(VariableDefinition variable)
+        {
+            if (variable.VariableType.IsPointer || variable.VariableType.IsPinned)
+            {
+                return new PointerSizeLabel(true);
+            }
+            return new SizeLabel(variable.VariableType);
+        }
+
         public static TypeLabel Type(TypeReference type)
             => new(type);
     }

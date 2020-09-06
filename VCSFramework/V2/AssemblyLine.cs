@@ -103,7 +103,7 @@ namespace VCSFramework.V2
     public partial record PushGlobal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
+            => stackTracker.Push((TypeLabel)parameters[1], (BaseSizeLabel)parameters[2]);
     }
 
     public partial record PushAddressOfGlobal : IStackPusher
@@ -162,7 +162,7 @@ namespace VCSFramework.V2
     public partial record PushLocal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
+            => stackTracker.Push((TypeLabel)parameters[1], (BaseSizeLabel)parameters[2]);
     }
 
     public partial record SubFromStack : IStackPusher
@@ -189,7 +189,7 @@ namespace VCSFramework.V2
 
     public sealed record AssignConstantToGlobal : Macro
     {
-        public AssignConstantToGlobal(IEnumerable<Instruction> instructions, ConstantLabel constant, GlobalLabel global, SizeLabel size)
+        public AssignConstantToGlobal(IEnumerable<Instruction> instructions, ConstantLabel constant, GlobalLabel global, BaseSizeLabel size)
             : base(instructions, new MacroLabel("assignConstantToGlobal"), constant, global, size) { }
     }
 
@@ -297,7 +297,7 @@ namespace VCSFramework.V2
 
     /// <summary>Label referring to the size of a type.</summary>
     public sealed record SizeLabel(TypeReference Type)
-        : BaseSizeLabel($"SIZE_{Type.NamespaceAndName()}"), IEquatable<SizeLabel>
+        : BaseSizeLabel($"SIZE_{Type.ThrowIfPointer().NamespaceAndName()}"), IEquatable<SizeLabel>
     {
         // Some types are different but produce the same strings (e.g. Byte* and Byte&).
         // So compare the label name and not the actual types.
@@ -420,6 +420,13 @@ namespace VCSFramework.V2
             // or similar, I feel the distinction isn't important here. Hopefully.
             var formattedName = @this.Name.Replace("*", "_PTR").Replace("&", "_PTR");
             return $"{formattedNamespace}_{formattedName}";
+        }
+
+        public static TypeReference ThrowIfPointer(this TypeReference @this)
+        {
+            if (@this.IsPointer || @this.IsPinned)
+                throw new InvalidOperationException($"Unexpected pointer type: '{@this.FullName}'");
+            return @this;
         }
     }
 }

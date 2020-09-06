@@ -158,7 +158,7 @@ namespace VCSFramework.V2
             else if (variableName.EndsWith("Type", StringComparison.CurrentCultureIgnoreCase))
                 return "TypeLabel";
             else if (variableName.EndsWith("Size", StringComparison.CurrentCultureIgnoreCase))
-                return "SizeLabel";
+                return "BaseSizeLabel";
             else if (variableName.EndsWith("Global", StringComparison.CurrentCultureIgnoreCase))
                 return "GlobalLabel";
             else if (variableName.EndsWith("Local", StringComparison.CurrentCultureIgnoreCase))
