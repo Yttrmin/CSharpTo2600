@@ -210,7 +210,19 @@ namespace VCSCompiler.V2
         {
             if (lineStart != lineEnd)
             {
-                throw new ArgumentException("Don't support multi-line source snippets yet.");
+                // Multi-line comment support.
+                var allLines = new List<string>();
+                var startLine = sourceText[lineStart - 1];
+                var subStartLine = startLine[(columnStart - 1)..];
+                allLines.Add(subStartLine);
+                for (var i = lineStart; i < lineEnd - 1; i++)
+                {
+                    allLines.Add(sourceText[i]);
+                }
+                var endLine = sourceText[lineEnd - 1];
+                var subEndLine = endLine[..(columnEnd - 1)];
+                allLines.Add(subEndLine);
+                return allLines;
             }
             var line = sourceText[lineStart - 1];
             var subLine = line[(columnStart-1)..(columnEnd-1)];
