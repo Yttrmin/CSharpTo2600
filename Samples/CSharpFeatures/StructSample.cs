@@ -15,13 +15,13 @@ namespace Samples.CSharpFeatures
             _CompositeStruct = new CompositeStruct
             {
                 Value = 0x12,
-                StructA = new MultiByteStruct
+                StructA = new SequentialStruct
                 {
                     ValueA = 0x1,
                     ValueB = 0x56,
                     ValueC = 0x78
                 },
-                StructB = new SingleByteStruct
+                StructB = new AutoStruct
                 {
                     Value = 0x9A
                 }
@@ -61,9 +61,9 @@ namespace Samples.CSharpFeatures
             [FieldOffset(0)]
             public byte Value;
             [FieldOffset(1)]
-            public MultiByteStruct StructA;
+            public SequentialStruct StructA;
             [FieldOffset(9)]
-            public SingleByteStruct StructB;
+            public AutoStruct StructB;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -77,9 +77,7 @@ namespace Samples.CSharpFeatures
         [StructLayout(LayoutKind.Auto)]
         struct AutoStruct
         {
-            public byte ValueA;
-            public byte ValueB;
-            public byte ValueC;
+            public byte Value;
         }
     }
 }

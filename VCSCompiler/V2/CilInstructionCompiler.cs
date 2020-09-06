@@ -302,10 +302,7 @@ namespace VCSCompiler.V2
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldType = LabelGenerator.Type(field.FieldType);
 			var fieldSize = LabelGenerator.FieldSize(field);
-			var offset = field.Offset;
-			// @TODO - We should be able to calculate this ourselves for sequentially laid out structs, even if that value isn't persisted anywhere.
-			if (offset < 0)
-				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
+			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
 
 			yield return new PushFieldFromStack(instruction, LabelGenerator.Constant((byte)offset), fieldType, fieldSize, new(0), new(0));
 		}
@@ -313,10 +310,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Ldflda(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
-			var offset = field.Offset;
-			// @TODO - We should be able to calculate this ourselves for sequentially laid out structs, even if that value isn't persisted anywhere.
-			if (offset < 0)
-				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
+			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
 
 			// Pops address of object off stack, adds offset to it, pushes it.
 			yield return new PushAddressOfField(instruction, LabelGenerator.Constant((byte)offset), new(field.FieldType), new(0));
@@ -378,10 +372,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Stfld(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
-			var offset = field.Offset;
-			// @TODO - We should be able to calculate this ourselves for sequentially laid out structs, even if that value isn't persisted anywhere.
-			if (offset < 0)
-				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
+			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
 
 			// Value is at stack[0], pointer at stack[1]
 			yield return new PopToFieldFromStack(instruction, LabelGenerator.Constant((byte)offset), new(field.FieldType), LabelGenerator.FieldSize(field), new(1), new(1));

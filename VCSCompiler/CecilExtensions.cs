@@ -14,5 +14,8 @@ namespace VCSCompiler
 		{
 			return @this.Methods.Where(m => m.CustomAttributes.All(a => a.AttributeType.Name != nameof(DoNotCompileAttribute)));
 		}
+
+		public static IEnumerable<FieldDefinition> InstanceFields(this TypeDefinition @this)
+			=> @this.Fields.Where(field => !field.IsStatic);
     }
 }
