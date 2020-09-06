@@ -96,6 +96,17 @@ popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackTyp
 	.endif
 .endmacro
 
+// @GENERATE @POP=1
+initializeObject .macro size, pointerStackSize
+	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for initializeObject"
+	PLA
+	TAX
+	LDA #0
+	.for i = 0, i < \size, i = i + 1
+		STA i,X
+	.next
+.endmacro
+
 // @GENERATE @POP=2
 popToAddressFromStack .macro type, size
 	// The value comes before the address when popping, which makes this WAY harder

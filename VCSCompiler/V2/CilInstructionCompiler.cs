@@ -285,6 +285,12 @@ namespace VCSCompiler.V2
 			yield return new Duplicate(instruction, new(0), new(0));
         }
 
+		private IEnumerable<AssemblyEntry> Initobj(Instruction instruction)
+        {
+			var type = (TypeDefinition)instruction.Operand;
+			yield return new InitializeObject(instruction, new SizeLabel(type), new(0));
+        }
+
 		private IEnumerable<AssemblyEntry> Ldc_I4(Instruction instruction)
 			=> LoadConstant(instruction);
 

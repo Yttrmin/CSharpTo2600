@@ -12,6 +12,7 @@ namespace Samples.CSharpFeatures
 
         public static void Main()
         {
+            CompositeStruct = default;
             MultiByteStruct.ValueA = 1;
             while (true)
             {
