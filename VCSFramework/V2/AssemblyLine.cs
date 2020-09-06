@@ -91,25 +91,25 @@ namespace VCSFramework.V2
     public sealed partial record PushConstant : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], (SizeLabel)parameters[2]);
+            => stackTracker.Push(Type, Size);
     }
 
     public partial record Duplicate : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((StackTypeArrayLabel)parameters[0], (StackSizeArrayLabel)parameters[1]);
+            => stackTracker.Push(StackType, StackSize);
     }
 
     public partial record PushGlobal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], (BaseSizeLabel)parameters[2]);
+            => stackTracker.Push(Type, Size);
     }
 
     public partial record PushAddressOfGlobal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((PointerTypeLabel)parameters[1], new PointerSizeLabel(true));
+            => stackTracker.Push(PointerType, PointerSize);
     }
 
     public partial record PushAddressOfField : IStackPusher
@@ -134,7 +134,7 @@ namespace VCSFramework.V2
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
             => stackTracker.Push(
-                new GetAddResultType((TypeLabel)parameters[1], (TypeLabel)parameters[4]),
+                new GetAddResultType(GlobalType, ConstantType),
                 new GetSizeFromBuiltInType(new(0)));
     }
 
@@ -157,7 +157,7 @@ namespace VCSFramework.V2
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
         {
             stackTracker.Push(
-                new GetAddResultType((StackTypeArrayLabel)parameters[0], (StackTypeArrayLabel)parameters[2]),
+                new GetAddResultType(FirstOperandStackType, SecondOperandStackType),
                 new GetSizeFromBuiltInType(new StackTypeArrayLabel(0)));
         }
     }
@@ -165,7 +165,7 @@ namespace VCSFramework.V2
     public partial record PushLocal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], (BaseSizeLabel)parameters[2]);
+            => stackTracker.Push(Type, Size);
     }
 
     public partial record SubFromStack : IStackPusher
@@ -173,7 +173,7 @@ namespace VCSFramework.V2
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
         {
             stackTracker.Push(
-                new GetAddResultType((StackTypeArrayLabel)parameters[0], (StackTypeArrayLabel)parameters[2]),
+                new GetAddResultType(FirstOperandStackType, SecondOperandStackType),
                 new GetSizeFromBuiltInType(new StackTypeArrayLabel(0)));
         }
     }
@@ -181,7 +181,7 @@ namespace VCSFramework.V2
     public partial record OrFromStack : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(new GetBitOpResultType(new StackTypeArrayLabel(0), new StackTypeArrayLabel(1)), new GetSizeFromBuiltInType(new(0)));
+            => stackTracker.Push(new GetBitOpResultType(FirstOperandStackType, SecondOperandStackType), new GetSizeFromBuiltInType(new(0)));
     }
 
     public partial record CompareEqualToFromStack : IStackPusher
