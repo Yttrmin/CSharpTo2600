@@ -104,6 +104,8 @@ namespace VCSCompiler.V2
 
             AppendLabels(builder);
             builder.AppendLine();
+            AppendFunctions(builder);
+            builder.AppendLine();
             builder.AppendLine(@".include ""vcs.h""");
             builder.AppendLine(@".include ""vil.h""");
             builder.AppendLine();
@@ -264,6 +266,94 @@ namespace VCSCompiler.V2
                 builder.AppendLine($"{new PointerSizeLabel(true)} = 1");
                 builder.AppendLine($"{new PointerSizeLabel(false)} = 2");
                 builder.AppendLine(new Comment("End Types"));
+            }
+        }
+
+        private void AppendFunctions(StringBuilder builder)
+        {
+            builder.AppendLine(new Comment("Begin VIL-required generated functions."));
+            //AppendGetTypeFromPointerIfElse();
+            AppendGetSizeFromTypeIfElse();
+            builder.AppendLine(new Comment("End VIL-required generated functions."));
+
+            void AppendGetTypeFromPointer()
+            {
+                builder.AppendLine("getTypeFromPointer .function pointerType");
+                builder.AppendLine("  .switch pointerType");
+                foreach (var pair in LabelMap.PointerToType)
+                {
+                    builder.AppendLine($"    .case {pair.Key}");
+                    builder.AppendLine($"      .return {pair.Value}");
+                }
+                builder.AppendLine("  .endswitch");
+                builder.AppendLine(@"  .error ""Unknown pointer type""");
+                builder.AppendLine(".endfunction");
+            }
+
+            void AppendGetSizeFromType()
+            {
+                builder.AppendLine("getSizeFromType .function type");
+                builder.AppendLine("  .switch type");
+                foreach (var pair in LabelMap.TypeToSize)
+                {
+                    builder.AppendLine($"    .case {pair.Key}");
+                    builder.AppendLine($"      .return {pair.Value}");
+                }
+                builder.AppendLine("  .endswitch");
+                builder.AppendLine(@"  .error ""Unknown type""");
+                builder.AppendLine(".endfunction");
+            }
+
+            void AppendGetTypeFromPointerIfElse()
+            {
+                builder.AppendLine("getTypeFromPointer .function pointerType");
+                var isFirst = true;
+                foreach (var pair in LabelMap.PointerToType)
+                {
+                    Foo("pointerType", pair.Key, pair.Value, isFirst, builder);
+                    isFirst = false;
+                }
+                builder.AppendLine("    .else");
+                builder.AppendLine(@"      .error format(""Unknown pointer type ${0}"", pointerType)");
+                builder.AppendLine("      .endif");
+                builder.AppendLine(".endfunction");
+            }
+
+            void AppendGetSizeFromTypeIfElse()
+            {
+                builder.AppendLine("getSizeFromType .function type");
+                builder.AppendLine(".let foo = type"); // @TODO @REPORTME - This line, and its usage in .error, fixes everything.
+                var isFirst = true;
+                foreach (var pair in LabelMap.TypeToSize)
+                {
+                    Foo("type", pair.Key, pair.Value, isFirst, builder);
+                    isFirst = false;
+                }
+                builder.AppendLine("  .else");
+                builder.AppendLine(@"    .error format(""Unknown type ${0} ${1}"", type, foo)");
+                builder.AppendLine("    .endif");
+                builder.AppendLine(".endfunction");
+            }
+
+            void AppendGetTypeFromPointerWrong()
+            {
+                builder.AppendLine("getTypeFromPointer .function pointerType");
+                builder.AppendLine($".return {LabelMap.PointerToType.First().Value}");
+                builder.AppendLine(".endfunction");
+            }
+
+            void AppendGetSizeFromTypeWrong()
+            {
+                builder.AppendLine("getSizeFromType .function type");
+                builder.AppendLine($".return {LabelMap.TypeToSize.First().Value}");
+                builder.AppendLine(".endfunction");
+            }
+
+            static void Foo(string source, Label toCompare, Label toReturn, bool isFirst, StringBuilder builder)
+            {
+                var prefix = isFirst ? ".if" : ".elif";
+                builder.AppendLine($"{prefix} {source} == {toCompare}");
+                builder.AppendLine($".return {toReturn}");
             }
         }
     }

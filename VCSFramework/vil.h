@@ -72,6 +72,16 @@ pushDereferenceFromStack .macro type, size
 	PHA
 .endmacro
 
+// @GENERATE @POP=1 @PUSH=1
+pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
+	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for pushFieldFromStack"
+	.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for pushFieldFromStack"
+	PLA
+	TAX
+	LDA \offsetConstant,X
+	PHA
+.endmacro
+
 // @GENERATE @POP=2
 popToAddressFromStack .macro type, size
 	// The value comes before the address when popping, which makes this WAY harder
@@ -128,6 +138,10 @@ getBitOpResultType .function firstOperandType, secondOperandType
 	.else
 		.error "Unsupported bit op types"
 	.endif
+.endfunction
+
+getTypeFromPointer .function pointerType
+	.return pointerType - 1
 .endfunction
 
 /*

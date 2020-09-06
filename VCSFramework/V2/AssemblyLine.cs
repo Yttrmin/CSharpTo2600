@@ -117,7 +117,7 @@ namespace VCSFramework.V2
         // @TODO - While it may be byte-sized, we need to push an actual pointer type so we can track what it
         // is when we eventually dereference it.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+            => stackTracker.Push(new GetTypeFromPointer(new(0)), new GetSizeFromType(new(0)));
     }
 
     public partial record PushDereferenceFromStack : IStackPusher
@@ -125,6 +125,13 @@ namespace VCSFramework.V2
         // @TODO - Need function for getting non-pointer type from pointer type.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
             => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+    }
+
+    public partial record PushFieldFromStack : IStackPusher
+    {
+        // @TODO - Need function for getting non-pointer type from pointer type.
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push((TypeLabel)parameters[1], (BaseSizeLabel)parameters[2]);
     }
 
     public partial record AddFromGlobalAndConstant : IStackPusher
@@ -402,6 +409,18 @@ namespace VCSFramework.V2
     {
         public GetSizeFromBuiltInType(StackTypeArrayLabel type)
             : base(new FunctionLabel("getSizeFromBuiltInType"), type) { }
+    }
+
+    public sealed record GetTypeFromPointer : Function
+    {
+        public GetTypeFromPointer(StackTypeArrayLabel type)
+            : base(new FunctionLabel("getTypeFromPointer"), type) { }
+    }
+
+    public sealed record GetSizeFromType : Function
+    {
+        public GetSizeFromType(StackTypeArrayLabel type)
+            : base(new FunctionLabel("getSizeFromType"), type) { }
     }
 
     // [StackEffect(POP, 2)]

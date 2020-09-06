@@ -291,6 +291,19 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Ldc_I4_S(Instruction instruction)
 			=> LoadConstant(instruction);
 
+		private IEnumerable<AssemblyEntry> Ldfld(Instruction instruction)
+        {
+			var field = (FieldDefinition)instruction.Operand;
+			var fieldType = LabelGenerator.Type(field.FieldType);
+			var fieldSize = LabelGenerator.FieldSize(field);
+			var offset = field.Offset;
+			// @TODO - We should be able to calculate this ourselves for sequentially laid out structs, even if that value isn't persisted anywhere.
+			if (offset < 0)
+				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
+
+			yield return new PushFieldFromStack(instruction, LabelGenerator.Constant((byte)offset), fieldType, fieldSize, new(0), new(0));
+		}
+
 		private IEnumerable<AssemblyEntry> Ldflda(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
