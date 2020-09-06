@@ -26,7 +26,7 @@ namespace VCSCompiler.V2
         public static ConstantLabel Constant(byte value) => new(value);
 
         public static GlobalLabel Global(FieldReference fieldReference)
-            => new($"GLOBAL_{fieldReference.DeclaringType.NamespaceAndName()}_{fieldReference.Name}");
+            => new($"GLOBAL_{fieldReference.DeclaringType.NamespaceAndName()}_{fieldReference.Name}", fieldReference.FieldType);
 
         public static InstructionLabel Instruction(Instruction instruction)
             => new($"IL_{instruction.Offset:x4}");

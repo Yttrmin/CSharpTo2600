@@ -222,7 +222,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', methods to be replaced with a strobe must take 0 parameters");
                     }
-					yield return new StoreTo(instruction, new GlobalLabel(overrideStore.Symbol, true));
+					yield return new StoreTo(instruction, new GlobalLabel(overrideStore.Symbol, BuiltInDefinitions.Byte, true));
                 }
 				else
                 {
@@ -230,13 +230,13 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
                     }
-					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, true), LabelGenerator.ByteType, LabelGenerator.ByteSize, new(0), new(0));
+					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, BuiltInDefinitions.Byte, true), LabelGenerator.ByteType, LabelGenerator.ByteSize, new(0), new(0));
 				}
             }
 			else if(method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
             {
 				var type = method.ReturnType;
-				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, true), new(type), new SizeLabel(type));
+				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, BuiltInDefinitions.Byte, true), new(type), new SizeLabel(type));
             }
 			else if (method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _))
             {

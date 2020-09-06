@@ -333,7 +333,13 @@ namespace VCSFramework.V2
     }
 
     /// <summary>Label referring to the address of a global.</summary>
-    public sealed record GlobalLabel(string Name, bool Predefined = false) : Label(Name);
+    // @TODO - Could probably go the BaseGlobalLabel route and have a subclass for TypeReference vs predefined Name.
+    public sealed record GlobalLabel(string Name, TypeReference Type, bool Predefined = false) : Label(Name), IEquatable<GlobalLabel>
+    {
+        public bool Equals(GlobalLabel? other) => ToString() == other?.ToString();
+
+        public override int GetHashCode() => ToString().GetHashCode();
+    }
 
     // @TODO - Handle overloaded methods (same name).
     /// <summary>Label referring to the address of a local.</summary>

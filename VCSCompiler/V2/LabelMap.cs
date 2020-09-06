@@ -38,7 +38,7 @@ namespace VCSCompiler.V2
                 .OfType<Macro>()
                 .SelectMany(it => it.Params)
                 .Concat(BuiltInDefinitions.Types.SelectMany(t => new Label[] { new TypeLabel(t), new SizeLabel(t) })) // Force built-in types since there are VIL checks that rely on them.
-                .Prepend(new GlobalLabel("INTERNAL_RESERVED_0")) // @TODO - Find a better way
+                .Prepend(new GlobalLabel("INTERNAL_RESERVED_0", BuiltInDefinitions.Byte)) // @TODO - Find a better way
                 .Where(it => !(it is InstructionLabel))
                 .Where(it => !(it is StackSizeArrayLabel))
                 .Where(it => !(it is StackTypeArrayLabel))
@@ -84,11 +84,13 @@ namespace VCSCompiler.V2
             var ramStart = 0x80;
             foreach (var globalLabel in allLabelParams.OfType<GlobalLabel>().Where(l => !l.Predefined))
             {
-                globalToAddress[globalLabel] = $"${ramStart++:X2}";
+                globalToAddress[globalLabel] = $"${ramStart:X2}";
+                ramStart += TypeData.Of(globalLabel.Type, userAssembly).Size;
             }
             foreach (var localLabel in allLabelParams.OfType<LocalLabel>())
             {
                 localToAddress[localLabel] = $"${ramStart++:X2}";
+                ramStart += TypeData.Of(localLabel.Method.Body.Variables[localLabel.Index].VariableType, userAssembly).Size;
             }
 
             foreach (var method in allLabelParams.OfType<MethodLabel>().Select(l => l.Method).Distinct())
