@@ -12,13 +12,12 @@ namespace Samples.CSharpFeatures
 
         public static void Main()
         {
-
             CompositeStruct = new CompositeStruct
             {
                 Value = 0x12,
                 StructA = new MultiByteStruct
                 {
-                    ValueA = 0x34,
+                    ValueA = 0x1,
                     ValueB = 0x56,
                     ValueC = 0x78
                 },
@@ -29,10 +28,10 @@ namespace Samples.CSharpFeatures
             };
             while (true)
             {
-                //MultiByteStruct.ValueB = (byte)(SingleByteStruct.Value + MultiByteStruct.ValueA);
-                //CompositeStruct.StructA.ValueC = MultiByteStruct.ValueB;
+                MultiByteStruct.ValueB = (byte)(SingleByteStruct.Value + CompositeStruct.StructA.ValueA);
+                CompositeStruct.StructA.ValueC = MultiByteStruct.ValueB;
                 ColuBk = CompositeStruct.StructA.ValueC;
-                //SingleByteStruct.Value = MultiByteStruct.ValueB;
+                SingleByteStruct.Value = MultiByteStruct.ValueB;
             }
         }
     }
