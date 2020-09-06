@@ -54,8 +54,22 @@ namespace VCSCompiler.V2
                 return GetSystemTypeData(type).Size;
             }
 
-            // @TODO - This doesn't account for overlapping [FieldOffset]s (or spaced out ones).
-            return type.Fields.Sum(f => Of(f.FieldType, userAssembly).Size);
+            // @TODO - Throw if Pack!=0/Size!=0 for sequential
+            if (type.IsAutoLayout || type.IsSequentialLayout)
+            {
+                return type.Fields.Sum(f => Of(f.FieldType, userAssembly).Size);
+            }
+            else
+            {
+                // Size of explicit struct is determined by largest FieldOffset+FieldSize struct.
+                // A struct with a single byte at offset 30 would be 31 bytes large.
+                return type.Fields.Select(f =>
+                {
+                    var offset = f.Offset;
+                    var size = TypeData.Of(f.FieldType, userAssembly).Size;
+                    return offset + size;
+                }).Max();
+            }
         }
 
         private static TypeData GetSystemTypeData(TypeDefinition type)

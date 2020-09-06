@@ -62,8 +62,24 @@ namespace Samples.CSharpFeatures
             public byte Value;
             [FieldOffset(1)]
             public MultiByteStruct StructA;
-            [FieldOffset(4)]
+            [FieldOffset(9)]
             public SingleByteStruct StructB;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 0)]
+        struct SequentialStruct
+        {
+            public byte ValueA;
+            public byte ValueB;
+            public byte ValueC;
+        }
+
+        [StructLayout(LayoutKind.Auto)]
+        struct AutoStruct
+        {
+            public byte ValueA;
+            public byte ValueB;
+            public byte ValueC;
         }
     }
 }
