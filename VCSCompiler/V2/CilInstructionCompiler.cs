@@ -267,6 +267,12 @@ namespace VCSCompiler.V2
 			yield break;
         }
 
+		private IEnumerable<AssemblyEntry> Conv_U(Instruction instruction)
+		{
+			// @TODO - Do we need to support this?
+			yield break;
+		}
+
 		private IEnumerable<AssemblyEntry> Conv_U1(Instruction instruction)
         {
 			// @TODO - Do we have to support this? We obviously can't expand byte+byte addition
@@ -293,7 +299,8 @@ namespace VCSCompiler.V2
 			if (offset < 0)
 				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
 
-			yield return new PushAddressOfField(instruction, LabelGenerator.Constant((byte)offset), LabelGenerator.Type(field.FieldType));
+			// Pops address of object off stack, adds offset to it, pushes it.
+			yield return new PushAddressOfField(instruction, LabelGenerator.Constant((byte)offset), new(field.FieldType), new(0));
 		}
 
 		private IEnumerable<AssemblyEntry> Ldind_U1(Instruction instruction)
@@ -318,7 +325,7 @@ namespace VCSCompiler.V2
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
 
-			yield return new PushAddressOfGlobal(instruction, fieldLabel, LabelGenerator.Type(field.FieldType));
+			yield return new PushAddressOfGlobal(instruction, fieldLabel, new(field.FieldType), new(true));
 		}
 
 		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)

@@ -259,6 +259,10 @@ namespace VCSCompiler.V2
                 {
                     builder.AppendLine($"{sizePair.Key} = {sizePair.Value}");
                 }
+                // Print pointer sizes. There's only 2, so, not much point in going through the
+                // LabelMap flow like these other sizes.
+                builder.AppendLine($"{new PointerSizeLabel(true)} = 1");
+                builder.AppendLine($"{new PointerSizeLabel(false)} = 2");
                 builder.AppendLine(new Comment("End Types"));
             }
         }

@@ -109,7 +109,7 @@ namespace VCSFramework.V2
     public partial record PushAddressOfGlobal : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push((TypeLabel)parameters[1], new SizeLabel(BuiltInDefinitions.Byte));
+            => stackTracker.Push((PointerTypeLabel)parameters[1], new PointerSizeLabel(true));
     }
 
     public partial record PushAddressOfField : IStackPusher
@@ -293,33 +293,40 @@ namespace VCSFramework.V2
     public sealed record ConstantLabel(object Value) 
         : Label($"CONST_{Value}");
 
-    /// <summary>Label referring to the size of a type.</summary>
-    public sealed record SizeLabel(TypeReference Type) 
-        : Label($"SIZE_{Type.NamespaceAndName()}"), IEquatable<SizeLabel>
-    {
-        public bool Equals(SizeLabel? other)
-        {
-            return Type.FullName == other?.Type.FullName;
-        }
+    public abstract record BaseSizeLabel(string Name) : Label(Name);
 
-        public override int GetHashCode()
-        {
-            return Type.FullName.GetHashCode();
-        }
+    /// <summary>Label referring to the size of a type.</summary>
+    public sealed record SizeLabel(TypeReference Type)
+        : BaseSizeLabel($"SIZE_{Type.NamespaceAndName()}"), IEquatable<SizeLabel>
+    {
+        // Some types are different but produce the same strings (e.g. Byte* and Byte&).
+        // So compare the label name and not the actual types.
+        public bool Equals(SizeLabel? other) => ToString() == other?.ToString();
+
+        public override int GetHashCode() => ToString().GetHashCode();
     }
 
-    public sealed record TypeLabel(TypeReference Type)
-        : Label($"TYPE_{Type.NamespaceAndName()}"), IEquatable<TypeLabel>
-    {
-        public bool Equals(TypeLabel? other)
-        {
-            return Type.FullName == other?.Type.FullName;
-        }
+    public abstract record BaseTypeLabel(string Name) : Label(Name);
 
-        public override int GetHashCode()
-        {
-            return Type.FullName.GetHashCode();
-        }
+    public sealed record TypeLabel(TypeReference Type)
+        : BaseTypeLabel($"TYPE_{Type.NamespaceAndName()}"), IEquatable<TypeLabel>
+    {
+        // Some types are different but produce the same strings (e.g. Byte* and Byte&).
+        // So compare the label name and not the actual types.
+        public bool Equals(TypeLabel? other) => ToString() == other?.ToString();
+
+        public override int GetHashCode() => ToString().GetHashCode();
+    }
+
+    public sealed record PointerSizeLabel(bool ZeroPage)
+        : BaseSizeLabel(ZeroPage ? "SIZE_SHORT_POINTER" : "SIZE_LONG_POINTER");
+
+    public sealed record PointerTypeLabel(TypeReference Type)
+        : BaseTypeLabel($"TYPE_{Type.NamespaceAndName()}_PTR"), IEquatable<PointerTypeLabel>
+    {
+        public bool Equals(PointerTypeLabel? other) => ToString() == other?.ToString();
+
+        public override int GetHashCode() => ToString().GetHashCode();
     }
 
     /// <summary>Label referring to the address of a global.</summary>
@@ -408,7 +415,10 @@ namespace VCSFramework.V2
         public static string NamespaceAndName(this TypeReference @this)
         {
             var formattedNamespace = @this.Namespace.Replace('.', '_');
-            var formattedName = @this.Name.Replace("*", "_PTR");
+            // & = managed pointers in CIL, versus unmanaged pointers.
+            // Considering we have no garbage collector, or actual managed memory,
+            // or similar, I feel the distinction isn't important here. Hopefully.
+            var formattedName = @this.Name.Replace("*", "_PTR").Replace("&", "_PTR");
             return $"{formattedNamespace}_{formattedName}";
         }
     }

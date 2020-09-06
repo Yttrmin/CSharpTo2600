@@ -16,7 +16,7 @@ namespace VCSCompiler.V2
             public abstract string SizeString { get; }
         }
 
-        private sealed record TypedStackElement(TypeLabel Type, SizeLabel Size)
+        private sealed record TypedStackElement(BaseTypeLabel Type, BaseSizeLabel Size)
             : BaseStackElement
         {
             public static TypedStackElement Nothing
@@ -73,6 +73,14 @@ namespace VCSCompiler.V2
         }
 
         public void Push(TypeLabel type, SizeLabel size)
+        {
+            CheckDepth();
+            PercolateUp();
+
+            StackState[0] = new TypedStackElement(type, size);
+        }
+
+        public void Push(PointerTypeLabel type, PointerSizeLabel size)
         {
             CheckDepth();
             PercolateUp();

@@ -151,6 +151,10 @@ namespace VCSFramework.V2
                 return "StackTypeArrayLabel";
             else if (variableName.EndsWith("StackSize", StringComparison.CurrentCultureIgnoreCase))
                 return "StackSizeArrayLabel";
+            else if (variableName.EndsWith("PointerType", StringComparison.CurrentCultureIgnoreCase))
+                return "PointerTypeLabel";
+            else if (variableName.EndsWith("PointerSize", StringComparison.CurrentCultureIgnoreCase))
+                return "PointerSizeLabel";
             else if (variableName.EndsWith("Type", StringComparison.CurrentCultureIgnoreCase))
                 return "TypeLabel";
             else if (variableName.EndsWith("Size", StringComparison.CurrentCultureIgnoreCase))

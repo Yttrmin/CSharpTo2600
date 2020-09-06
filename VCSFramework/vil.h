@@ -47,13 +47,15 @@ pushGlobal .macro global, type, size
 .endmacro
 
 // @GENERATE @PUSH=1
-pushAddressOfGlobal .macro global, globalType
+pushAddressOfGlobal .macro global, pointerType, pointerSize
+	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfGlobal"
 	LDA #\global
 	PHA
 .endmacro
 
 // @GENERATE @POP=1 @PUSH=1
-pushAddressOfField .macro offsetConstant, fieldType
+pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
+	.errorif \pointerStackSize != 1, "Currently only zero-page pointers are supported for pushAddressOfField"
 	PLA
 	CLC
 	ADC \offsetConstant
@@ -91,10 +93,6 @@ popToGlobal .macro global, globalType, globalSize, stackType, stackSize
 	// CIL may do things like push a byte and pop to a bool. If we're storing
 	// to a built-in short int assume this is correct and just pop the
 	// last x bytes.
-	.if isShortInteger(\globalType) == true
-	.else
-		.errorif \globalType != \stackType, "popToGlobal to @{global}: type mismatch."
-	.endif
 	.errorif \globalSize != 1, "size not 1"
 	.errorif \stackSize != 1, "size not 1"
 	.for i = \global + \globalSize - 1, i >= \global, i = i - 1

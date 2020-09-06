@@ -12,7 +12,7 @@ namespace VCSCompiler.V2
         public ImmutableDictionary<GlobalLabel, string> GlobalToAddress { get; }
         public ImmutableDictionary<LocalLabel, string> LocalToAddress { get; }
         public ImmutableDictionary<ConstantLabel, string> ConstantToValue { get; }
-        public ImmutableDictionary<TypeLabel, string> TypeToString { get; }
+        public ImmutableDictionary<BaseTypeLabel, string> TypeToString { get; }
         public ImmutableDictionary<SizeLabel, string> SizeToValue { get; }
         public ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> FunctionToBody { get; }
 
@@ -23,7 +23,7 @@ namespace VCSCompiler.V2
             var globalToAddress = new Dictionary<GlobalLabel, string>();
             var localToAddress = new Dictionary<LocalLabel, string>();
             var constantToValue = new Dictionary<ConstantLabel, string>();
-            var typeToString = new Dictionary<TypeLabel, string>();
+            var typeToString = new Dictionary<BaseTypeLabel, string>();
             var sizeToValue = new Dictionary<SizeLabel, string>();
             var functionToBody = new Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>>();
 

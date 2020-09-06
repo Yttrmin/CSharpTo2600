@@ -24,8 +24,10 @@ namespace VCSCompiler.V2
 
         public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
         {
-            if (type.IsPointer)
+            if (type.IsPointer || type.IsPinned)
             {
+                // IsPinned catches e.g. System.Byte&
+
                 // Pointer types have no TypeDefinition. Attempting to Resolve() them just
                 // produces their non-pointer type.
                 // @TODO - We assume these are always zero-page pointers. Will have to figure
