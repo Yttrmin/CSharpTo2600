@@ -6,7 +6,9 @@ using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
-    internal sealed record TypeData(TypeDefinition Type, int Size)
+    // @TODO - Unless we find a need for other data this can probably
+    // just be a util that returns size.
+    internal sealed record TypeData(TypeDefinition? Type, int Size)
     {
         public static TypeData Byte { get; } = new(GetBuiltInTypeDef<byte>(), 1);
 
@@ -22,6 +24,18 @@ namespace VCSCompiler.V2
 
         public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
         {
+            if (type.IsPointer)
+            {
+                // Pointer types have no TypeDefinition. Attempting to Resolve() them just
+                // produces their non-pointer type.
+                // @TODO - We assume these are always zero-page pointers. Will have to figure
+                // something out for pointers to ROM (use arrays instead?)
+                // @TODO - Zero-page pointers also won't work for cartridge types that map
+                // extra RAM outside of the zero-page.
+                // @TODO - Depending on how plausible optimizing is, we could always use
+                // 16-bit pointers and hope enough of it is optimized away...
+                return new(null, 1);
+            }
             var typeDef = BuiltInDefinitions.Types
                 .Concat(userAssembly.CompilableTypes())
                 .Single(t => t.FullName == type.FullName);

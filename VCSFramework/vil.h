@@ -47,17 +47,41 @@ pushGlobal .macro global, type, size
 .endmacro
 
 // @GENERATE @PUSH=1
-pushAddressOfGlobal .macro global
+pushAddressOfGlobal .macro global, globalType
 	LDA #\global
 	PHA
 .endmacro
 
 // @GENERATE @POP=1 @PUSH=1
-pushAddressOfField .macro offsetConstant
+pushAddressOfField .macro offsetConstant, fieldType
 	PLA
 	CLC
 	ADC \offsetConstant
 	PHA
+.endmacro
+
+// @GENERATE @POP=1 @PUSH=1
+pushDereferenceFromStack .macro type, size
+	// Need to figure out the non-pointer version of what this pointer is pointing to.
+	.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack"
+	PLA
+	TAX
+	LDA 0,X
+	PHA
+.endmacro
+
+// @GENERATE @POP=2
+popToAddressFromStack .macro type, size
+	// The value comes before the address when popping, which makes this WAY harder
+	// than it has to be.
+	.errorif \size != 1, "Currently, only 1-byte sizes are supported for popToAddressFromStack"
+	.if \size == 1
+		PLA
+		TAY // Stick value in Y.
+		PLA
+		TAX // Stick address in X.
+		STY 0,X
+	.endif
 .endmacro
 
 // @GENERATE @POP=1

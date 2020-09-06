@@ -261,6 +261,12 @@ namespace VCSCompiler.V2
 			yield return new CompareEqualToFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
+		private IEnumerable<AssemblyEntry> Conv_I(Instruction instruction)
+        {
+			// @TODO - Do we need to support this?
+			yield break;
+        }
+
 		private IEnumerable<AssemblyEntry> Conv_U1(Instruction instruction)
         {
 			// @TODO - Do we have to support this? We obviously can't expand byte+byte addition
@@ -287,8 +293,13 @@ namespace VCSCompiler.V2
 			if (offset < 0)
 				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
 
-			yield return new PushAddressOfField(instruction, LabelGenerator.Constant((byte)offset));
+			yield return new PushAddressOfField(instruction, LabelGenerator.Constant((byte)offset), LabelGenerator.Type(field.FieldType));
 		}
+
+		private IEnumerable<AssemblyEntry> Ldind_U1(Instruction instruction)
+        {
+			yield return new PushDereferenceFromStack(instruction, LabelGenerator.ByteType, LabelGenerator.ByteSize);
+        }
 
 		private IEnumerable<AssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
 
@@ -307,7 +318,7 @@ namespace VCSCompiler.V2
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
 
-			yield return new PushAddressOfGlobal(instruction, fieldLabel);
+			yield return new PushAddressOfGlobal(instruction, fieldLabel, LabelGenerator.Type(field.FieldType));
 		}
 
 		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)
@@ -323,6 +334,12 @@ namespace VCSCompiler.V2
 		private IEnumerable<AssemblyEntry> Ret(Instruction instruction)
         {
 			yield return new ReturnFromCall(instruction);
+        }
+
+		private IEnumerable<AssemblyEntry> Stind_I1(Instruction instruction)
+        {
+			// Stind.i1 is also used to store to bytes.
+			yield return new PopToAddressFromStack(instruction, LabelGenerator.ByteType, LabelGenerator.ByteSize);
         }
 
 		private IEnumerable<AssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);

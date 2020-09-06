@@ -12,16 +12,16 @@ namespace VCSCompiler.V2
             => new(typeReference);
 
         public static SizeLabel ByteSize
-            => new(TypeData.Byte.Type);
+            => new(BuiltInDefinitions.Byte);
 
         public static TypeLabel ByteType
-            => new(TypeData.Byte.Type);
+            => new(BuiltInDefinitions.Byte);
 
         public static TypeLabel NothingType
-            => new(TypeData.Nothing.Type);
+            => new(BuiltInDefinitions.Nothing);
 
         public static SizeLabel NothingSize
-            => new(TypeData.Nothing.Type);
+            => new(BuiltInDefinitions.Nothing);
 
         public static ConstantLabel Constant(byte value) => new(value);
 

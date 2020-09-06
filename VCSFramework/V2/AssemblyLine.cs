@@ -108,16 +108,21 @@ namespace VCSFramework.V2
 
     public partial record PushAddressOfGlobal : IStackPusher
     {
-        // @TODO - While it may be byte-sized, we need to push an actual pointer type so we can track what it
-        // is when we eventually dereference it.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
-            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+            => stackTracker.Push((TypeLabel)parameters[1], new SizeLabel(BuiltInDefinitions.Byte));
     }
 
     public partial record PushAddressOfField : IStackPusher
     {
         // @TODO - While it may be byte-sized, we need to push an actual pointer type so we can track what it
         // is when we eventually dereference it.
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
+    }
+
+    public partial record PushDereferenceFromStack : IStackPusher
+    {
+        // @TODO - Need function for getting non-pointer type from pointer type.
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
             => stackTracker.Push(new TypeLabel(BuiltInDefinitions.Byte), new SizeLabel(BuiltInDefinitions.Byte));
     }
@@ -403,7 +408,8 @@ namespace VCSFramework.V2
         public static string NamespaceAndName(this TypeReference @this)
         {
             var formattedNamespace = @this.Namespace.Replace('.', '_');
-            return $"{formattedNamespace}_{@this.Name}";
+            var formattedName = @this.Name.Replace("*", "_PTR");
+            return $"{formattedNamespace}_{formattedName}";
         }
     }
 }
