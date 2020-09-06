@@ -7,6 +7,7 @@ namespace Samples.CSharpFeatures
     static class StructSample
     {
         private static MultiByteStruct MultiByteStruct;
+        private static CompositeStruct CompositeStruct;
         private static SingleByteStruct SingleByteStruct;
 
         public static void Main()
@@ -15,7 +16,8 @@ namespace Samples.CSharpFeatures
             while (true)
             {
                 MultiByteStruct.ValueB = (byte)(SingleByteStruct.Value + MultiByteStruct.ValueA);
-                ColuBk = MultiByteStruct.ValueB;
+                CompositeStruct.StructA.ValueC = MultiByteStruct.ValueB;
+                ColuBk = CompositeStruct.StructA.ValueC;
                 SingleByteStruct.Value = MultiByteStruct.ValueB;
             }
         }
@@ -39,5 +41,16 @@ namespace Samples.CSharpFeatures
         public byte ValueB;
         [FieldOffset(2)]
         public byte ValueC;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    struct CompositeStruct
+    {
+        [FieldOffset(0)]
+        public byte Value;
+        [FieldOffset(1)]
+        public MultiByteStruct StructA;
+        [FieldOffset(4)]
+        public SingleByteStruct StructB;
     }
 }

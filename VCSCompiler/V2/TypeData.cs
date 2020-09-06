@@ -54,6 +54,7 @@ namespace VCSCompiler.V2
                 return GetSystemTypeData(type).Size;
             }
 
+            // @TODO - This doesn't account for overlapping [FieldOffset]s (or spaced out ones).
             return type.Fields.Sum(f => Of(f.FieldType, userAssembly).Size);
         }
 
