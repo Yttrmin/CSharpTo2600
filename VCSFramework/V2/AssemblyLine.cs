@@ -112,6 +112,12 @@ namespace VCSFramework.V2
             => stackTracker.Push(PointerType, PointerSize);
     }
 
+    public partial record PushAddressOfLocal : IStackPusher
+    {
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(PointerType, PointerSize);
+    }
+
     public partial record PushAddressOfField : IStackPusher
     {
         public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)

@@ -53,6 +53,13 @@ pushAddressOfGlobal .macro global, pointerType, pointerSize
 	PHA
 .endmacro
 
+// @GENERATE @PUSH=1
+pushAddressOfLocal .macro local, pointerType, pointerSize
+	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfLocal"
+	LDA #\local
+	PHA
+.endmacro
+
 // @GENERATE @POP=1 @PUSH=1
 pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 	.errorif \pointerStackSize != 1, "Currently only zero-page pointers are supported for pushAddressOfField"
@@ -85,7 +92,6 @@ pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType
 // @GENERATE @POP=2
 popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
 	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for popToFieldFromStack"
-	.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for popToFieldFromStack"
 	// Value is popped first, then address
 	.if \fieldSize == 1 && \pointerStackSize == 1
 		PLA
@@ -93,6 +99,16 @@ popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackTyp
 		PLA
 		TAX
 		STY \offsetConstant,X
+	.endif
+	.if \fieldSize != 1 && \pointerStackSize == 1 // @TODO @REPORTME - Really doesn't like elif
+		TSX // Use stack pointer to skip over value in stack. Remember SP points to NEXT stack location, not current (so add 1).
+		LDA \fieldSize + 1,X
+		TAX // Fetch pointer and store in X.
+		.for i = \fieldSize - 1, i >= 0, i = i - 1
+			PLA
+			STA \offsetConstant + i,X
+		.next
+		PLA // Pop pointer.
 	.endif
 .endmacro
 
@@ -128,11 +144,10 @@ popToGlobal .macro global, globalType, globalSize, stackType, stackSize
 	// CIL may do things like push a byte and pop to a bool. If we're storing
 	// to a built-in short int assume this is correct and just pop the
 	// last x bytes.
-	.errorif \globalSize != 1, "size not 1"
-	.errorif \stackSize != 1, "size not 1"
+	.errorif \globalSize != \stackSize, "Global/stack size mismatch for popToGlobal"
 	.for i = \global + \globalSize - 1, i >= \global, i = i - 1
 		PLA
-		STA \global
+		STA i
 	.next
 .endmacro
 

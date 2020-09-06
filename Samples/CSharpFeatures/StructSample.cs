@@ -12,14 +12,27 @@ namespace Samples.CSharpFeatures
 
         public static void Main()
         {
-            CompositeStruct = default;
-            MultiByteStruct.ValueA = 1;
+
+            CompositeStruct = new CompositeStruct
+            {
+                Value = 0x12,
+                StructA = new MultiByteStruct
+                {
+                    ValueA = 0x34,
+                    ValueB = 0x56,
+                    ValueC = 0x78
+                },
+                StructB = new SingleByteStruct
+                {
+                    Value = 0x9A
+                }
+            };
             while (true)
             {
-                MultiByteStruct.ValueB = (byte)(SingleByteStruct.Value + MultiByteStruct.ValueA);
-                CompositeStruct.StructA.ValueC = MultiByteStruct.ValueB;
+                //MultiByteStruct.ValueB = (byte)(SingleByteStruct.Value + MultiByteStruct.ValueA);
+                //CompositeStruct.StructA.ValueC = MultiByteStruct.ValueB;
                 ColuBk = CompositeStruct.StructA.ValueC;
-                SingleByteStruct.Value = MultiByteStruct.ValueB;
+                //SingleByteStruct.Value = MultiByteStruct.ValueB;
             }
         }
     }
