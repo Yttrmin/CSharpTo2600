@@ -12,8 +12,7 @@ namespace Samples.CSharpFeatures
         {
             while (true)
             {
-                *Value += 1;
-                //ColuBk = *Value;
+                *Value = 1;
                 fixed (byte* ptr = &BackgroundColor)
                 {
                     *ptr += *Value;
