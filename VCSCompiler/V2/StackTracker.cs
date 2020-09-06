@@ -40,6 +40,8 @@ namespace VCSCompiler.V2
             public override string TypeString => new StackTypeArrayLabel(Index);
 
             public override string SizeString => new StackSizeArrayLabel(Index);
+
+            public override string ToString() => $"Stack[{Index}]";
         }
 
         private static readonly LetLabel StackTypeLabel = new("STACK_TYPEOF");
@@ -163,7 +165,10 @@ namespace VCSCompiler.V2
 
         private void PercolateUp()
         {
-            for (var i = 1; i < StackState.Length; i++)
+            // [0, 1, 2, 3, 4]
+            // ->
+            // [0, 0, 1, 2, 3]
+            for (var i = StackState.Length - 1; i > 0; i--)
             {
                 StackState[i] = StackState[i - 1];
             }
