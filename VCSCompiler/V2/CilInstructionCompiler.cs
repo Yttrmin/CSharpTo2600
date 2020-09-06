@@ -356,6 +356,17 @@ namespace VCSCompiler.V2
 			yield return new ReturnFromCall(instruction);
         }
 
+		private IEnumerable<AssemblyEntry> Stfld(Instruction instruction)
+        {
+			var field = (FieldDefinition)instruction.Operand;
+			var offset = field.Offset;
+			// @TODO - We should be able to calculate this ourselves for sequentially laid out structs, even if that value isn't persisted anywhere.
+			if (offset < 0)
+				throw new InvalidOperationException($"Field '{field.FullName}' has a negative offset. Currently, only structs marked with [StructLayout(LayoutKind.Explicit)] are supported, are you using it on {field.DeclaringType.Name}?");
+
+			yield return new PopToFieldFromStack(instruction, LabelGenerator.Constant((byte)offset), new(field.FieldType), LabelGenerator.FieldSize(field), new(0), new(0));
+        }
+
 		private IEnumerable<AssemblyEntry> Stind_I1(Instruction instruction)
         {
 			// Stind.i1 is also used to store to bytes.

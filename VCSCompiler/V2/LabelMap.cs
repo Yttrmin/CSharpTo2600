@@ -70,6 +70,7 @@ namespace VCSCompiler.V2
                 typeToString[new TypeLabel(type)] = thisTypeNumber.ToString();
                 // Pointer types use the same number as the type they're pointing to, but with the LSB set to 1.
                 typeToString[new PointerTypeLabel(type)] = (thisTypeNumber | 0x1).ToString();
+                pointerToType[new PointerTypeLabel(type)] = new TypeLabel(type);
                 sizeToValue[new SizeLabel(type)] = $"{TypeData.Of(type, userAssembly).Size}";
                 typeToSize[new TypeLabel(type)] = new SizeLabel(type);
             }
@@ -88,11 +89,6 @@ namespace VCSCompiler.V2
             foreach (var localLabel in allLabelParams.OfType<LocalLabel>())
             {
                 localToAddress[localLabel] = $"${ramStart++:X2}";
-            }
-
-            foreach (var pointerType in allLabelParams.OfType<PointerTypeLabel>())
-            {
-                pointerToType[pointerType] = new TypeLabel(pointerType.Type);
             }
 
             foreach (var method in allLabelParams.OfType<MethodLabel>().Select(l => l.Method).Distinct())

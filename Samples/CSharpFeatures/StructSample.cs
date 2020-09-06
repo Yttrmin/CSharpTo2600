@@ -6,10 +6,12 @@ namespace Samples.CSharpFeatures
     // Not a proper VCS program.
     static class StructSample
     {
+        private static MultiByteStruct MultiByteStruct;
         private static SingleByteStruct SingleByteStruct;
 
         public static void Main()
         {
+            MultiByteStruct.ValueB = 0;
             while (true)
             {
                 SingleByteStruct.Value++;
@@ -25,5 +27,16 @@ namespace Samples.CSharpFeatures
         // Note static values already work out of the box.
         [FieldOffset(0)]
         public byte Value;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    struct MultiByteStruct
+    {
+        [FieldOffset(0)]
+        public byte ValueA;
+        [FieldOffset(1)]
+        public byte ValueB;
+        [FieldOffset(2)]
+        public byte ValueC;
     }
 }

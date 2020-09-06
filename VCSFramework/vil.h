@@ -83,6 +83,20 @@ pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType
 .endmacro
 
 // @GENERATE @POP=2
+popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
+	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for popToFieldFromStack"
+	.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for popToFieldFromStack"
+	// Value is popped first, then address
+	.if \fieldSize == 1 && \pointerStackSize == 1
+		PLA
+		TAY
+		PLA
+		TAX
+		STY 0,X
+	.endif
+.endmacro
+
+// @GENERATE @POP=2
 popToAddressFromStack .macro type, size
 	// The value comes before the address when popping, which makes this WAY harder
 	// than it has to be.

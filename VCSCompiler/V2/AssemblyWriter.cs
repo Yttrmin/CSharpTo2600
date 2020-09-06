@@ -104,8 +104,8 @@ namespace VCSCompiler.V2
 
             AppendLabels(builder);
             builder.AppendLine();
-            AppendFunctions(builder);
-            builder.AppendLine();
+            //AppendFunctions(builder);
+            //builder.AppendLine();
             builder.AppendLine(@".include ""vcs.h""");
             builder.AppendLine(@".include ""vil.h""");
             builder.AppendLine();
