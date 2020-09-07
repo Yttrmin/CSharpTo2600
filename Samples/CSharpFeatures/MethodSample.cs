@@ -10,7 +10,6 @@ namespace Samples.CSharpFeatures
         {
             while (true)
             {
-                // @TODO - This is broken until we support ldfld against instances.
                 ColuBk = GetColorContainingStruct().ValueB;
             }
         }
@@ -25,13 +24,19 @@ namespace Samples.CSharpFeatures
 
         private static ReturnStruct GetColorContainingStruct()
         {
-            var newColor = BackgroundColor++;
+            var newColor = (byte)(BackgroundColor + ReturnByte());
+            BackgroundColor = newColor;
             return new ReturnStruct
             {
                 ValueA = default,
                 ValueB = newColor,
                 ValueC = 0x0E
             };
+        }
+
+        private static byte ReturnByte()
+        {
+            return 0x1;
         }
 
         private struct ReturnStruct

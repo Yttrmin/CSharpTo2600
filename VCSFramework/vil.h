@@ -83,15 +83,31 @@ pushDereferenceFromStack .macro type, size
 .endmacro
 
 // @GENERATE @POP=1 @PUSH=1
-pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
-	// @TODO - Right now we're assuming we always get a pointer, but it being an entire value type instance is allowed.
-	.invoke assertIsPointer(\pointerStackType)
-	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for pushFieldFromStack"
-	.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for pushFieldFromStack"
-	PLA
-	TAX
-	LDA \offsetConstant,X
-	PHA
+pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, stackType, stackSize
+	.if isPointer(\stackType) == true
+		.errorif \stackSize != 1, "Currently, only zero-page pointers are allowed for pushFieldFromStack"
+		.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for pushFieldFromStack"
+		PLA
+		TAX
+		LDA \offsetConstant,X
+		PHA
+	.else
+		// Note even if we're only fetching a 1-byte field off a 10-byte instance, we still gotta clear the whole
+		// thing off of the stack.
+		// Could do some scary stuff like determine start of the field, pop the whole instance, then start pushing the
+		// now-deallocated memory onto the stack. Making sure it's done in an order/direction that we don't overwrite
+		// what we need to read. Would avoid the need of a temporary location to hold the field.
+		TSX
+		.for i = 0, i < \stackSize, i = i + 1
+			PLA
+		.next
+		.for u = 0, u < \fieldSize, u = u + 1
+			.let aaa = \stackSize
+			.let bbb = \offsetConstant // @TODO @REPORTME - If we try do these directly in the LDA or a single .let it fails.
+			LDA aaa - bbb - u,X
+			PHA
+		.next
+	.endif
 .endmacro
 
 // @GENERATE @POP=2
@@ -198,7 +214,11 @@ getTypeFromPointer .function pointerType
 .endfunction
 
 assertIsPointer .function type
-	.assert (type & 1) == 1, "assertIsPointer failed"
+	.assert isPointer(type) == true, "assertIsPointer failed"
+.endfunction
+
+isPointer .function type
+	.return (type & 1) == 1
 .endfunction
 
 /*
