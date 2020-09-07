@@ -48,6 +48,7 @@ pushGlobal .macro global, type, size
 
 // @GENERATE @PUSH=1
 pushAddressOfGlobal .macro global, pointerType, pointerSize
+	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfGlobal"
 	LDA #\global
 	PHA
@@ -55,6 +56,7 @@ pushAddressOfGlobal .macro global, pointerType, pointerSize
 
 // @GENERATE @PUSH=1
 pushAddressOfLocal .macro local, pointerType, pointerSize
+	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfLocal"
 	LDA #\local
 	PHA
@@ -62,6 +64,7 @@ pushAddressOfLocal .macro local, pointerType, pointerSize
 
 // @GENERATE @POP=1 @PUSH=1
 pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
+	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerStackSize != 1, "Currently only zero-page pointers are supported for pushAddressOfField"
 	PLA
 	CLC
@@ -81,6 +84,8 @@ pushDereferenceFromStack .macro type, size
 
 // @GENERATE @POP=1 @PUSH=1
 pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
+	// @TODO - Right now we're assuming we always get a pointer, but it being an entire value type instance is allowed.
+	.invoke assertIsPointer(\pointerStackType)
 	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for pushFieldFromStack"
 	.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for pushFieldFromStack"
 	PLA
@@ -91,6 +96,7 @@ pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType
 
 // @GENERATE @POP=2
 popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
+	.invoke assertIsPointer(\pointerStackType)
 	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for popToFieldFromStack"
 	// Value is popped first, then address
 	.if \fieldSize == 1 && \pointerStackSize == 1
@@ -189,6 +195,10 @@ getBitOpResultType .function firstOperandType, secondOperandType
 
 getTypeFromPointer .function pointerType
 	.return pointerType - 1
+.endfunction
+
+assertIsPointer .function type
+	.assert (type & 1) == 1, "assertIsPointer failed"
 .endfunction
 
 /*

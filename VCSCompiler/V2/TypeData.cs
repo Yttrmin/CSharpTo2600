@@ -34,11 +34,6 @@ namespace VCSCompiler.V2
 
         public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
         {
-            if (type.Namespace.StartsWith("System"))
-            {
-                return GetSystemTypeData(type);
-            }
-
             if (type.IsPointer || type.IsPinned || type.IsByReference)
             {
                 // IsPinned catches e.g. System.Byte&
@@ -53,6 +48,12 @@ namespace VCSCompiler.V2
                 // 16-bit pointers and hope enough of it is optimized away...
                 return new(null, 1, ImmutableArray<TypeData.FieldData>.Empty);
             }
+
+            if (type.Namespace.StartsWith("System"))
+            {
+                return GetSystemTypeData(type);
+            }
+
             var typeDef = BuiltInDefinitions.Types
                 .Concat(userAssembly.CompilableTypes())
                 .Single(t => t.FullName == type.FullName);

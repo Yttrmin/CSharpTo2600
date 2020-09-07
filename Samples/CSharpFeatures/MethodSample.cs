@@ -10,7 +10,8 @@ namespace Samples.CSharpFeatures
         {
             while (true)
             {
-                ColuBk = ReturnIncrementByte();
+                // @TODO - This is broken until we support ldfld against instances.
+                ColuBk = GetColorContainingStruct().ValueB;
             }
         }
 
@@ -22,9 +23,22 @@ namespace Samples.CSharpFeatures
             BackgroundColor = finalValue;
         }
 
-        private static byte ReturnIncrementByte()
+        private static ReturnStruct GetColorContainingStruct()
         {
-            return BackgroundColor++;
+            var newColor = BackgroundColor++;
+            return new ReturnStruct
+            {
+                ValueA = default,
+                ValueB = newColor,
+                ValueC = 0x0E
+            };
+        }
+
+        private struct ReturnStruct
+        {
+            public byte ValueA;
+            public byte ValueB;
+            public byte ValueC;
         }
     }
 }
