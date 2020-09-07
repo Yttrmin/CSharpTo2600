@@ -603,13 +603,36 @@ duplicate .macro stackType, stackSize
 	PHA
 .endmacro
 
+// @TODO - When we start sending parameters we're gonna have to pop them off as part
+// of the call instruction.
 // @GENERATE
 callVoid .macro method
 	JSR \method
 .endmacro
 
+// @GENERATE @PUSH=1
+callNonVoid .macro method, resultType, resultSize
+	// Allocate space for the return value.
+	.for i = 0, i < \resultSize, i = i + 1
+		PHA
+	.next
+	JSR \method
+.endmacro
+
 // @GENERATE
-returnFromCall .macro
+returnVoid .macro
+	RTS
+.endmacro
+
+// @GENERATE @POP=1
+returnNonVoid .macro resultType, resultSize
+	// Return address is 16-bit.
+	.let returnValueStartOffset = 1 + \resultSize + 2
+	TSX
+	.for i = 0, i < \resultSize, i = i + 1
+		PLA
+		STA returnValueStartOffset + i,X
+	.next
 	RTS
 .endmacro
 

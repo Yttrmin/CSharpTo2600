@@ -32,7 +32,7 @@ namespace VCSCompiler.V2
                 var endLabel = new InstructionLabel("INLINE_RET_TARGET");
                 body = body.Prepend(new BeginBlock()).Append(endLabel).Append(new EndBlock()).Select(entry =>
                 {
-                    if (entry is ReturnFromCall returnFromCall)
+                    if (entry is ReturnVoid returnFromCall)
                     {
                         // Probably will always have exactly 1 instruction, right?
                         return new Branch(returnFromCall.Instructions.Single(), endLabel);

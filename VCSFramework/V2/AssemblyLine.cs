@@ -8,13 +8,14 @@ using System.Linq;
 
 namespace VCSFramework.V2
 {
-    // @TODO - Should we deconstruct instructions in the first position instead of last? This
-    // would match how the Macro subclasses are constructed (we can't move them to the end
-    // for construction since we need the params arg for parameters).
-
     internal interface IStackPusher
     {
         void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters);
+    }
+
+    internal interface ICallMacro
+    {
+        MethodDefinition Method { get; }
     }
 
     public abstract record Macro : AssemblyEntry
@@ -202,9 +203,18 @@ namespace VCSFramework.V2
             : base(instructions, new MacroLabel("assignConstantToGlobal"), constant, global, size) { }
     }
 
-    /**
-     public record PushGlobal(Label GlobalLabel) : Macro
-     */
+    public partial record CallVoid : ICallMacro
+    {
+        MethodDefinition ICallMacro.Method => Method.Method;
+    }
+
+    public partial record CallNonVoid : IStackPusher, ICallMacro
+    {
+        MethodDefinition ICallMacro.Method => Method.Method;
+
+        public void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters)
+            => stackTracker.Push(ResultType, ResultSize);
+    }
 
     public abstract record AssemblyEntry
     {

@@ -248,11 +248,21 @@ namespace VCSCompiler.V2
             }
 			else
             {
-				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
+				if (arity != 0)
                 {
-					throw new InvalidOperationException($"Methods must have 0 arity and void return type for now");
+					throw new InvalidOperationException($"Methods must have 0 arity for now");
                 }
-				yield return new CallVoid(instruction, new(method, false));
+				if (method.ReturnType.Name == typeof(void).Name)
+                {
+					yield return new CallVoid(instruction, new(method, false));
+                }
+				else
+                {
+					// @TODO - Probably doesn't work for returning ptr/ref.
+					// @TODO - We could maybe do a special case if the return type is 1-byte in size. Enregister
+					// the value or something instead of having to jump over the return address.
+					yield return new CallNonVoid(instruction, new(method, false), LabelGenerator.Type(method.ReturnType), LabelGenerator.Size(method.ReturnType));
+                }
             }
         }
 
@@ -366,7 +376,17 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<AssemblyEntry> Ret(Instruction instruction)
         {
-			yield return new ReturnFromCall(instruction);
+			if (MethodDefinition.ReturnType.FullName == typeof(void).FullName)
+            {
+				yield return new ReturnVoid(instruction);
+			}
+			else
+            {
+				// @TODO - Probably doesn't work for returning ptr/ref.
+				var typeLabel = LabelGenerator.Type(MethodDefinition.ReturnType);
+				var sizeLabel = LabelGenerator.Size(MethodDefinition.ReturnType);
+				yield return new ReturnNonVoid(instruction, typeLabel, sizeLabel);
+            }
         }
 
 		private IEnumerable<AssemblyEntry> Stfld(Instruction instruction)
