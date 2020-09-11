@@ -12,20 +12,22 @@ namespace VCSCompiler.V2
         private readonly MethodDefinition Method;
         private readonly bool Inline;
         private readonly AssemblyDefinition UserAssembly;
+        private readonly CilInstructionCompiler.Options? CilOptions;
 
-        public static ImmutableArray<AssemblyEntry> Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline)
-            => new MethodCompiler(method, userAssembly, inline).Compile();
+        public static ImmutableArray<AssemblyEntry> Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions = null)
+            => new MethodCompiler(method, userAssembly, inline, cilOptions).Compile();
 
-        public MethodCompiler(MethodDefinition method, AssemblyDefinition userAssembly, bool inline)
+        public MethodCompiler(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions)
         {
             Method = method;
             UserAssembly = userAssembly;
             Inline = inline;
+            CilOptions = cilOptions;
         }
 
         public ImmutableArray<AssemblyEntry> Compile()
         {
-            var cilCompiler = new CilInstructionCompiler(Method, UserAssembly);
+            var cilCompiler = new CilInstructionCompiler(Method, UserAssembly, CilOptions);
             var body = cilCompiler.Compile().ToImmutableArray();
             if (Inline)
             {

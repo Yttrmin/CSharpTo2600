@@ -14,17 +14,24 @@ namespace VCSCompiler.V2
 {
     internal class CilInstructionCompiler
     {
+		public class Options
+        {
+			public bool InlineAllCalls { get; init; }
+        }
+
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
 		private readonly AssemblyDefinition UserAssembly;
 		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
+		private readonly Options CompilationOptions;
 
-		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyDefinition userAssembly)
+		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyDefinition userAssembly, Options? options = null)
         {
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
 			UserAssembly = userAssembly;
 			Assemblies = BuiltInDefinitions.Assemblies.Append(userAssembly).ToImmutableArray();
+			CompilationOptions = options ?? new Options();
         }
 
 		public IEnumerable<AssemblyEntry> Compile()
@@ -213,7 +220,8 @@ namespace VCSCompiler.V2
 				?? Assemblies.CompilableTypes().CompilableMethods().SingleOrDefault(it => methodReference.FullName == it.FullName)
 				?? throw new MissingMethodException($"Could not find '{methodReference.FullName}' in any assemblies.");
 			var arity = method.Parameters.Count;
-			
+
+			var mustInline = CompilationOptions.InlineAllCalls || method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _);
 			if (method.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
             {
 				if (overrideStore.Strobe)
@@ -238,11 +246,11 @@ namespace VCSCompiler.V2
 				var type = method.ReturnType;
 				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, BuiltInDefinitions.Byte, true), new(type), new SizeLabel(type));
             }
-			else if (method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _))
+			else if (mustInline)
             {
 				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
 				{
-					throw new InvalidOperationException($"Methods must have 0 arity and void return type for now");
+					throw new InvalidOperationException($"Inline methods must have 0 arity and void return type for now");
 				}
 				yield return new InlineMethod(instruction, method, MethodCompiler.Compile(method, UserAssembly, true));
             }

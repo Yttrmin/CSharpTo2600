@@ -186,8 +186,12 @@ namespace VCSCompiler.V2
         public ImmutableArray<AssemblyEntry> CompileEntryPoint()
         {
             var entryPoint = UserAssembly.EntryPoint;
-            var compiledBody = MethodCompiler.Compile(entryPoint, UserAssembly, false);
-            // @TODO - Check for return calls, which should never happen for a VCS program.
+            var compiledBody = MethodCompiler.Compile(entryPoint, UserAssembly, false, new CilInstructionCompiler.Options
+            {
+                InlineAllCalls = true
+            });
+            // @TODO - Control should never return from the entry point. For RawTemplate, this means ensuring the _user_'s entry point
+            // never returns. For StandardTemplate, _its_ entry point should never return.
 
             // Prepend the .cctor if there is one.
             var cctor = entryPoint.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor");

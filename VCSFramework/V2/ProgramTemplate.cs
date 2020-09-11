@@ -1,11 +1,6 @@
 ﻿#nullable enable
-using Mono.Cecil;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace VCSFramework.V2
 {
@@ -31,6 +26,7 @@ namespace VCSFramework.V2
 
         internal RawTemplate(Type programType) : base(programType)
         {
+            // @TODO - Throw if non-void or arity > 0.
             UserEntryPoint = programType.Assembly.EntryPoint ?? throw new ArgumentException($"{programType.FullName} does not contain the entry point.");
         }
 
