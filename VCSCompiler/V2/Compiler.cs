@@ -9,6 +9,8 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.Loader;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -64,8 +66,7 @@ namespace VCSCompiler.V2
              * 6) In the end, the generated .asm may look like an intermediate representation, with lots of parameterized macro
              *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
              */
-            var compilation = CompilationCreator.CreateFromFilePaths(new[] { sourcePath });
-            var userAssemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
+            var userAssemblyDefinition = CreateAssemblyDefinition(new[] { sourcePath }.ToImmutableArray());
 
             var compiler = new Compiler(userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
@@ -123,9 +124,45 @@ namespace VCSCompiler.V2
             return romInfo;
         }
 
-        private static AssemblyDefinition GetAssemblyDefinition(
-            CSharpCompilation compilation, 
-            out MemoryStream assemblyStream)
+        private static AssemblyDefinition CreateAssemblyDefinition(ImmutableArray<string> sourcePaths)
+        {
+            // First we compile without the generated template so we can find what type to use.
+            // Then we compile with the generated template and return the AssemblyDefinition containing that and the user types.
+            var firstCompilation = CompilationCreator.CreateFromFilePaths(sourcePaths, null);
+            GetAssemblyDefinition(firstCompilation, out var firstAssemblyStream);
+            var loadContext = new AssemblyLoadContext(null, true);
+            var firstAssembly = loadContext.LoadFromStream(firstAssemblyStream!);
+            firstAssemblyStream.Dispose();
+
+            ProgramTemplate template;
+            var userProgramType = firstAssembly.GetTypes().SingleOrDefault(t => t.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(TemplatedProgramAttribute).FullName));
+            if (userProgramType == null)
+            {
+                // If no types are marked with [TemplatedProgram], assume they want a RawTemplate.
+                userProgramType = firstAssembly.EntryPoint?.DeclaringType ?? throw new InvalidOperationException($"Could not find a type marked with [TemplatedProgram] nor an entry point.");
+                template = new RawTemplate(userProgramType);
+            }
+            else
+            {
+                var templateAttribute = userProgramType.CustomAttributes.Single(a => a.AttributeType.FullName == typeof(TemplatedProgramAttribute).FullName);
+                var templateType = (Type)templateAttribute.ConstructorArguments[0].Value!;
+                var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                template = (ProgramTemplate?)Activator.CreateInstance(templateType, flags, null, new[] { userProgramType }, null) 
+                    ?? throw new InvalidOperationException($"Failed to create instance of type '{templateType}'");
+            }
+
+            // Don't dispose MemoryStream or it breaks Cecil.
+            loadContext.Unload();
+
+            var generatedSourceText = template.GenerateSourceText();
+            var generatedSourcePath = Path.Combine(Path.GetTempPath(), $"{template.GeneratedTypeName}.generated.cs");
+            File.WriteAllText(generatedSourcePath, generatedSourceText);
+
+            var finalCompilation = CompilationCreator.CreateFromFilePaths(sourcePaths.Append(generatedSourcePath), template.GeneratedTypeName);
+            return GetAssemblyDefinition(finalCompilation, out var _);
+        }
+
+        private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
         {
             assemblyStream = new MemoryStream();
             var emitOptions = new EmitOptions(debugInformationFormat: DebugInformationFormat.Embedded);
@@ -138,10 +175,12 @@ namespace VCSCompiler.V2
                 }
                 throw new FatalCompilationException("Failed to emit compiled assembly.");
             }
-            assemblyStream.Position = 0;
 
+            assemblyStream.Position = 0;
             var parameters = new ReaderParameters { ReadSymbols = true };
-            return AssemblyDefinition.ReadAssembly(assemblyStream, parameters);
+            var definition = AssemblyDefinition.ReadAssembly(assemblyStream, parameters);
+            assemblyStream.Position = 0;
+            return definition;
         }
 
         public ImmutableArray<AssemblyEntry> CompileEntryPoint()
