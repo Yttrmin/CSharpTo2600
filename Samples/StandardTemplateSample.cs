@@ -1,4 +1,5 @@
 ﻿using VCSFramework.V2;
+using VCSFramework.V2.Templates.Standard;
 using static VCSFramework.Registers;
 
 namespace Samples
@@ -8,10 +9,10 @@ namespace Samples
     {
         private static byte BackgroundColor;
 
-        [StandardTemplate.Overscan]
+        [Overscan]
         public static void ResetBackgroundColor() => BackgroundColor = 0;
 
-        [StandardTemplate.Kernel(StandardTemplate.KernelType.EveryScanline)]
+        [Kernel(KernelType.EveryScanline)]
         public static void Kernel()
         {
             ColuBk = BackgroundColor;
