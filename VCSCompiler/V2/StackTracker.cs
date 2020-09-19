@@ -22,24 +22,24 @@ namespace VCSCompiler.V2
             public static TypedStackElement Nothing
                 => new(LabelGenerator.NothingType, LabelGenerator.NothingSize);
 
-            public override string TypeString => Type;
+            public override string TypeString => Type.Output;
 
-            public override string SizeString => Size;
+            public override string SizeString => Size.Output;
         }
 
         private sealed record FunctionStackElement(Function TypeFunction, Function SizeFunction)
             : BaseStackElement
         {
-            public override string TypeString => TypeFunction;
+            public override string TypeString => TypeFunction.Output;
 
-            public override string SizeString => SizeFunction;
+            public override string SizeString => SizeFunction.Output;
         }
 
         private sealed record IndexedStackElement(int Index) : BaseStackElement
         {
-            public override string TypeString => new StackTypeArrayLabel(Index);
+            public override string TypeString => new StackTypeArrayLabel(Index).Output;
 
-            public override string SizeString => new StackSizeArrayLabel(Index);
+            public override string SizeString => new StackSizeArrayLabel(Index).Output;
 
             public override string ToString() => $"Stack[{Index}]";
         }
@@ -144,8 +144,8 @@ namespace VCSCompiler.V2
         {
             if (MaxDepth == 0)
                 yield break;
-            yield return new(StackTypeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Type, MaxDepth).Select(e => e.ToString()));
-            yield return new(StackSizeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Size, MaxDepth).Select(e => e.ToString()));
+            yield return new(StackTypeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Type, MaxDepth).Select(e => e.Output));
+            yield return new(StackSizeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Size, MaxDepth).Select(e => e.Output));
         }
 
         public ImmutableArray<ArrayLetOp> GenerateStackSetters()

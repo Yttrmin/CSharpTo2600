@@ -82,10 +82,13 @@ namespace VCSFramework.V2
             };
         }
 
-        public override string ToString()
+        public override string Output
         {
-            var paramString = string.Join(", ", Params);
-            return $".{Label} {paramString}";
+            get
+            {
+                var paramString = string.Join(", ", Params.Select(p => p.Output));
+                return $".{Label.Output} {paramString}";
+            }
         }
     }
 
@@ -218,9 +221,7 @@ namespace VCSFramework.V2
 
     public abstract record AssemblyEntry
     {
-        public static implicit operator string(AssemblyEntry entry) => entry.ToString();
-
-        public abstract override string ToString();
+        public abstract string Output { get; }
     }
 
     public record InlineMethod : AssemblyEntry
@@ -239,10 +240,13 @@ namespace VCSFramework.V2
                 .ToImmutableArray();
         }
 
-        public override string ToString()
+        public override string Output
         {
-            // Shouldn't really use this since only the first line will have indentation.
-            return string.Join(Environment.NewLine, Entries.Select(e => e.ToString()));
+            get
+            {
+                // Shouldn't really use this since only the first line will have indentation.
+                return string.Join(Environment.NewLine, Entries.Select(e => e.Output));
+            }
         }
     }
 
@@ -252,12 +256,12 @@ namespace VCSFramework.V2
 
     public record BeginBlock : PsuedoOp
     {
-        public override string ToString() => ".block";
+        public override string Output => ".block";
     }
 
     public record EndBlock : PsuedoOp
     {
-        public override string ToString() => ".endblock";
+        public override string Output => ".endblock";
     }
 
     public record LetOp : PsuedoOp
@@ -271,7 +275,7 @@ namespace VCSFramework.V2
             ValueLabel = valueLabel;
         }
 
-        public override string ToString()
+        public override string Output
             => $".let {VariableLabel} = {ValueLabel}";
     }
 
@@ -287,14 +291,18 @@ namespace VCSFramework.V2
             Values = values.ToImmutableArray();
         }
 
-        public override string ToString()
-            => $".let {VariableLabel} = [{string.Join(',', Values)}]";
+        public override string Output
+            => $".let {VariableLabel.Output} = [{string.Join(',', Values)}]";
     }
 
     public sealed record Comment(string Text) : AssemblyEntry
     {
+        public static implicit operator string(Comment comment) => comment.Output;
+
         // @TODO - Support multiline.
-        public override string ToString() => $"// {Text}";
+        public override string Output => $"// {Text}";
+
+        public override string ToString() => Output;
     }
 
     public sealed class Bundle
@@ -304,8 +312,7 @@ namespace VCSFramework.V2
 
     public abstract record Label(string Name) : AssemblyEntry
     {
-        public static implicit operator string(Label label) => label.Name;
-        public override string ToString() => Name;
+        public override string Output => Name;
     }
     
     /// <summary>Label referring to a constant.</summary>
@@ -320,9 +327,9 @@ namespace VCSFramework.V2
     {
         // Some types are different but produce the same strings (e.g. Byte* and Byte&).
         // So compare the label name and not the actual types.
-        public bool Equals(SizeLabel? other) => ToString() == other?.ToString();
+        public bool Equals(SizeLabel? other) => Output == other?.Output;
 
-        public override int GetHashCode() => ToString().GetHashCode();
+        public override int GetHashCode() => Output.GetHashCode();
     }
 
     public abstract record BaseTypeLabel(string Name) : Label(Name);
@@ -334,9 +341,9 @@ namespace VCSFramework.V2
     {
         // Some types are different but produce the same strings (e.g. Byte* and Byte&).
         // So compare the label name and not the actual types.
-        public bool Equals(TypeLabel? other) => ToString() == other?.ToString();
+        public bool Equals(TypeLabel? other) => Output == other?.Output;
 
-        public override int GetHashCode() => ToString().GetHashCode();
+        public override int GetHashCode() => Output.GetHashCode();
     }
 
     public sealed record PointerSizeLabel(bool ZeroPage)
@@ -345,18 +352,18 @@ namespace VCSFramework.V2
     public sealed record PointerTypeLabel(TypeReference Type)
         : BaseTypeLabel($"TYPE_{Type.NamespaceAndName()}_PTR"), IEquatable<PointerTypeLabel>
     {
-        public bool Equals(PointerTypeLabel? other) => ToString() == other?.ToString();
+        public bool Equals(PointerTypeLabel? other) => Output == other?.Output;
 
-        public override int GetHashCode() => ToString().GetHashCode();
+        public override int GetHashCode() => Output.GetHashCode();
     }
 
     /// <summary>Label referring to the address of a global.</summary>
     // @TODO - Could probably go the BaseGlobalLabel route and have a subclass for TypeReference vs predefined Name.
     public sealed record GlobalLabel(string Name, TypeReference Type, bool Predefined = false) : Label(Name), IEquatable<GlobalLabel>
     {
-        public bool Equals(GlobalLabel? other) => ToString() == other?.ToString();
+        public bool Equals(GlobalLabel? other) => Output == other?.Output;
 
-        public override int GetHashCode() => ToString().GetHashCode();
+        public override int GetHashCode() => Output.GetHashCode();
     }
 
     // @TODO - Handle overloaded methods (same name).
@@ -364,9 +371,9 @@ namespace VCSFramework.V2
     public sealed record LocalLabel(MethodDefinition Method, int Index)
         : Label($"LOCAL_{Method.DeclaringType.NamespaceAndName()}_{Method.Name}_{Index}"), IEquatable<LocalLabel>
     {
-        public bool Equals(LocalLabel? other) => ToString() == other?.ToString();
+        public bool Equals(LocalLabel? other) => Output == other?.Output;
 
-        public override int GetHashCode() => ToString().GetHashCode();
+        public override int GetHashCode() => Output.GetHashCode();
     }
 
     /// <summary>Label referring to a defined macro.</summary>
@@ -403,10 +410,13 @@ namespace VCSFramework.V2
         }
 
         // Assume it has a return value
-        public override string ToString()
+        public override string Output
         {
-            var paramString = string.Join(", ", Params);
-            return $"{Label}({paramString})";
+            get
+            {
+                var paramString = string.Join(", ", Params.Select(p => p.Output));
+                return $"{Label.Output}({paramString})";
+            }
         }
     }
 

@@ -132,7 +132,7 @@ namespace VCSCompiler.V2
         private void AppendMethod(KeyValuePair<MethodDefinition, ImmutableArray<AssemblyEntry>> methodPair, StringBuilder builder)
         {
             builder.AppendLine(new Comment($"Begin {methodPair.Key.FullName}"));
-            builder.AppendLine(LabelGenerator.Function(methodPair.Key));
+            builder.AppendLine(LabelGenerator.Function(methodPair.Key).Output);
             AppendAssemblyEntries(methodPair.Key, methodPair.Value, builder);
             builder.AppendLine(new Comment($"End {methodPair.Key.FullName}"));
         }
@@ -152,12 +152,12 @@ namespace VCSCompiler.V2
                     AppendSource(method, macro, builder);
                 }
                 var indent = entry is InstructionLabel ? "" : Indent;
-                builder.AppendLine($"{indent}{entry}");
+                builder.AppendLine($"{indent}{entry.Output}");
                 if (macro != null)
                 {
                     foreach (var stackLet in macro.StackLets)
                     {
-                        builder.AppendLine($"{StackIndex}{stackLet}");
+                        builder.AppendLine($"{StackIndex}{stackLet.Output}");
                     }
                 }
             }
@@ -236,7 +236,7 @@ namespace VCSCompiler.V2
                 builder.AppendLine(new Comment("Begin Globals"));
                 foreach (var globalPair in LabelMap.GlobalToAddress.OrderBy(p => p.Value))
                 {
-                    builder.AppendLine($"{globalPair.Key} = {globalPair.Value}");
+                    builder.AppendLine($"{globalPair.Key.Output} = {globalPair.Value}");
                 }
                 builder.AppendLine(new Comment("End Globals"));
             }
@@ -246,7 +246,7 @@ namespace VCSCompiler.V2
                 builder.AppendLine(new Comment("Begin Locals"));
                 foreach (var localPair in LabelMap.LocalToAddress.OrderBy(p => p.Value))
                 {
-                    builder.AppendLine($"{localPair.Key} = {localPair.Value}");
+                    builder.AppendLine($"{localPair.Key.Output} = {localPair.Value}");
                 }
                 builder.AppendLine(new Comment("End Locals"));
             }
@@ -256,7 +256,7 @@ namespace VCSCompiler.V2
                 builder.AppendLine(new Comment("Begin Constants"));
                 foreach (var constantPair in LabelMap.ConstantToValue.OrderBy(p => Convert.ToInt32(p.Value)))
                 {
-                    builder.AppendLine($"{constantPair.Key} = {constantPair.Value}");
+                    builder.AppendLine($"{constantPair.Key.Output} = {constantPair.Value}");
                 }
                 builder.AppendLine(new Comment("End Constants"));
             }
@@ -267,16 +267,16 @@ namespace VCSCompiler.V2
                 builder.AppendLine(new Comment("Begin Types"));
                 foreach (var typePair in LabelMap.TypeToString.OrderBy(p => p.Value))
                 {
-                    builder.AppendLine($"{typePair.Key} = {typePair.Value}");
+                    builder.AppendLine($"{typePair.Key.Output} = {typePair.Value}");
                 }
                 foreach (var sizePair in LabelMap.SizeToValue)
                 {
-                    builder.AppendLine($"{sizePair.Key} = {sizePair.Value}");
+                    builder.AppendLine($"{sizePair.Key.Output} = {sizePair.Value}");
                 }
                 // Print pointer sizes. There's only 2, so, not much point in going through the
                 // LabelMap flow like these other sizes.
-                builder.AppendLine($"{new PointerSizeLabel(true)} = 1");
-                builder.AppendLine($"{new PointerSizeLabel(false)} = 2");
+                builder.AppendLine($"{new PointerSizeLabel(true).Output} = 1");
+                builder.AppendLine($"{new PointerSizeLabel(false).Output} = 2");
                 builder.AppendLine(new Comment("End Types"));
             }
         }
@@ -293,8 +293,8 @@ namespace VCSCompiler.V2
                 builder.AppendLine("  .switch type");
                 foreach (var pair in LabelMap.TypeToSize)
                 {
-                    builder.AppendLine($"    .case {pair.Key}");
-                    builder.AppendLine($"      .return {pair.Value}");
+                    builder.AppendLine($"    .case {pair.Key.Output}");
+                    builder.AppendLine($"      .return {pair.Value.Output}");
                 }
                 builder.AppendLine("  .endswitch");
                 builder.AppendLine(@"  .error format(""Unknown type ${0}"", type)");
