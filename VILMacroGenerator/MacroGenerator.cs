@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -14,7 +15,7 @@ namespace VILMacroGenerator
     public class MacroGenerator : ISourceGenerator
     {
         [Obsolete]
-        private SourceGeneratorContext Context;
+        private GeneratorExecutionContext Context;
 
         private sealed class MacroInfo
         {
@@ -30,8 +31,9 @@ namespace VILMacroGenerator
             public InstructionParamType InstructionParam { get; set; } = InstructionParamType.Single;
         }
 
-        public void Execute(SourceGeneratorContext context)
+        public void Execute(GeneratorExecutionContext context)
         {
+            Debugger.Launch();
             Context = context;
             InfoDianostic(context, "HELLO!??!?!?!", "hi");
             var vilLines = context.AdditionalFiles.Single(f => f.Path.Contains("vil.h")).GetText()!.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToImmutableArray();
@@ -44,8 +46,9 @@ namespace VILMacroGenerator
             context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("VI0011", "Macro Generator Finished", "See previous diagnostics for results.", "VIL", DiagnosticSeverity.Warning, true), null));
         }
 
-        public void Initialize(InitializationContext context)
+        public void Initialize(GeneratorInitializationContext context)
         {
+            Debugger.Launch();
         }
 
         private IEnumerable<(string Name, string Source)> FetchMacrosToGenerate(ImmutableArray<string> lines)
@@ -198,12 +201,12 @@ namespace VCSFramework.V2
             return info;
         }
 
-        private void InfoDianostic(SourceGeneratorContext context, string title, string message)
+        private void InfoDianostic(GeneratorExecutionContext context, string title, string message)
         {
             context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("VI0012", title, message, "VIL", DiagnosticSeverity.Warning, true), null));
         }
 
-        private void HelloWorld(SourceGeneratorContext context)
+        private void HelloWorld(GeneratorExecutionContext context)
         {
             // begin creating the source we'll inject into the users compilation
             var sourceBuilder = new StringBuilder(@"
