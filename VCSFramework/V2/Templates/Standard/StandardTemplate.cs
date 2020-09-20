@@ -9,6 +9,7 @@ namespace VCSFramework.V2.Templates.Standard
     public sealed class StandardTemplate : ProgramTemplate
     {
         private readonly ImmutableArray<MethodInfo> VBlanks;
+        private readonly ImmutableArray<MethodInfo> KernelMethods;
         private readonly MethodInfo Kernel;
         private readonly MethodInfo? Overscan;
 
@@ -16,8 +17,13 @@ namespace VCSFramework.V2.Templates.Standard
 
         public StandardTemplate(Type programType) : base(programType)
         {
-            VBlanks = programType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            var methodFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+            VBlanks = programType.GetMethods(methodFlags)
                 .Where(m => m.CustomAttributes.Any(a => a.AttributeType == typeof(VBlankAttribute)))
+                .ToImmutableArray();
+
+            KernelMethods = programType.GetMethods(methodFlags)
+                .Where(m => m.CustomAttributes.Any(a => a.AttributeType == typeof(KernelAttribute)))
                 .ToImmutableArray();
         }
 
