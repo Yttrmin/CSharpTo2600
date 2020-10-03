@@ -32,20 +32,25 @@ namespace VCSFramework.V2
         }
     }
 
+    // @TODO - Perhaps we could provide a hint attribute that could be used when calling InlineAssembly. Could hint to the compiler
+    // when a var is read/written so we can optimize storage usage like what might be possible for un-attributed fields.
+    // Only problem is if a user uses it inconsistency it could cause very broken results...
     /// <summary>
-    /// Forces the compiler to allocate this field at the specified address.
-    /// Only use this if you need to know the address ahead of time (e.g. for inline assembly).
+    /// Emits an alias that points to the attributed static field. The primary purpose for this is to enable
+    /// access to the field via <see cref="AssemblyUtilities.InlineAssembly(string)"/>.
+    /// The same field can be aliased multiple times, but one alias can not be used for multiple fields.
+    /// Marking a field with this attribute prevents certain optimizations.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
-    public sealed class FixedAddressAttribute : Attribute
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
+    public sealed class InlineAssemblyAliasAttribute : Attribute
     {
-        public byte Address { get; }
+        public string Alias { get; }
 
-        // @TODO - Flag to turn off reusing of the address? Or util that lets us hint the compiler that it's used? In the
-        // context of inline assembly code that the compiler is blind to.
-        public FixedAddressAttribute(byte address)
+        /// <summary>Aliases this static field.</summary>
+        /// <param name="alias">Alias to emit into the assembly file. MUST begin with <see cref="AssemblyUtilities.AliasPrefix"/> in order to prevent name collisions with compiler-generated names.</param>
+        public InlineAssemblyAliasAttribute(string alias)
         {
-            Address = address;
+            Alias = alias;
         }
     }
 

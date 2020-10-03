@@ -13,6 +13,12 @@ namespace VCSFramework.V2
     public static class AssemblyUtilities
     {
         /// <summary>
+        /// A string that MUST be prefixed onto all strings used for <see cref="InlineAssemblyAliasAttribute"/>.
+        /// Used to guarantee that a user's alias does not conflict with compiler-generated names.
+        /// </summary>
+        public const string AliasPrefix = "ALIAS_";
+
+        /// <summary>
         /// Emits <paramref name="assembly"/> directly into the assembly file at the call site.
         /// </summary>
         /// <param name="assembly">6502.NET-compatible assembly code. MUST be a compile time constant.</param>

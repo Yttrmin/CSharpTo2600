@@ -231,6 +231,16 @@ namespace VCSCompiler.V2
 
         private void AppendLabels(StringBuilder builder)
         {
+            if (LabelMap.AliasToGlobal.Any())
+            {
+                builder.AppendLine(new Comment("Begin Aliases"));
+                foreach (var aliasPair in LabelMap.AliasToGlobal.OrderBy(p => p.Value))
+                {
+                    builder.AppendLine($"{aliasPair.Key} = {aliasPair.Value.Output}");
+                }
+                builder.AppendLine(new Comment("End Aliases"));
+            }
+
             if (LabelMap.GlobalToAddress.Any())
             {
                 builder.AppendLine(new Comment("Begin Globals"));

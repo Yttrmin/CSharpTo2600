@@ -11,6 +11,7 @@ namespace VCSCompiler.V2
 {
     internal class LabelMap
     {
+        public ImmutableDictionary<string, GlobalLabel> AliasToGlobal { get; }
         public ImmutableDictionary<GlobalLabel, string> GlobalToAddress { get; }
         public ImmutableDictionary<LocalLabel, string> LocalToAddress { get; }
         public ImmutableDictionary<ConstantLabel, string> ConstantToValue { get; }
@@ -24,6 +25,7 @@ namespace VCSCompiler.V2
             IEnumerable<ImmutableArray<AssemblyEntry>> functions,
             AssemblyDefinition userAssembly)
         {
+            var aliasToGlobal = new Dictionary<string, GlobalLabel>();
             var globalToAddress = new Dictionary<GlobalLabel, string>();
             var localToAddress = new Dictionary<LocalLabel, string>();
             var constantToValue = new Dictionary<ConstantLabel, string>();
@@ -82,6 +84,23 @@ namespace VCSCompiler.V2
                 constantToValue[constantLabel] = constantLabel.Value.ToString()!;
             }
 
+            // @TODO - 
+            var aliasedFields = userAssembly.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
+            foreach (var field in aliasedFields)
+            {
+                if (!field.IsStatic)
+                    throw new InvalidOperationException($"[{nameof(InlineAssemblyAliasAttribute)}] can only be used on static fields. '{field.FullName}' is not static.");
+                var aliases = field.CustomAttributes.Where(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName).Select(a => (string)a.ConstructorArguments[0].Value);
+                foreach (var alias in aliases)
+                {
+                    if (!alias.StartsWith(AssemblyUtilities.AliasPrefix))
+                        throw new InvalidOperationException($"Alias '{alias}' must begin with '{AssemblyUtilities.AliasPrefix}'");
+                    if (aliasToGlobal.ContainsKey(alias))
+                        throw new InvalidOperationException($"Alias '{alias}' is already being aliased to '{aliasToGlobal[alias].Name}', can't alias to '{field.FullName}' too.");
+                    aliasToGlobal[alias] = LabelGenerator.Global(field);
+                }
+            }
+
             // @TODO - Need to reserve some for VIL.
             var ramStart = 0x80;
             foreach (var globalLabel in allLabelParams.OfType<GlobalLabel>().Where(l => !l.Predefined))
@@ -101,6 +120,7 @@ namespace VCSCompiler.V2
                 functionToBody[method] = MethodCompiler.Compile(method, userAssembly, false);
             }
 
+            AliasToGlobal = aliasToGlobal.ToImmutableDictionary();
             GlobalToAddress = globalToAddress.ToImmutableDictionary();
             LocalToAddress = localToAddress.ToImmutableDictionary();
             ConstantToValue = constantToValue.ToImmutableDictionary();
