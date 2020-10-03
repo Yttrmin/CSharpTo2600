@@ -25,8 +25,9 @@ namespace VCSCompiler.V2
 		{
 			var syntaxTrees = filePaths.Select(Parse);
 
-			var options = new CSharpCompilationOptions(OutputKind.ConsoleApplication, allowUnsafe: true, optimizationLevel: OptimizationLevel.Release, mainTypeName: mainTypeName);
-			var compilation = CSharpCompilation.Create("UserProgram.exe", syntaxTrees, MetadataReferences, options);
+			var outputType = mainTypeName != null ? OutputKind.ConsoleApplication : OutputKind.DynamicallyLinkedLibrary;
+			var options = new CSharpCompilationOptions(outputType, allowUnsafe: true, optimizationLevel: OptimizationLevel.Release, mainTypeName: mainTypeName);
+			var compilation = CSharpCompilation.Create("UserProgram", syntaxTrees, MetadataReferences, options);
 			var errors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error);
 			var auditor = AuditorManager.Instance.GetAuditor("Roslyn", AuditTag.Compiler);
 			if (errors.Any())

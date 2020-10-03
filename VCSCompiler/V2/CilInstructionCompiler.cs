@@ -14,9 +14,10 @@ namespace VCSCompiler.V2
 {
     internal class CilInstructionCompiler
     {
-		public class Options
+		public record Options
         {
 			public bool InlineAllCalls { get; init; }
+			public bool MustNotReturn { get; init; }
         }
 
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> MethodMap;

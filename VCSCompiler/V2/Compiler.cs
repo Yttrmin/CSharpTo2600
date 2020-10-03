@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using VCSFramework.V2;
+using VCSFramework.V2.Templates;
 
 namespace VCSCompiler.V2
 {
@@ -139,7 +140,7 @@ namespace VCSCompiler.V2
             if (userProgramType == null)
             {
                 // If no types are marked with [TemplatedProgram], assume they want a RawTemplate.
-                userProgramType = firstAssembly.EntryPoint?.DeclaringType ?? throw new InvalidOperationException($"Could not find a type marked with [TemplatedProgram] nor an entry point.");
+                userProgramType = firstAssembly.GetEntryPoint()?.DeclaringType ?? throw new InvalidOperationException($"Could not find a type marked with [TemplatedProgram] nor an entry point.");
                 template = new RawTemplate(userProgramType);
             }
             else

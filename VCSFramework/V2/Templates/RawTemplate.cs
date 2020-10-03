@@ -11,7 +11,7 @@ namespace VCSFramework.V2.Templates
         internal RawTemplate(Type programType) : base(programType)
         {
             // @TODO - Throw if non-void or arity > 0.
-            UserEntryPoint = programType.Assembly.EntryPoint ?? throw new ArgumentException($"{programType.FullName} does not contain the entry point.");
+            UserEntryPoint = programType.Assembly.GetEntryPoint() ?? throw new ArgumentException($"{programType.FullName} does not contain the entry point.");
         }
 
         internal override string GenerateSourceText()

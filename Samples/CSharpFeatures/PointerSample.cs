@@ -6,7 +6,7 @@ namespace Samples.CSharpFeatures
     static unsafe class PointerSample
     {
         private static byte BackgroundColor;
-        private static byte* Value = (byte*)0x90;
+        private static byte* Value = (byte*)0x90; // Extremely dangerous, don't do this.
 
         public static void Main()
         {
