@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using VCSFramework;
 using VCSFramework.V2;
 
@@ -59,7 +60,7 @@ namespace VCSCompiler.V2
 				SingleOrDefault(a => a.AttributeType.FullName == type.FullName);
 			if (attribute != null)
 			{
-				var constructorArguments = attribute.ConstructorArguments.Select(a => a.Value).ToArray();
+				var constructorArguments = attribute.ConstructorArguments.Select(a => a.Value).Select(Process).ToArray();
 				var newAttribute = (T?)Activator.CreateInstance(type, constructorArguments);
 				if (newAttribute == null)
 					throw new InvalidOperationException($"Could not recreate attribute of type: {type.FullName}");
@@ -71,9 +72,38 @@ namespace VCSCompiler.V2
 				result = default;
 				return false;
 			}
+			
+			static object Process(object obj)
+            {
+				// Attributes that take Types (e.g. [MyAttr(typeof(string))]) end up as TypeDefinitions, so we can't just
+				// pass them into the constructor. Look them up instead.
+				if (obj is TypeDefinition typeDefinition)
+                {
+					// @TODO - Probably shouldn't be limited to just Framework Macros.
+					return typeof(Macro).GetTypeInfo().Assembly.GetTypes().Single(t => t.FullName == typeDefinition.FullName);
+                }
+				return obj;
+            }
 		}
 
-		public static IEnumerable<Instruction> AllInstructions(this (Macro a, Macro b) @this)
-			=> @this.a.Instructions.Concat(@this.b.Instructions);
+		public static bool IsRecursive(this MethodDefinition @this)
+        {
+			return IsRecursiveInternal(@this, @this);
+
+			static bool IsRecursiveInternal(MethodDefinition method, MethodDefinition sourceMethod)
+            {
+				foreach (var instruction in method.Body.Instructions.Where(i => i.OpCode == OpCodes.Call))
+                {
+					// @TODO - Don't know if Resolve() is better versus looking it up ourselves.
+					var calleeMethod = ((MethodReference)instruction.Operand).Resolve();
+					if (calleeMethod.FullName == sourceMethod.FullName)
+						return false;
+
+					if (!IsRecursiveInternal(calleeMethod, sourceMethod))
+						return false;
+                }
+				return true;
+            }
+        }
 	}
 }

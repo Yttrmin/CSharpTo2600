@@ -247,6 +247,11 @@ namespace VCSCompiler.V2
 				var type = method.ReturnType;
 				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, BuiltInDefinitions.Byte, true), new(type), new SizeLabel(type));
             }
+			else if (method.TryGetFrameworkAttribute<ReplaceWithMacroAttribute>(out var replaceWithMacro))
+            {
+				yield return (Macro)(Activator.CreateInstance(replaceWithMacro.MacroType, instruction) 
+					?? throw new InvalidOperationException($"Failed to replace call to [{nameof(ReplaceWithMacroAttribute)}]-attributed method '{method}' with {nameof(Macro)} type {replaceWithMacro.MacroType}"));
+            }
 			else if (mustInline)
             {
 				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
@@ -367,6 +372,13 @@ namespace VCSCompiler.V2
 
 			yield return new PushAddressOfGlobal(instruction, fieldLabel, new(field.FieldType), new(true));
 		}
+
+		private IEnumerable<AssemblyEntry> Ldstr(Instruction instruction)
+        {
+			// NOTE: This can only be used for compile-time purposes and MUST be optimized out.
+			// If it is found after optimizing, an exception will be thrown.
+			yield return new LoadString(instruction);
+        }
 
 		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)
         {

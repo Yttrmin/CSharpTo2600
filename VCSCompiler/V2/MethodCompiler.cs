@@ -3,6 +3,7 @@ using Mono.Cecil;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using VCSFramework.V2;
 
 namespace VCSCompiler.V2
@@ -60,6 +61,7 @@ namespace VCSCompiler.V2
                 new AddFromGlobalAndConstantPopToGlobal_To_AddFromGlobalAndConstantToGlobal(),
                 new AddFromGlobalAndConstantToGlobal_To_IncrementGlobal(),
                 new EliminateUnconditionalBranchToNextInstruction(),
+                new InlineAssemblyInvocationToInlineAssemblyEntry(),
             };
 
             ImmutableArray<AssemblyEntry> preOptimize;
@@ -75,6 +77,16 @@ namespace VCSCompiler.V2
                     postOptimize = optimizer.Optimize(postOptimize);
                 }
             } while (!preOptimize.SequenceEqual(postOptimize));
+
+            var invalidEntries = postOptimize.Where(e => e.GetType() == typeof(LoadString) || e.GetType() == typeof(InlineAssembly)).ToImmutableArray();
+            if (invalidEntries.Any())
+            {
+                var messageBuilder = new StringBuilder();
+                messageBuilder.AppendLine("Invalid entries found in post-optimized code. This is likely the result of using special features (e.g. InlineAssembly()) that were compiled into a form that wasn't detected by its Optimizer. Make sure you're only invoking them exactly how they're documented.");
+                messageBuilder.AppendLine("Invalid entries:");
+                messageBuilder.AppendLine(string.Join(Environment.NewLine, invalidEntries.Select(e => e.Output)));
+                throw new InvalidOperationException(messageBuilder.ToString());
+            }
             return postOptimize;
         }
 

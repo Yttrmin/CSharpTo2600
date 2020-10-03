@@ -6,6 +6,9 @@ using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
+    // @TODO - Since every Optimization (at least so far) is just a single overridden method, we could probably reduce them
+    // to English comments and delegate instances and cut down on some of the boilerplate.
+
     /// <summary>
     /// Base class of all optimizations.
     /// Optimizations take 1..x number of contiguous Macros and reduce them to 1 instruction.
@@ -175,6 +178,18 @@ namespace VCSCompiler.V2
             {
                 (Branch(_, var targetLabel), (InstructionLabel instructionLabel, var trueNext)) when targetLabel == instructionLabel 
                     => new LinkedEntry(instructionLabel, trueNext),
+                _ => next
+            };
+        }
+    }
+
+    internal sealed class InlineAssemblyInvocationToInlineAssemblyEntry : Optimization
+    {
+        protected override LinkedEntry DetermineNextEntry(LinkedEntry next)
+        {
+            return next switch
+            {
+                (LoadString(var ldStrInstruction), (InlineAssembly(_), var trueNext)) => new(new InlineAssemblyEntry((string)ldStrInstruction.Single().Operand), trueNext),
                 _ => next
             };
         }

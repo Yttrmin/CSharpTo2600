@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 
 namespace VCSFramework.V2
 {
@@ -18,6 +19,7 @@ namespace VCSFramework.V2
         MethodDefinition Method { get; }
     }
 
+    // @TODO - Since we're auto-generating most things, we can probably just stick with classes.
     public abstract record Macro : AssemblyEntry
     {
         public MacroLabel Label { get; }
@@ -89,6 +91,41 @@ namespace VCSFramework.V2
                 var paramString = string.Join(", ", Params.Select(p => p.Output));
                 return $".{Label.Output} {paramString}";
             }
+        }
+    }
+
+    public sealed record InlineAssemblyEntry(string Assembly) : AssemblyEntry
+    {
+        public override string Output
+        {
+            get
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine(new Comment("Begin inline assembly"));
+                builder.AppendLine(Assembly);
+                builder.AppendLine(new Comment("End inline assembly"));
+                return builder.ToString();
+            }
+        }
+    }
+
+    public sealed record LoadString : Macro
+    {
+        public LoadString(Instruction instruction) : base(instruction, new("__LoadString__INTERNAL_ONLY_MUST_BE_OPTIMIZED_OUT")) { }
+
+        public void Deconstruct(out ImmutableArray<Instruction> instructions)
+        {
+            instructions = Instructions;
+        }
+    }
+
+    public sealed record InlineAssembly : Macro
+    {
+        public InlineAssembly(Instruction instruction) : base(instruction, new("__InlineAssembly__INTERNAL_ONLY_MUST_BE_OPTIMIZED_OUT")) { }
+
+        public void Deconstruct(out ImmutableArray<Instruction> instructions)
+        {
+            instructions = Instructions;
         }
     }
 
