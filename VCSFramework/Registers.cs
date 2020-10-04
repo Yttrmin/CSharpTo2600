@@ -81,6 +81,7 @@ namespace VCSFramework
 		//
 
 		public static byte InTim  { [IgnoreImplementation][OverrideWithLoadFromSymbol("INTIM")] get { throw new NotImplementedException(); } }
+		public static byte TimInt { [IgnoreImplementation][OverrideWithLoadFromSymbol("TIMINT")] get { throw new NotImplementedException(); } }
 		public static byte Tim64T { [IgnoreImplementation][OverrideWithStoreToSymbol("TIM64T")] set { } }
 	}
 }

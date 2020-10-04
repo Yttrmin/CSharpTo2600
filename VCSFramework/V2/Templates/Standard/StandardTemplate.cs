@@ -77,7 +77,9 @@ public static class {GeneratedTypeName}
 
 {vblankCodeBuilder}
             // @TODO - May want a debug flag that checks if 0 has already passed, to catch overrunning the available time.
-            while (InTim != 0) ;
+            // @TODO - There's actually 2 flags in TimInt. One is the timer interrupt flag, the other is the PA7 edge-detect flag. I have
+            // no idea if or when the latter would be set. Should probably look into it more to find out, but at least works for now.
+            while (TimInt == 0) ;
 
             WSync();
             // @TODO - This technically eats into 3 cycles for the first scanline. 
@@ -94,7 +96,7 @@ public static class {GeneratedTypeName}
             Tim64T = 35;
             
             // @TODO - User overscan code goes here.
-            while (InTim != 0) ;
+            while (TimInt == 0) ;
             WSync();
         }}
     }}
