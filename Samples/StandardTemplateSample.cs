@@ -12,12 +12,28 @@ namespace Samples
         [VBlank]
         public static void ResetBackgroundColor() => BackgroundColor = 0;
 
-        [Kernel(KernelType.EveryScanline)]
-        [KernelScanlineRange(192, 0)]
+        /*[Kernel(KernelType.EveryScanline)]
+        //[KernelScanlineRange(192, 96)] // Optional
         public static void Kernel()
         {
             ColuBk = BackgroundColor;
             BackgroundColor++;
+        }*/
+
+        [Kernel(KernelType.EveryScanline)]
+        [KernelScanlineRange(192, 96)]
+        public static void KernelAscend()
+        {
+            ColuBk = BackgroundColor;
+            BackgroundColor++;
+        }
+
+        [Kernel(KernelType.EveryScanline)]
+        [KernelScanlineRange(96, 0)]
+        public static void KernelDescend()
+        {
+            ColuBk = BackgroundColor;
+            BackgroundColor--;
         }
     }
 }

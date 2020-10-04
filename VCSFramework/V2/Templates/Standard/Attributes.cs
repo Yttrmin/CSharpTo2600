@@ -46,6 +46,16 @@ namespace VCSFramework.V2.Templates.Standard
             Start = start;
             End = end;
         }
+
+        public bool Overlaps(ScanlineRange other)
+        {
+            return Contains(this, other) || Contains(other, this);
+
+            static bool Contains(ScanlineRange a, ScanlineRange b)
+                => b.Start > a.End && b.Start <= a.Start;
+        }
+
+        public override string ToString() => $"({Start}..{End}]";
     }
 
     /// <summary>
