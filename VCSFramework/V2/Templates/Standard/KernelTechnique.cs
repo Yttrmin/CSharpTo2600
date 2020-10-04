@@ -50,12 +50,17 @@ namespace VCSFramework.V2.Templates.Standard
 
         public void GenerateCode(out string kernelCode, out string? kernelInitializationCode)
         {
-            kernelInitializationCode = "Y = 192;";
+            kernelInitializationCode = $"Y = {KernelScanlineCount};";
             if (KernelMethods.Length == 1)
             {
                 // Simplest case, range is implicit.
-                var range = KernelScanlineCount..0;
                 var method = KernelMethods.Single();
+
+                if (TryGetKernelRange(method, out var attributedRange))
+                {
+                    ValidateRange(method);
+                }
+                var range = attributedRange ?? new ScanlineRange(KernelScanlineCount, 0);
                 var kernelType = (KernelType)method.CustomAttributes.Single(a => a.AttributeType == typeof(KernelAttribute)).ConstructorArguments[0].Value!;
                 switch (kernelType)
                 {
@@ -71,10 +76,10 @@ namespace VCSFramework.V2.Templates.Standard
             throw new NotImplementedException();
         }
 
-        private string GenerateEveryScanlineCode(Range range, MethodInfo method, KernelInfo? previousKernel)
+        private string GenerateEveryScanlineCode(ScanlineRange range, MethodInfo method, KernelInfo? previousKernel)
         {
             // @TODO - Need to add an Overscan suffix to LDX/LDY so we don't eat up valuable kernel time doing it.
-            var finalKernel = range.End.Value == 0;
+            var finalKernel = range.End == 0;
             var takesScanlineIndex = method.GetParameters().Length == 1 && method.GetParameters()[0].ParameterType == typeof(byte);
             if (finalKernel)
             {
@@ -88,7 +93,7 @@ namespace VCSFramework.V2.Templates.Standard
                     if (ShouldUnrollKernel(method))
                     {
                         return
-$@"BeginRepeat({range.End.Value - range.Start.Value});
+$@"BeginRepeat({range.Start - range.End});
 {method.DeclaringType!.FullName}.{method.Name}();
 WSync();
 EndRepeat();";
@@ -98,13 +103,14 @@ EndRepeat();";
                         // @TODO - Almost identical code to use if it takes scanline index?
                         // @TODO - Support enough optimizations/operations that we can just do the following C#:
                         // while (Y > 0) { UserMethod(); Y--; WSync(); }
-                        var loopCode = finalKernel ? "BNE -" : $"CPY #{range.End.Value}{Environment.NewLine}BNE -";
+                        var loopCode = finalKernel ? "BNE -" : $"CPY #{range.End}{Environment.NewLine}BNE -";
                         return
 $@"InlineAssembly(""-"");
 {method.DeclaringType!.FullName}.{method.Name}();
-InlineAssembly(""DEY"");
 WSync();
-InlineAssembly(""{loopCode}"");";
+InlineAssembly(
+@""DEY
+{loopCode}"");";
                     }
                 }
             }
@@ -114,13 +120,13 @@ InlineAssembly(""{loopCode}"");";
             }
         }
 
-        private void GetMappings(out ImmutableDictionary<Range, MethodInfo> everyMapping, out ImmutableDictionary<Range, EvenOddPair> evenOddMapping, out ImmutableDictionary<Range, MethodInfo> manualMapping)
+        private void GetMappings(out ImmutableDictionary<ScanlineRange, MethodInfo> everyMapping, out ImmutableDictionary<ScanlineRange, EvenOddPair> evenOddMapping, out ImmutableDictionary<ScanlineRange, MethodInfo> manualMapping)
         {
             everyMapping = GetEveryScanlineMappings();
             manualMapping = GetManualMappings();
             evenOddMapping = GetEvenOddMappings();
 
-            var allHandledScanlines = everyMapping.Keys.Concat(manualMapping.Keys.Concat(evenOddMapping.Keys)).OrderBy(r => r.Start.Value).Distinct().SelectMany(AllInts).ToImmutableArray();
+            var allHandledScanlines = everyMapping.Keys.Concat(manualMapping.Keys.Concat(evenOddMapping.Keys)).OrderBy(r => r.Start).Distinct().SelectMany(AllInts).ToImmutableArray();
             if (allHandledScanlines.Length != KernelScanlineCount)
                 throw new InvalidOperationException($"Region {Region} has {KernelScanlineCount} visible scanlines, but only {allHandledScanlines.Length} are handled.");
 
@@ -132,14 +138,14 @@ InlineAssembly(""{loopCode}"");";
                 }
             }
 
-            static IEnumerable<int> AllInts(Range range)
+            static IEnumerable<int> AllInts(ScanlineRange range)
             {
-                for (var i = range.Start.Value; i < range.End.Value; i++)
+                for (var i = range.Start; i > range.End; i--)
                     yield return i;
             }
         }
 
-        private ImmutableDictionary<Range, MethodInfo> GetEveryScanlineMappings()
+        private ImmutableDictionary<ScanlineRange, MethodInfo> GetEveryScanlineMappings()
         {
             var everyScanlineMethods = KernelMethods.Where(m => IsKernelType(m, KernelType.EveryScanline)).ToImmutableArray();
             foreach (var method in everyScanlineMethods)
@@ -147,7 +153,7 @@ InlineAssembly(""{loopCode}"");";
             return everyScanlineMethods.ToImmutableDictionary(m => GetKernelRangeNonNull(m), m => m);
         }
 
-        private ImmutableDictionary<Range, MethodInfo> GetManualMappings()
+        private ImmutableDictionary<ScanlineRange, MethodInfo> GetManualMappings()
         {
             var manualMethods = KernelMethods.Where(m => IsKernelType(m, KernelType.Manual)).ToImmutableArray();
             foreach (var method in manualMethods)
@@ -155,7 +161,7 @@ InlineAssembly(""{loopCode}"");";
             return manualMethods.ToImmutableDictionary(m => GetKernelRangeNonNull(m), m => m);
         }
 
-        private ImmutableDictionary<Range, EvenOddPair> GetEvenOddMappings()
+        private ImmutableDictionary<ScanlineRange, EvenOddPair> GetEvenOddMappings()
         {
             var evenOddMethods = KernelMethods
                 .Where(m => m.CustomAttributes.Any(IsEvenOddKernelAttribute))
@@ -183,31 +189,22 @@ InlineAssembly(""{loopCode}"");";
 
             static bool IsEvenKernel(MethodInfo method) => 
                 ((KernelType)method.CustomAttributes.Single(a => a.AttributeType == typeof(KernelAttribute)).ConstructorArguments[0].Value!) == KernelType.EveryEvenNumberScanline;
-
-            static IEnumerable<int> AllInts(Range range)
-            {
-                for (var i = range.Start.Value; i < range.End.Value; i++)
-                    yield return i;
-            }
         }
 
         private void ValidateRange(MethodInfo method)
         {
-            var range = GetKernelRange(method);
-            if (range == null)
-                throw new InvalidOperationException($"Method '{method.Name}' must have a [{nameof(KernelScanlineRangeAttribute)}] attribute since there's more than 1 method marked with [{nameof(KernelAttribute)}].");
-            else if (range.Value.Start.Value == -1 || range.Value.End.Value == -1)
-                throw new InvalidOperationException($"Method '{method.Name}' is missing a range min or max value for region: {Region}");
-            else if (range.Value.Start.Value < 0 || range.Value.End.Value >= KernelScanlineCount)
-                throw new InvalidOperationException($"Method '{method.Name}''s kernel range is out of bounds for region {Region} (got {range.Value} but limits are {0..KernelScanlineCount})");
-            else if (range.Value.End.Value <= range.Value.Start.Value)
-                throw new InvalidOperationException($"Method '{method.Name}''s kernel range has an end value ({range.Value.End.Value}) <= the start value ({range.Value.Start.Value})");
+            if (!TryGetKernelRange(method, out var range))
+                throw new InvalidOperationException($"Method '{method.Name}' must have a [{nameof(KernelScanlineRangeAttribute)}] attribute that containsa range for region {Region} since there's more than 1 method marked with [{nameof(KernelAttribute)}].");
+            else if (range.Value.Start > KernelScanlineCount)
+                throw new InvalidOperationException($"Method '{method.Name}''s kernel range is out of bounds for region {Region} (starts at {range.Value.Start}, but max is {KernelScanlineCount})");
+            var scanlineCount = range.Value.Start - range.Value.End;
+            if (scanlineCount > KernelScanlineCount)
+                throw new InvalidOperationException($"Method '{method.Name}''s kernel encompasses {scanlineCount} scanlines, but region {Region} only has {KernelScanlineCount} visible scanlines.");
         }
 
-        private Range GetKernelRangeNonNull(MethodInfo method)
+        private ScanlineRange GetKernelRangeNonNull(MethodInfo method)
         {
-            var range = GetKernelRange(method);
-            if (range == null)
+            if (!TryGetKernelRange(method, out var range))
                 throw new InvalidOperationException($"Range was null");
             return range.Value;
         }
@@ -230,18 +227,23 @@ InlineAssembly(""{loopCode}"");";
             return (KernelAttribute)kernelAttributeData.Constructor.Invoke(kernelAttributeData.ConstructorArguments.Select(a => a.Value).ToArray());
         }
 
-        private Range? GetKernelRange(MethodInfo method)
+        private bool TryGetKernelRange(MethodInfo method, [NotNullWhen(true)]out ScanlineRange? range)
         {
             var rangeAttributeData = method.CustomAttributes.SingleOrDefault(a => a.AttributeType == typeof(KernelScanlineRangeAttribute));
             if (rangeAttributeData == null)
-                return null;
+            {
+                range = null;
+                return false;
+            }
             var rangeAttribute = (KernelScanlineRangeAttribute)rangeAttributeData.Constructor.Invoke(rangeAttributeData.ConstructorArguments.Select(a => a.Value).ToArray());
             switch (Region)
             {
                 case Region.NTSC:
-                    return rangeAttribute.Ntsc;
+                    range = rangeAttribute.Ntsc;
+                    return range != null;
                 default:
-                    return rangeAttribute.PalSecam;
+                    range = rangeAttribute.PalSecam;
+                    return range != null;
             }
         }
 

@@ -13,6 +13,7 @@ namespace Samples
         public static void ResetBackgroundColor() => BackgroundColor = 0;
 
         [Kernel(KernelType.EveryScanline)]
+        [KernelScanlineRange(192, 0)]
         public static void Kernel()
         {
             ColuBk = BackgroundColor;
