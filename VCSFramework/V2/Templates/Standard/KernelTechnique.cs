@@ -87,8 +87,8 @@ namespace VCSFramework.V2.Templates.Standard
                 {
                     if (ShouldUnrollKernel(method))
                     {
-                        return $@"
-BeginRepeat({range.End.Value - range.Start.Value});
+                        return
+$@"BeginRepeat({range.End.Value - range.Start.Value});
 {method.DeclaringType!.FullName}.{method.Name}();
 WSync();
 EndRepeat();";
@@ -99,8 +99,8 @@ EndRepeat();";
                         // @TODO - Support enough optimizations/operations that we can just do the following C#:
                         // while (Y > 0) { UserMethod(); Y--; WSync(); }
                         var loopCode = finalKernel ? "BNE -" : $"CPY #{range.End.Value}{Environment.NewLine}BNE -";
-                        return $@"
-InlineAssembly(""-"");
+                        return
+$@"InlineAssembly(""-"");
 {method.DeclaringType!.FullName}.{method.Name}();
 InlineAssembly(""DEY"");
 WSync();
