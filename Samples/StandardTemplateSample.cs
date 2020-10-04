@@ -10,9 +10,6 @@ namespace Samples
         private static byte BackgroundColor;
 
         [VBlank]
-        public static void IncrementBackgroundColor() => ColuBk = BackgroundColor++;
-
-        /*[Overscan]
         public static void ResetBackgroundColor() => BackgroundColor = 0;
 
         [Kernel(KernelType.EveryScanline)]
@@ -20,6 +17,6 @@ namespace Samples
         {
             ColuBk = BackgroundColor;
             BackgroundColor++;
-        }*/
+        }
     }
 }

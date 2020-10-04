@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 
@@ -21,6 +22,7 @@ namespace VCSFramework.V2.Templates.Standard
     internal sealed class KernelManager
     {
         private record EvenOddPair(MethodInfo Even, MethodInfo Odd);
+        private record KernelInfo(bool UpdatedY);
 
         private readonly Region Region;
         private readonly ImmutableArray<MethodInfo> KernelMethods;
@@ -46,16 +48,70 @@ namespace VCSFramework.V2.Templates.Standard
             }
         }
 
-        public string GenerateKernelCode()
+        public void GenerateCode(out string kernelCode, out string? kernelInitializationCode)
         {
+            kernelInitializationCode = "Y = 192;";
             if (KernelMethods.Length == 1)
             {
                 // Simplest case, range is implicit.
-                var range = 0..KernelScanlineCount;
+                var range = KernelScanlineCount..0;
+                var method = KernelMethods.Single();
+                var kernelType = (KernelType)method.CustomAttributes.Single(a => a.AttributeType == typeof(KernelAttribute)).ConstructorArguments[0].Value!;
+                switch (kernelType)
+                {
+                    case KernelType.EveryScanline:
+                        kernelCode = GenerateEveryScanlineCode(range, method, null);
+                        return;
+                    default:
+                        throw new NotImplementedException($"KernelType {kernelType} not supported yet.");
+                }
             }
 
             // Have to emit kernel code, per range, of the various kernel types.
             throw new NotImplementedException();
+        }
+
+        private string GenerateEveryScanlineCode(Range range, MethodInfo method, KernelInfo? previousKernel)
+        {
+            // @TODO - Need to add an Overscan suffix to LDX/LDY so we don't eat up valuable kernel time doing it.
+            var finalKernel = range.End.Value == 0;
+            var takesScanlineIndex = method.GetParameters().Length == 1 && method.GetParameters()[0].ParameterType == typeof(byte);
+            if (finalKernel)
+            {
+                if (takesScanlineIndex)
+                {
+                    throw new NotImplementedException("Scanline index-taking EveryScanline kernel not supported yet.");
+
+                }
+                else
+                {
+                    if (ShouldUnrollKernel(method))
+                    {
+                        return $@"
+BeginRepeat({range.End.Value - range.Start.Value});
+{method.DeclaringType!.FullName}.{method.Name}();
+WSync();
+EndRepeat();";
+                    }
+                    else
+                    {
+                        // @TODO - Almost identical code to use if it takes scanline index?
+                        // @TODO - Support enough optimizations/operations that we can just do the following C#:
+                        // while (Y > 0) { UserMethod(); Y--; WSync(); }
+                        var loopCode = finalKernel ? "BNE -" : $"CPY #{range.End.Value}{Environment.NewLine}BNE -";
+                        return $@"
+InlineAssembly(""-"");
+{method.DeclaringType!.FullName}.{method.Name}();
+InlineAssembly(""DEY"");
+WSync();
+InlineAssembly(""{loopCode}"");";
+                    }
+                }
+            }
+            else
+            {
+                throw new NotImplementedException("Non-final EveryScanline kernel not supported yet.");
+            }
         }
 
         private void GetMappings(out ImmutableDictionary<Range, MethodInfo> everyMapping, out ImmutableDictionary<Range, EvenOddPair> evenOddMapping, out ImmutableDictionary<Range, MethodInfo> manualMapping)
@@ -156,6 +212,24 @@ namespace VCSFramework.V2.Templates.Standard
             return range.Value;
         }
 
+        private bool TryGetKernelRangeAttribute(MethodInfo method, [NotNullWhen(true)] out KernelScanlineRangeAttribute? attribute)
+        {
+            var rangeAttributeData = method.CustomAttributes.SingleOrDefault(a => a.AttributeType == typeof(KernelScanlineRangeAttribute));
+            if (rangeAttributeData == null)
+            {
+                attribute = null;
+                return false;
+            }
+            attribute = (KernelScanlineRangeAttribute)rangeAttributeData.Constructor.Invoke(rangeAttributeData.ConstructorArguments.Select(a => a.Value).ToArray());
+            return true;
+        }
+
+        private KernelAttribute GetKernelAttrbute(MethodInfo method)
+        {
+            var kernelAttributeData = method.CustomAttributes.Single(a => a.AttributeType == typeof(KernelAttribute));
+            return (KernelAttribute)kernelAttributeData.Constructor.Invoke(kernelAttributeData.ConstructorArguments.Select(a => a.Value).ToArray());
+        }
+
         private Range? GetKernelRange(MethodInfo method)
         {
             var rangeAttributeData = method.CustomAttributes.SingleOrDefault(a => a.AttributeType == typeof(KernelScanlineRangeAttribute));
@@ -170,6 +244,9 @@ namespace VCSFramework.V2.Templates.Standard
                     return rangeAttribute.PalSecam;
             }
         }
+
+        private bool ShouldUnrollKernel(MethodInfo method)
+            => GetKernelAttrbute(method).UnrollLoop;
 
         private bool IsKernelType(MethodInfo method, KernelType kernelType) =>
             ((KernelType)method.CustomAttributes.Single(a => a.AttributeType == typeof(KernelAttribute)).ConstructorArguments[0].Value!) == kernelType;

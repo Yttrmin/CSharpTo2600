@@ -37,10 +37,22 @@ namespace VCSFramework.V2.Templates.Standard
             }
             else
             {
+                vblankCodeBuilder.AppendLine($"{prefix}// Invoke user-provided [{nameof(VBlankAttribute)}] methods:");
                 foreach (var vblank in VBlanks)
                 {
                     vblankCodeBuilder.AppendLine($"{prefix}{ProgramType.FullName}.{vblank.Name}();");
                 }
+            }
+
+            // @TODO - Need region param
+            var kernelManager = new KernelManager(Region.NTSC, ProgramType);
+            kernelManager.GenerateCode(out var kernelCode, out var kernelInitCode);
+
+            if (kernelInitCode != null)
+            {
+                vblankCodeBuilder.AppendLine();
+                vblankCodeBuilder.AppendLine($"{prefix}// Generated kernel initialization code:");
+                vblankCodeBuilder.AppendLine($"{prefix}{kernelInitCode}");
             }
             
 // @TODO - Desperately need to prettify this file (indenting), and also open it in text editor on build (or expose option to).
@@ -74,15 +86,10 @@ public static class {GeneratedTypeName}
 			VBlank = 0;
 
             // Call kernel
-            byte lines = 191;
-			while (lines != 0)
-			{{
-                lines--;
-				WSync();
-			}}
+{kernelCode}
 
             // Overscan
-            lines = 30;
+            byte lines = 30;
 			while (lines != 0)
 			{{
                 lines--;

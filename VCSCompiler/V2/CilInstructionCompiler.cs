@@ -242,10 +242,22 @@ namespace VCSCompiler.V2
 					yield return new PopToGlobal(instruction, new GlobalLabel(overrideStore.Symbol, BuiltInDefinitions.Byte, true), LabelGenerator.ByteType, LabelGenerator.ByteSize, new(0), new(0));
 				}
             }
-			else if(method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
+			else if (method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
             {
 				var type = method.ReturnType;
 				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, BuiltInDefinitions.Byte, true), new(type), new SizeLabel(type));
+            }
+			else if (method.TryGetFrameworkAttribute<OverrideWithLoadToRegisterAttribute>(out var overrideLoadToRegister))
+            {
+				// @TODO - When we delete V1, should just switch to an enum.
+				byte register = overrideLoadToRegister.Register switch
+                {
+					"A" => 0,
+					"X" => 1,
+					"Y" => 2,
+					_ => throw new InvalidOperationException($"Unknown register '{overrideLoadToRegister.Register}'")
+                };
+				yield return new PopToRegister(instruction, new(register), new(0));
             }
 			else if (method.TryGetFrameworkAttribute<ReplaceWithMacroAttribute>(out var replaceWithMacro))
             {

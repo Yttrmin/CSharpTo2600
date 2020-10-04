@@ -167,6 +167,26 @@ popToAddressFromStack .macro type, size
 .endmacro
 
 // @GENERATE @POP=1
+popToRegister .macro registerConstant, stackType
+	.errorif \stackType != TYPE_System_Byte, "Only 'byte's can be directly popped to a register"
+	// @TODO @REPORTME - if/elif doesn't work, have to use multiple if instead.
+	.if \registerConstant == 0
+		PLA
+	.endif
+	.if \registerConstant == 1
+		PLA
+		TAX
+	.endif
+	.if \registerConstant == 2
+		PLA
+		TAY
+	.endif
+	.if \registerConstant != 0 && \registerConstant != 1 && \registerConstant != 2
+		.error format("Unknown register index: {0}", \registerConstant)
+	.endif
+.endmacro
+
+// @GENERATE @POP=1
 // Pops {globalSize} bytes off the stack and stores them at {targetAddress}.
 // Effects: STACK-1, AccChange, MemChange
 popToGlobal .macro global, globalType, globalSize, stackType, stackSize
@@ -633,12 +653,22 @@ duplicate .macro stackType, stackSize
 	PHA
 .endmacro
 
-// @TODO - When we start sending parameters we're gonna have to pop them off as part
-// of the call instruction.
 // @GENERATE
 callVoid .macro method
 	JSR \method
 .endmacro
+
+//callVoidTODO .macro method saveCallerFramePointerConstant, setupCalleeFramePointerConstant
+//	.if setupCalleeFramePointerConstant == true
+//		TSX
+//		STX INTERNAL_FRAME_POINTER
+//	.endif
+//	.if saveCallerFramePointerConstant == true
+//		LDA INTERNAL_FRAME_POINTER
+//		PHA
+//	.endif
+//	JSR \method
+//.endmacro
 
 // @GENERATE @PUSH=1
 callNonVoid .macro method, resultType, resultSize
