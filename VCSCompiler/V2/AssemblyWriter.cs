@@ -191,6 +191,7 @@ namespace VCSCompiler.V2
                 }
                 if (SourceAnnotations.HasFlag(SourceAnnotation.CIL))
                 {
+                    // @TODO - Some instructions are multiline (e.g. ldstr, though we wouldn't emit that), so comments will break the asm file.
                     builder.AppendLine($"{SourceIndent}{new Comment(instruction.ToString())}");
                 }
             }

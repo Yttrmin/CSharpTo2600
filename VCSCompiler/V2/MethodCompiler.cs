@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using Mono.Cecil;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,7 @@ using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
-    internal class MethodCompiler
+    internal partial class MethodCompiler
     {
         private readonly MethodDefinition Method;
         private readonly bool Inline;
@@ -53,17 +54,6 @@ namespace VCSCompiler.V2
 
         private ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries)
         {
-            var optimizers = new Optimization[]
-            {
-                new PushConstantPopToGlobalOptimization(),
-                new PushGlobalPopToGlobal_To_CopyGlobalToGlobal(),
-                new PushGlobalPushConstantAddFromStack_To_AddFromGlobalAndConstant(),
-                new AddFromGlobalAndConstantPopToGlobal_To_AddFromGlobalAndConstantToGlobal(),
-                new AddFromGlobalAndConstantToGlobal_To_IncrementGlobal(),
-                new EliminateUnconditionalBranchToNextInstruction(),
-                new InlineAssemblyInvocationToInlineAssemblyEntry(),
-            };
-
             ImmutableArray<AssemblyEntry> preOptimize;
             var postOptimize = entries;
 
@@ -72,10 +62,11 @@ namespace VCSCompiler.V2
             do
             {
                 preOptimize = postOptimize;
-                foreach (var optimizer in optimizers)
+                if (!Compiler.Options.DisableOptimizations)
                 {
-                    postOptimize = optimizer.Optimize(postOptimize);
+                    postOptimize = OptionalOptimizations.Aggregate(preOptimize, Optimize);
                 }
+                postOptimize = MandatoryOptimizations.Aggregate(postOptimize, Optimize);
             } while (!preOptimize.SequenceEqual(postOptimize));
 
             var invalidEntries = postOptimize.Where(e => e.GetType() == typeof(LoadString) || e.GetType() == typeof(InlineAssembly)).ToImmutableArray();
@@ -88,6 +79,47 @@ namespace VCSCompiler.V2
                 throw new InvalidOperationException(messageBuilder.ToString());
             }
             return postOptimize;
+
+            /// <summary>
+            /// Attempts to perform a specific optimization upon <paramref name="entries"/>.
+            /// If there are no entries that can be optimized by this optimizer, no changes will be made.
+            /// </summary>
+            /// <param name="entries">The <see cref="AssemblyEntry"/>s to optimize.</param>
+            /// <returns>A new <see cref="ImmutableArray{AssemblyEntry}"/> that may or may not differ from what was passed in.</returns>
+            static ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries, Optimizer optimizer)
+            {
+                // Convert the array of elements into a linked list of LinkedEntry.
+                var lastNode = new LinkedEntry(entries.Last(), null);
+                var firstNode = Enumerable.Range(0, entries.Length)
+                    .Reverse()
+                    .Skip(1)
+                    .Aggregate(lastNode, (nextEntry, i) =>
+                    {
+                        return new LinkedEntry(entries[i], nextEntry);
+                    });
+
+                // Root is only used so that the firstElement is optimizable, we discard it later.
+                var root = new LinkedEntry(new Comment("I SHOULD NOT BE EMITTED!!! OPTIMIZATION BUG!!!"), firstNode);
+                for (var node = root; node != null; node = node.Next)
+                {
+                    var pendingNext = node.Next;
+                    if (pendingNext == null)
+                    {
+                        break;
+                    }
+                    node.Next = optimizer(pendingNext);
+                }
+
+                return LinkedToEntries(firstNode).ToImmutableArray();
+
+                static IEnumerable<AssemblyEntry> LinkedToEntries(LinkedEntry firstNode)
+                {
+                    for (var node = firstNode; node != null; node = node.Next)
+                    {
+                        yield return node.Value;
+                    }
+                }
+            }
         }
 
         /// <summary>
