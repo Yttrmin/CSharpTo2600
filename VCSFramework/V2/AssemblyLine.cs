@@ -2,14 +2,188 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Text;
+using System.Diagnostics;
 
 namespace VCSFramework.V2
 {
-    internal interface IStackPusher
+    /**
+     * This file is all about using and heavily abusing the type system to squeeze
+     * out as much compile-time safety as possible.
+     * Note that most macro/function calls are auto-generated from the VIL header file.
+     * If C# supported it, things like IExpression or ILabel would likely all just be
+     * discriminated unions instead. Maybe in C# 10!
+     */
+
+    /// <summary>
+    /// Represents a single logical unit in the assembly output.
+    /// This can include things as simple as comments or labels, up to macro invocations with a parameter list and stack operations.
+    /// </summary>
+    public interface IAssemblyEntry
+    {
+        /// <summary>A text representation of the unit. Each line should be its own element in the array.</summary>
+        //ImmutableArray<string> Text { get; }
+    }
+
+    public interface IMacroCall : IAssemblyEntry
+    {
+        string Name { get; }
+        // Needed to lookup all referenced labels.
+        ImmutableArray<IExpression> Parameters { get; }
+        // Needed for source emitting.
+        ImmutableArray<Inst> Instructions { get; }
+
+        void PerformStackOperation(IStackTracker stackTracker);
+    }
+
+    // We split this out and not IMacroCall.Instructions, which is also optional, since Instructions will
+    // always be set at instantiation. StackOperation is never set at instantiation, it'll only be set 
+    // with a `with` operation long after the fact.
+    public sealed record StackMutatingMacroCall(IMacroCall MacroCall, StackOperation StackOperation) : IMacroCall
+    {
+        string IMacroCall.Name => MacroCall.Name;
+        ImmutableArray<IExpression> IMacroCall.Parameters => MacroCall.Parameters;
+        ImmutableArray<Inst> IMacroCall.Instructions => MacroCall.Instructions;
+        void IMacroCall.PerformStackOperation(IStackTracker stackTracker) => MacroCall.PerformStackOperation(stackTracker);
+    }
+
+    public interface IFunctionCall : IExpression
+    {
+        /// <summary>Name of the function to be invoked.</summary>
+        string Name { get; }
+        ImmutableArray<IExpression> Parameters { get; }
+    }
+
+    public interface IExpression : IAssemblyEntry { }
+
+    public sealed record Constant(object Value) : IExpression;
+
+    public sealed record Blank() : IAssemblyEntry;
+
+    public sealed record Comment(string Text) : IAssemblyEntry;
+
+    public sealed record MultilineComment(ImmutableArray<string> Text) : IAssemblyEntry;
+
+    public sealed record InlineAssembly(ImmutableArray<string> Assembly) : IAssemblyEntry;
+
+    // @TODO - Some indication that these shouldn't exist at assembly time? Did that before
+    // by making them macros, but that doesn't really make sense.
+    public sealed record LoadString(Instruction SourceInstruction) : IAssemblyEntry;
+
+    public sealed record InlineAssemblyCall() : IAssemblyEntry;
+
+    #region Labels
+    public interface ILabel : IExpression { }
+
+    // @TODO - Stack versions of these?
+    public interface ISizeLabel : ILabel { }
+
+    public interface ITypeLabel : ILabel { }
+
+    /// <summary>
+    /// Global labels refer to constant memory addresses and can be used from anywhere.
+    /// </summary>
+    public interface IGlobalLabel : ILabel { }
+
+    public interface IBranchTargetLabel : ILabel { }
+
+    public sealed record TypeSizeLabel(TypeRef Type) : ISizeLabel;
+
+    public sealed record PointerSizeLabel(bool ZeroPage) : ISizeLabel;
+
+    public sealed record TypeLabel(TypeRef Type) : ITypeLabel;
+
+    public sealed record PointerTypeLabel(TypeRef ReferentType) : ITypeLabel;
+
+    public sealed record GlobalFieldLabel(FieldRef Field) : IGlobalLabel;
+
+    public sealed record PredefinedGlobalLabel(string Name) : IGlobalLabel;
+
+    /// <summary>
+    /// Label to a local variable that has been lifted to its own global address.
+    /// These are far faster and easier to work with, and should always be preferred,
+    /// but they are incompatible with any form of recursion.
+    /// </summary>
+    public sealed record LiftedLocalLabel(MethodDef Method, int Index) : IGlobalLabel;
+
+    /// <summary>
+    /// Label to a local variable that exists at an indeterminate address on the stack.
+    /// This can only be used in the context of a frame pointer or some other offsetable value.
+    /// </summary>
+    public sealed record LocalLabel(MethodDef Method, int Index) : ILabel;
+
+    public sealed record MethodLabel(MethodDef Method) : ILabel;
+
+    public sealed record InstructionLabel(Inst Instruction) : IBranchTargetLabel;
+
+    public sealed record BranchTargetLabel(string Name) : IBranchTargetLabel;
+    #endregion
+
+    public sealed record ArrayAccessOp(string VariableName, int Index) : IExpression;
+    
+    public sealed record ArrayLetOp(string VariableName, ImmutableArray<IExpression> Elements) : IAssemblyEntry;
+
+    public sealed record StackOperation(ArrayLetOp TypeOp, ArrayLetOp SizeOp);
+
+    // TypeReference only has referential equality, this reusable wrapper gives it value equality.
+    public sealed record TypeRef(TypeReference Type)
+    {
+        public static implicit operator TypeRef(TypeReference t) => new(t);
+        public static implicit operator TypeReference(TypeRef t) => t.Type;
+
+        public bool Equals(TypeRef? other)
+            => Type.FullName == other?.Type.FullName;
+
+        public override int GetHashCode()
+            => Type.FullName.GetHashCode();
+
+        public override string ToString() => Type.NamespaceAndName();
+    }
+
+    public sealed record MethodDef(MethodDefinition Method)
+    {
+        public static implicit operator MethodDef(MethodDefinition m) => new(m);
+        public static implicit operator MethodDefinition(MethodDef m) => m.Method;
+
+        public bool Equals(MethodDef? other)
+            => Method.FullName == other?.Method.FullName;
+
+        public override int GetHashCode()
+            => Method.FullName.GetHashCode();
+
+        public override string ToString() => $"{Method.DeclaringType.NamespaceAndName()}_{Method.Name}";
+    }
+
+    public sealed record FieldRef(FieldReference Field)
+    {
+        public static implicit operator FieldRef(FieldReference f) => new(f);
+        public static implicit operator FieldReference(FieldRef f) => f.Field;
+
+        public bool Equals(FieldRef? other)
+            => Field.FullName == other?.Field.FullName;
+
+        public override int GetHashCode()
+            => Field.FullName.GetHashCode();
+
+        public override string ToString() => $"{Field.DeclaringType.NamespaceAndName()}_{Field.Name}";
+    }
+
+    [DebuggerDisplay("{Instruction.Offset:x4}")]
+    public sealed record Inst(Instruction Instruction)
+    {
+        public static implicit operator Inst(Instruction i) => new(i);
+        public static implicit operator Instruction(Inst i) => i.Instruction;
+
+        public bool Equals(Inst? other)
+            => Instruction.ToString() == other?.ToString();
+
+        public override int GetHashCode()
+            => Instruction.ToString().GetHashCode();
+
+        //public override string ToString() => $"{Instruction.Offset:x4}";
+    }
+
+    /*internal interface IStackPusher
     {
         void PerformStackPushOps(IStackTracker stackTracker, ImmutableArray<Label> parameters);
     }
@@ -488,7 +662,7 @@ namespace VCSFramework.V2
     {
         public GetSizeFromType(StackTypeArrayLabel type)
             : base(new FunctionLabel("getSizeFromType"), type) { }
-    }
+    }*/
 
     // [StackEffect(POP, 2)]
     // [StackEffect(PUSH, 1)]

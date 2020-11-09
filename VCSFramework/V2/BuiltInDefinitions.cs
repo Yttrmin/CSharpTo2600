@@ -12,7 +12,7 @@ namespace VCSFramework.V2
             = AssemblyDefinition.ReadAssembly(typeof(object).GetTypeInfo().Assembly.Location);
 
         public static readonly AssemblyDefinition Framework
-            = AssemblyDefinition.ReadAssembly(typeof(Macro).GetTypeInfo().Assembly.Location);
+            = AssemblyDefinition.ReadAssembly(typeof(IAssemblyEntry).GetTypeInfo().Assembly.Location);
 
         public static readonly ImmutableArray<AssemblyDefinition> Assemblies
             = new[] { System, Framework }.ToImmutableArray();

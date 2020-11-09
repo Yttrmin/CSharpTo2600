@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace VCSFramework.V2
 {
@@ -22,6 +18,7 @@ namespace VCSFramework.V2
         /// Emits <paramref name="assembly"/> directly into the assembly file at the call site.
         /// </summary>
         /// <param name="assembly">6502.NET-compatible assembly code. MUST be a compile time constant.</param>
+        // @TODO - Do we need this attribute, or can we just look for CallVoid in the optimization?
         [ReplaceWithMacro(typeof(InlineAssembly))]
         public static void InlineAssembly(string assembly)
         {
