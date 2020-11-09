@@ -16,7 +16,7 @@ namespace VCSCompiler.V2
         private readonly AssemblyDefinition UserAssembly;
         private readonly CilInstructionCompiler.Options? CilOptions;
 
-        public static ImmutableArray<AssemblyEntry> Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions = null)
+        public static ImmutableArray<IAssemblyEntry> Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions = null)
             => new MethodCompiler(method, userAssembly, inline, cilOptions).Compile();
 
         public MethodCompiler(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions)
@@ -27,7 +27,7 @@ namespace VCSCompiler.V2
             CilOptions = cilOptions;
         }
 
-        public ImmutableArray<AssemblyEntry> Compile()
+        public ImmutableArray<IAssemblyEntry> Compile()
         {
             var cilCompiler = new CilInstructionCompiler(Method, UserAssembly, CilOptions);
             var body = cilCompiler.Compile().ToImmutableArray();
@@ -52,9 +52,9 @@ namespace VCSCompiler.V2
             return body;
         }
 
-        private ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries)
+        private ImmutableArray<IAssemblyEntry> Optimize(ImmutableArray<IAssemblyEntry> entries)
         {
-            ImmutableArray<AssemblyEntry> preOptimize;
+            ImmutableArray<IAssemblyEntry> preOptimize;
             var postOptimize = entries;
 
             // Optimizers may rely on the output of other optimizers. So loop until there's 
@@ -86,7 +86,7 @@ namespace VCSCompiler.V2
             /// </summary>
             /// <param name="entries">The <see cref="AssemblyEntry"/>s to optimize.</param>
             /// <returns>A new <see cref="ImmutableArray{AssemblyEntry}"/> that may or may not differ from what was passed in.</returns>
-            static ImmutableArray<AssemblyEntry> Optimize(ImmutableArray<AssemblyEntry> entries, Optimizer optimizer)
+            static ImmutableArray<IAssemblyEntry> Optimize(ImmutableArray<IAssemblyEntry> entries, Optimizer optimizer)
             {
                 // Convert the array of elements into a linked list of LinkedEntry.
                 var lastNode = new LinkedEntry(entries.Last(), null);
@@ -112,13 +112,23 @@ namespace VCSCompiler.V2
 
                 return LinkedToEntries(firstNode).ToImmutableArray();
 
-                static IEnumerable<AssemblyEntry> LinkedToEntries(LinkedEntry firstNode)
+                static IEnumerable<IAssemblyEntry> LinkedToEntries(LinkedEntry firstNode)
                 {
                     for (var node = firstNode; node != null; node = node.Next)
                     {
                         yield return node.Value;
                     }
                 }
+            }
+
+            static LinkedEntry Replace(LinkedEntry root, LinkedEntry toReplace, LinkedEntry newEntry)
+            {
+                if (root.Next == toReplace)
+                    return new LinkedEntry(root.Value, newEntry);
+                else if (root.Next != null)
+                    return new LinkedEntry(root.Value, Replace(root.Next, toReplace, newEntry));
+                else
+                    return root;
             }
         }
 
@@ -127,7 +137,7 @@ namespace VCSCompiler.V2
         /// This must be called AFTER optimizations. Most optimizations eliminate stack operations anyways. But the
         /// presence of the psuedoops will likely interfere with most optimizer's pattern matching too.
         /// </summary>
-        private ImmutableArray<AssemblyEntry> GenerateStackOps(ImmutableArray<AssemblyEntry> entries)
+        private ImmutableArray<IAssemblyEntry> GenerateStackOps(ImmutableArray<IAssemblyEntry> entries)
         {
             var stackTracker = new StackTracker(entries);
 
@@ -135,9 +145,13 @@ namespace VCSCompiler.V2
             var entriesWithStackLets = entries
                 .Select(entry =>
                 {
-                    if (entry is Macro macro)
+                    if (entry is IMacroCall macroCall)
                     {
-                        return macro.WithStackLets(stackTracker, LabelGenerator.NothingType, LabelGenerator.NothingSize);
+                        macroCall.PerformStackOperation(stackTracker);
+                        if (stackTracker.TryGenerateStackOperation(out var stackOperation))
+                        {
+                            return new StackMutatingMacroCall(macroCall, stackOperation);
+                        }
                     }
                     return entry;
                 });

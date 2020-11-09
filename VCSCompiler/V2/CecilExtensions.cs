@@ -80,7 +80,7 @@ namespace VCSCompiler.V2
 				if (obj is TypeDefinition typeDefinition)
                 {
 					// @TODO - Probably shouldn't be limited to just Framework Macros.
-					return typeof(Macro).GetTypeInfo().Assembly.GetTypes().Single(t => t.FullName == typeDefinition.FullName);
+					return typeof(IAssemblyEntry).GetTypeInfo().Assembly.GetTypes().Single(t => t.FullName == typeDefinition.FullName);
                 }
 				return obj;
             }
@@ -105,5 +105,15 @@ namespace VCSCompiler.V2
 				return true;
             }
         }
+
+		// @TODO - Probably move to another file, or make this one more generic.
+		public static IEnumerable<Instruction> Concat(this Instruction @this, Instruction other)
+			=> Enumerable.Repeat(@this, 1).Concat(Enumerable.Repeat(other, 1));
+
+		public static IEnumerable<Instruction> Concat(this Instruction @this, IEnumerable<Instruction> other)
+			=> Enumerable.Repeat(@this, 1).Concat(other);
+
+		public static IEnumerable<Instruction> Concat(this IEnumerable<Instruction> @this, Instruction other)
+			=> @this.Concat(Enumerable.Repeat(other, 1));
 	}
 }

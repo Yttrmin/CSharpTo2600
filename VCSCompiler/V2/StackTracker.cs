@@ -9,121 +9,51 @@ namespace VCSCompiler.V2
 {
     public sealed class StackTracker : IStackTracker
     {
-        // @TODO - May need an "Unknown" type for when we cross basic block boundaries.
-        private abstract record BaseStackElement
-        {
-            public abstract string TypeString { get; }
-            public abstract string SizeString { get; }
-        }
+        public sealed record StackElement(IExpression Type, IExpression Size);
 
-        private sealed record TypedStackElement(BaseTypeLabel Type, BaseSizeLabel Size)
-            : BaseStackElement
-        {
-            public static TypedStackElement Nothing
-                => new(LabelGenerator.NothingType, LabelGenerator.NothingSize);
-
-            public override string TypeString => Type.Output;
-
-            public override string SizeString => Size.Output;
-        }
-
-        private sealed record FunctionStackElement(Function TypeFunction, Function SizeFunction)
-            : BaseStackElement
-        {
-            public override string TypeString => TypeFunction.Output;
-
-            public override string SizeString => SizeFunction.Output;
-        }
-
-        private sealed record IndexedStackElement(int Index) : BaseStackElement
-        {
-            public override string TypeString => new StackTypeArrayLabel(Index).Output;
-
-            public override string SizeString => new StackSizeArrayLabel(Index).Output;
-
-            public override string ToString() => $"Stack[{Index}]";
-        }
-
-        private static readonly LetLabel StackTypeLabel = new("STACK_TYPEOF");
-        private static readonly LetLabel StackSizeLabel = new("STACK_SIZEOF");
-        private readonly BaseStackElement[] StackState;
+        private const string StackTypeLabel = "STACK_TYPEOF";
+        private const string StackSizeLabel = "STACK_SIZEOF";
+        private readonly StackElement[] StackState;
         private int MaxDepth => StackState.Length;
 
-        public StackTracker(ImmutableArray<AssemblyEntry> entries)
+        public StackTracker(ImmutableArray<IAssemblyEntry> entries)
         {
             var maxDepth = 0;
             var depth = 0;
-            foreach (var entry in entries.OfType<Macro>())
+            foreach (var entry in entries.OfType<IMacroCall>())
             {
-                if (entry.Effects.OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
+                if (entry.GetType().CustomAttributes.OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
                 {
                     depth += pushAttr.Count;
                 }
-                if (entry.Effects.OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
+                if (entry.GetType().CustomAttributes.OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
                 {
                     depth -= popAttr.Count;
                 }
                 maxDepth = Math.Max(maxDepth, depth);
             }
 
-            StackState = new BaseStackElement[maxDepth];
+            StackState = new StackElement[maxDepth];
             // The compiler should emit the [Nothing,...] initializer at the
             // start of the function, so we're safe to use indexes from the start.
             ReplaceStackWithIndexes();
         }
 
-        public void Push(TypeLabel type, SizeLabel size)
+        public void Push(IExpression typeExpression, IExpression sizeExpression)
         {
             CheckDepth();
             PercolateUp();
-
-            StackState[0] = new TypedStackElement(type, size);
+            StackState[0] = new(typeExpression, sizeExpression);
         }
 
-        public void Push(TypeLabel type, BaseSizeLabel size)
-        {
-            CheckDepth();
-            PercolateUp();
-
-            StackState[0] = new TypedStackElement(type, size);
-        }
-
-        public void Push(PointerTypeLabel type, PointerSizeLabel size)
-        {
-            CheckDepth();
-            PercolateUp();
-
-            StackState[0] = new TypedStackElement(type, size);
-        }
-
-        public void Push(PointerTypeLabel type, StackSizeArrayLabel size)
-        {
-            CheckDepth();
-            PercolateUp();
-
-            StackState[0] = new TypedStackElement(type, size);
-        }
-
-        public void Push(Function typeFunction, Function sizeFunction)
-        {
-            CheckDepth();
-            PercolateUp();
-
-            StackState[0] = new FunctionStackElement(typeFunction, sizeFunction);
-        }
-
-        public void Push(StackTypeArrayLabel type, StackSizeArrayLabel size)
-        {
-            CheckDepth();
-            PercolateUp();
-
-            if (type.Index != size.Index)
-                throw new ArgumentException($"Expected same index for type/size. Instead got type[{type.Index}] and size[{size.Index}]");
-            StackState[0] = new IndexedStackElement(type.Index);
-        }
+        public void Push(int stackIndex)
+            => Push(new ArrayAccessOp(StackTypeLabel, stackIndex), new ArrayAccessOp(StackSizeLabel, stackIndex));
 
         public void Pop(int amount = 1)
         {
+            if (amount <= 0)
+                return;
+
             CheckDepth();
             for (var i = 0; i < amount; i++)
             {
@@ -136,7 +66,7 @@ namespace VCSCompiler.V2
                 {
                     StackState[i] = StackState[i + 1];
                 }
-                StackState[StackState.Length - 1] = TypedStackElement.Nothing;
+                StackState[StackState.Length - 1] = new(LabelGenerator.NothingType, LabelGenerator.NothingSize);
             }
         }
 
@@ -144,8 +74,13 @@ namespace VCSCompiler.V2
         {
             if (MaxDepth == 0)
                 yield break;
-            yield return new(StackTypeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Type, MaxDepth).Select(e => e.Output));
-            yield return new(StackSizeLabel, Enumerable.Repeat(TypedStackElement.Nothing.Size, MaxDepth).Select(e => e.Output));
+            yield return new(StackTypeLabel, Enumerable.Repeat(LabelGenerator.NothingType, MaxDepth).Cast<IExpression>().ToImmutableArray());
+            yield return new(StackSizeLabel, Enumerable.Repeat(LabelGenerator.NothingSize, MaxDepth).Cast<IExpression>().ToImmutableArray());
+        }
+
+        public bool TryGenerateStackOperation(out StackOperation stackOperation)
+        {
+            throw new NotImplementedException();
         }
 
         public ImmutableArray<ArrayLetOp> GenerateStackSetters()
@@ -166,8 +101,8 @@ namespace VCSCompiler.V2
              */
 
             CheckDepth();
-            var typeValues = StackState.Select(e => e.TypeString);
-            var sizeValues = StackState.Select(e => e.SizeString);
+            var typeValues = StackState.Select(e => e.Type).ToImmutableArray();
+            var sizeValues = StackState.Select(e => e.Size).ToImmutableArray();
             var result = new ArrayLetOp[]
             {
                 new(StackTypeLabel, typeValues),
@@ -183,7 +118,7 @@ namespace VCSCompiler.V2
         {
             for (var i = 0; i < StackState.Length; i++)
             {
-                StackState[i] = new IndexedStackElement(i);
+                StackState[i] = new StackElement(new ArrayAccessOp(StackTypeLabel, i), new ArrayAccessOp(StackSizeLabel, i));
             }
         }
 

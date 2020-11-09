@@ -20,7 +20,7 @@ namespace VCSCompiler.V2
 			public bool MustNotReturn { get; init; }
         }
 
-		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> MethodMap;
+		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
 		private readonly AssemblyDefinition UserAssembly;
 		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
@@ -35,7 +35,7 @@ namespace VCSCompiler.V2
 			CompilationOptions = options ?? new Options();
         }
 
-		public IEnumerable<AssemblyEntry> Compile()
+		public IEnumerable<IAssemblyEntry> Compile()
         {
 			var labeledInstructions = MethodDefinition.Body.Instructions
 				.Where(IsBranchInstruction)
@@ -55,12 +55,12 @@ namespace VCSCompiler.V2
             }
         }
 
-        public IEnumerable<AssemblyEntry> CompileInstruction(Instruction instruction)
+        public IEnumerable<IAssemblyEntry> CompileInstruction(Instruction instruction)
 			=> MethodMap[instruction.OpCode.Code](instruction);
 
-		private ImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>> CreateMethodMap()
+		private ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> CreateMethodMap()
 		{
-			var dictionary = new Dictionary<Code, Func<Instruction, IEnumerable<AssemblyEntry>>>();
+			var dictionary = new Dictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>>();
 			var typeInfo = typeof(CilInstructionCompiler).GetTypeInfo();
 			var opCodes = Enum.GetValues(typeof(Code)).Cast<Code>();
 			foreach (var opCode in opCodes)
@@ -84,13 +84,13 @@ namespace VCSCompiler.V2
 				}
 				var method = typeInfo.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 				dictionary[opCode]
-					= (Func<Instruction, IEnumerable<AssemblyEntry>>?)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<AssemblyEntry>>), this)
+					= (Func<Instruction, IEnumerable<IAssemblyEntry>>?)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<IAssemblyEntry>>), this)
 					?? Unsupported;
 			}
 			return dictionary.ToImmutableDictionary();
 		}
 
-		private IEnumerable<AssemblyEntry> LoadConstant(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction)
 		{
 			byte value = 0;
 			if (instruction.Operand != null)
@@ -132,12 +132,12 @@ namespace VCSCompiler.V2
 			return LoadConstant(instruction, value);
 		}
 
-		private IEnumerable<AssemblyEntry> LoadConstant(Instruction instruction, byte value)
+		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction, byte value)
 		{
 			yield return new PushConstant(instruction, LabelGenerator.Constant(value), LabelGenerator.ByteType, LabelGenerator.ByteSize);
 		}
 
-		private IEnumerable<AssemblyEntry> LoadLocal(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> LoadLocal(Instruction instruction)
         {
 			switch (instruction.OpCode.Code)
             {
@@ -152,7 +152,7 @@ namespace VCSCompiler.V2
             }
 			return LoadLocal((int)instruction.Operand);
 
-			IEnumerable<AssemblyEntry> LoadLocal(int index)
+			IEnumerable<IAssemblyEntry> LoadLocal(int index)
             {
 				var variable = MethodDefinition.Body.Variables[index];
 				var variableType = variable.VariableType;
@@ -160,7 +160,7 @@ namespace VCSCompiler.V2
             }
         }
 
-		private IEnumerable<AssemblyEntry> StoreLocal(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> StoreLocal(Instruction instruction)
         {
 			switch (instruction.OpCode.Code)
             {
@@ -175,7 +175,7 @@ namespace VCSCompiler.V2
             }
 			return StoreLocal((int)instruction.Operand);
 
-			IEnumerable<AssemblyEntry> StoreLocal(int index)
+			IEnumerable<IAssemblyEntry> StoreLocal(int index)
             {
 				var variable = MethodDefinition.Body.Variables[index];
 				var variableType = variable.VariableType;
@@ -183,36 +183,36 @@ namespace VCSCompiler.V2
             }
         }
 
-		private IEnumerable<AssemblyEntry> Add(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Add(Instruction instruction)
         {
 			yield return new AddFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Br(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Br(Instruction instruction)
         {
 			var targetInstruction = (Instruction)instruction.Operand;
 			yield return new Branch(instruction, LabelGenerator.Instruction(targetInstruction));
         }
 
-		private IEnumerable<AssemblyEntry> Br_S(Instruction instruction) => Br(instruction);
+		private IEnumerable<IAssemblyEntry> Br_S(Instruction instruction) => Br(instruction);
 
-		private IEnumerable<AssemblyEntry> Brtrue(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Brtrue(Instruction instruction)
         {
 			var targetInstruction = (Instruction)instruction.Operand;
 			yield return new BranchTrueFromStack(instruction, LabelGenerator.Instruction(targetInstruction));
         }
 
-		private IEnumerable<AssemblyEntry> Brtrue_S(Instruction instruction) => Brtrue(instruction);
+		private IEnumerable<IAssemblyEntry> Brtrue_S(Instruction instruction) => Brtrue(instruction);
 
-		private IEnumerable<AssemblyEntry> Brfalse(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Brfalse(Instruction instruction)
         {
 			var targetInstruction = (Instruction)instruction.Operand;
 			yield return new BranchFalseFromStack(instruction, LabelGenerator.Instruction(targetInstruction));
         }
 
-		private IEnumerable<AssemblyEntry> Brfalse_S(Instruction instruction) => Brfalse(instruction);
+		private IEnumerable<IAssemblyEntry> Brfalse_S(Instruction instruction) => Brfalse(instruction);
 
-		private IEnumerable<AssemblyEntry> Call(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Call(Instruction instruction)
         {
 			var methodReference = (MethodReference)instruction.Operand;
 
@@ -245,7 +245,7 @@ namespace VCSCompiler.V2
 			else if (method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
             {
 				var type = method.ReturnType;
-				yield return new PushGlobal(instruction, new GlobalLabel(overrideLoad.Symbol, BuiltInDefinitions.Byte, true), new(type), new SizeLabel(type));
+				yield return new PushGlobal(instruction, new PredefinedGlobalLabel(overrideLoad.Symbol), new TypeLabel(type), new TypeSizeLabel(type));
             }
 			else if (method.TryGetFrameworkAttribute<OverrideWithLoadToRegisterAttribute>(out var overrideLoadToRegister))
             {
@@ -292,48 +292,48 @@ namespace VCSCompiler.V2
             }
         }
 
-		private IEnumerable<AssemblyEntry> Ceq(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ceq(Instruction instruction)
         {
 			yield return new CompareEqualToFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Conv_I(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Conv_I(Instruction instruction)
         {
 			// @TODO - Do we need to support this?
 			yield break;
         }
 
-		private IEnumerable<AssemblyEntry> Conv_U(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Conv_U(Instruction instruction)
 		{
 			// @TODO - Do we need to support this?
 			yield break;
 		}
 
-		private IEnumerable<AssemblyEntry> Conv_U1(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Conv_U1(Instruction instruction)
         {
 			// @TODO - Do we have to support this? We obviously can't expand byte+byte addition
 			// to int+int addition.
 			yield break;
         }
 
-		private IEnumerable<AssemblyEntry> Dup(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Dup(Instruction instruction)
         {
 			yield return new Duplicate(instruction, new(0), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Initobj(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Initobj(Instruction instruction)
         {
 			var type = (TypeDefinition)instruction.Operand;
 			yield return new InitializeObject(instruction, new SizeLabel(type), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Ldc_I4(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldc_I4(Instruction instruction)
 			=> LoadConstant(instruction);
 
-		private IEnumerable<AssemblyEntry> Ldc_I4_S(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldc_I4_S(Instruction instruction)
 			=> LoadConstant(instruction);
 
-		private IEnumerable<AssemblyEntry> Ldfld(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldfld(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldType = LabelGenerator.Type(field.FieldType);
@@ -343,7 +343,7 @@ namespace VCSCompiler.V2
 			yield return new PushFieldFromStack(instruction, LabelGenerator.Constant((byte)offset), fieldType, fieldSize, new(0), new(0));
 		}
 
-		private IEnumerable<AssemblyEntry> Ldflda(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldflda(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
@@ -352,22 +352,22 @@ namespace VCSCompiler.V2
 			yield return new PushAddressOfField(instruction, LabelGenerator.Constant((byte)offset), new(field.FieldType), new(0));
 		}
 
-		private IEnumerable<AssemblyEntry> Ldind_U1(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldind_U1(Instruction instruction)
         {
 			yield return new PushDereferenceFromStack(instruction, LabelGenerator.ByteType, LabelGenerator.ByteSize);
         }
 
-		private IEnumerable<AssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
+		private IEnumerable<IAssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
 
-		private IEnumerable<AssemblyEntry> Ldloca(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldloca(Instruction instruction)
         {
 			var local = (VariableDefinition)instruction.Operand;
 			yield return new PushAddressOfLocal(instruction, new LocalLabel(MethodDefinition, local.Index), new PointerTypeLabel(local.VariableType), new PointerSizeLabel(true));
         }
 
-		private IEnumerable<AssemblyEntry> Ldloca_S(Instruction instruction) => Ldloca(instruction);
+		private IEnumerable<IAssemblyEntry> Ldloca_S(Instruction instruction) => Ldloca(instruction);
 
-		private IEnumerable<AssemblyEntry> Ldsfld(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldsfld(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
@@ -377,7 +377,7 @@ namespace VCSCompiler.V2
 			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
 		}
 
-		private IEnumerable<AssemblyEntry> Ldsflda(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldsflda(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
@@ -385,29 +385,29 @@ namespace VCSCompiler.V2
 			yield return new PushAddressOfGlobal(instruction, fieldLabel, new(field.FieldType), new(true));
 		}
 
-		private IEnumerable<AssemblyEntry> Ldstr(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ldstr(Instruction instruction)
         {
 			// NOTE: This can only be used for compile-time purposes and MUST be optimized out.
 			// If it is found after optimizing, an exception will be thrown.
 			yield return new LoadString(instruction);
         }
 
-		private IEnumerable<AssemblyEntry> Nop(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Nop(Instruction instruction)
         {
 			yield break;
         }
 
-		private IEnumerable<AssemblyEntry> Pop(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Pop(Instruction instruction)
         {
 			yield return new PopStack(instruction, new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Or(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Or(Instruction instruction)
         {
 			yield return new OrFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Ret(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Ret(Instruction instruction)
         {
 			if (MethodDefinition.ReturnType.FullName == typeof(void).FullName)
             {
@@ -422,7 +422,7 @@ namespace VCSCompiler.V2
             }
         }
 
-		private IEnumerable<AssemblyEntry> Stfld(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Stfld(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
@@ -431,15 +431,15 @@ namespace VCSCompiler.V2
 			yield return new PopToFieldFromStack(instruction, LabelGenerator.Constant((byte)offset), new(field.FieldType), LabelGenerator.FieldSize(field), new(1), new(1));
         }
 
-		private IEnumerable<AssemblyEntry> Stind_I1(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Stind_I1(Instruction instruction)
         {
 			// Stind.i1 is also used to store to bytes.
 			yield return new PopToAddressFromStack(instruction, LabelGenerator.ByteType, LabelGenerator.ByteSize);
         }
 
-		private IEnumerable<AssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);
+		private IEnumerable<IAssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);
 
-		private IEnumerable<AssemblyEntry> Stsfld(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Stsfld(Instruction instruction)
         {
 			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = LabelGenerator.Global(field);
@@ -449,12 +449,12 @@ namespace VCSCompiler.V2
 			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Sub(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> Sub(Instruction instruction)
         {
 			yield return new SubFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
-		private IEnumerable<AssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
+		private IEnumerable<IAssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
 
 		private bool IsBranchInstruction(Instruction instruction)
         {

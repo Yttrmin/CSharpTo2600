@@ -8,10 +8,10 @@ namespace VCSCompiler.V2
 {
     internal static class LabelGenerator
     {
-        public static SizeLabel Size(TypeReference typeReference) 
+        public static TypeSizeLabel Size(TypeReference typeReference) 
             => new(typeReference);
 
-        public static SizeLabel ByteSize
+        public static TypeSizeLabel ByteSize
             => new(BuiltInDefinitions.Byte);
 
         public static TypeLabel ByteType
@@ -20,42 +20,29 @@ namespace VCSCompiler.V2
         public static TypeLabel NothingType
             => new(BuiltInDefinitions.Nothing);
 
-        public static SizeLabel NothingSize
+        public static TypeSizeLabel NothingSize
             => new(BuiltInDefinitions.Nothing);
 
-        public static ConstantLabel Constant(byte value) => new(value);
-
-        public static GlobalLabel Global(FieldReference fieldReference)
-            => new($"GLOBAL_{fieldReference.DeclaringType.NamespaceAndName()}_{fieldReference.Name}", fieldReference.FieldType);
-
-        public static InstructionLabel Instruction(Instruction instruction)
-            => new($"IL_{instruction.Offset:x4}");
-
-        public static MethodLabel Function(MethodDefinition method)
-            => new(method, false);
-
-        [Obsolete]
-        public static MethodLabel InlineFunction(MethodDefinition method)
-            => new(method, true);
-
-        public static BaseSizeLabel FieldSize(FieldReference field)
+        public static ISizeLabel FieldSize(FieldReference field)
         {
             // @TODO - IsByRef?
             if (field.FieldType.IsPointer)
             {
+                // Fields are variables, so will always be stored in RAM, so can use a short pointer (for cartridges without extra RAM).
                 return new PointerSizeLabel(true);
             }
-            return new SizeLabel(field.FieldType);
+            return new TypeSizeLabel(field.FieldType);
         }
 
-        public static BaseSizeLabel LocalSize(VariableDefinition variable)
+        public static ISizeLabel LocalSize(VariableDefinition variable)
         {
             var type = variable.VariableType;
             if (type.IsPointer || type.IsPinned || type.IsByReference)
             {
+                // Locals are variables, so will always be stored in RAM, so can use a short pointer (for cartridges without extra RAM).
                 return new PointerSizeLabel(true);
             }
-            return new SizeLabel(type);
+            return new TypeSizeLabel(type);
         }
 
         public static TypeLabel Type(TypeReference type)

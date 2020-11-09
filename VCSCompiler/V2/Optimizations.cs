@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using VCSFramework.V2;
@@ -10,16 +11,16 @@ namespace VCSCompiler.V2
         // Can't use a record since we need to change Next, which is a pain when immutable.
         private sealed class LinkedEntry
         {
-            public AssemblyEntry Value { get; }
+            public IAssemblyEntry Value { get; }
             public LinkedEntry? Next { get; set; }
 
-            public LinkedEntry(AssemblyEntry value, LinkedEntry? next)
+            public LinkedEntry(IAssemblyEntry value, LinkedEntry? next)
             {
                 Value = value;
                 Next = next;
             }
 
-            public void Deconstruct(out AssemblyEntry value, out LinkedEntry? next)
+            public void Deconstruct(out IAssemblyEntry value, out LinkedEntry? next)
             {
                 value = Value;
                 next = Next;
@@ -34,7 +35,7 @@ namespace VCSCompiler.V2
             // Turns an AssemblyUtilities.InlineAssembly() call into an entry that emits the assembly string.
             next => next switch
             {
-                (LoadString(var ldStrInstruction), (InlineAssembly(_), var trueNext)) => new(new InlineAssemblyEntry((string)ldStrInstruction.Single().Operand), trueNext),
+                (LoadString(var ldStrInstruction), (InlineAssemblyCall, var trueNext)) => new(new InlineAssembly(((string)ldStrInstruction.Operand).Split(Environment.NewLine).Select(s => s.Trim()).ToImmutableArray()), trueNext),
                 _ => next
             },
         }.ToImmutableArray();

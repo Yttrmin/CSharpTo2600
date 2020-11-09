@@ -41,6 +41,8 @@ namespace VCSCompiler.V2
 
             var assemblerArgs = new[]
             {
+                "-l",
+                Path.Combine(Path.GetDirectoryName(asmPath)!, "labeltest.asm"),
                 asmPath,
                 "-o",
                 binPath,
@@ -91,6 +93,13 @@ namespace VCSCompiler.V2
             {
                 IsSuccessful = true
             };
+        }
+
+        private IEnumerable<IAssemblyEntry> GenerateProgram()
+        {
+            yield return new Comment($"// Generated on {DateTime.Now:R}");
+            yield return new Blank();
+
         }
 
         private string BuildAssemblyText()
@@ -310,6 +319,67 @@ namespace VCSCompiler.V2
                 builder.AppendLine("  .endswitch");
                 builder.AppendLine(@"  .error format(""Unknown type ${0}"", type)");
                 builder.AppendLine(".endfunction");
+            }
+        }
+
+        private IEnumerable<string> GetStringFromEntry(IAssemblyEntry entry) => entry switch
+        {
+            IMacroCall mc => GetStringFromMacro(mc),
+            MultilineComment mc => mc.Text,
+            _ => Enumerable.Repeat(entry switch
+            {
+                Comment c => $"// {c.Text}",
+                ArrayLetOp a => $".let {a.VariableName} = [{string.Join(", ", a.Elements.Select(GetStringFromExpression))}]",
+                IExpression e => GetStringFromExpression(e),
+                _ => throw new ArgumentException($"{entry} does not map to a string.")
+            }, 1)
+        };
+
+        private string GetStringFromExpression(IExpression expression) => expression switch
+        {
+            Constant c => c.Value switch
+            {
+                byte b => Convert.ToString(b),
+                bool b => Convert.ToString(b),
+                _ => throw new ArgumentException($"No support for constant of type {c.Value.GetType()}")
+            },
+            ArrayAccessOp aao => $"{aao.VariableName}[{aao.Index}]",
+            IFunctionCall fc => $"{fc.Name}({string.Join(", ", fc.Parameters.Select(GetStringFromExpression))})",
+            ILabel l => GetStringFromLabel(l),
+            _ => throw new ArgumentException($"{expression} does not map to a string.")
+        };
+
+        private string GetStringFromLabel(ILabel label) => label switch
+        {
+            GlobalFieldLabel g => $"GLOBAL_{g.Field.Field.DeclaringType.NamespaceAndName()}_{g.Field.Field.Name}",
+            LiftedLocalLabel ll => $"LOCAL_{ll.Method}_{ll.Index}",
+            LocalLabel l => throw new NotImplementedException(),
+            TypeSizeLabel ts => $"SIZE_{ts.Type.Type.NamespaceAndName()}",
+            PointerSizeLabel ps => ps.ZeroPage ? "SIZE_SHORT_POINTER" : "SIZE_LONG_POINTER",
+            TypeLabel t => $"TYPE_{t.Type.Type.NamespaceAndName()}",
+            PointerTypeLabel p => $"TYPE_{p.ReferentType.Type.NamespaceAndName()}_PTR",
+            MethodLabel m => $"METHOD_{m.Method.Method.DeclaringType.NamespaceAndName()}_{m.Method.Method.Name}",
+            InstructionLabel i => $"IL_{i.Instruction.Instruction.Offset:X4}",
+            _ => throw new ArgumentException($"{label} does not map to a string.")
+        };
+
+        private IEnumerable<string> GetStringFromMacro(IMacroCall macroCall)
+        {
+            if (SourceAnnotations.HasFlag(SourceAnnotation.CSharp))
+            {
+
+            }
+            if (SourceAnnotations.HasFlag(SourceAnnotation.CIL))
+            {
+
+            }
+            yield return $".{macroCall.Name} {string.Join(", ", macroCall.Parameters.Select(GetStringFromExpression))}";
+            if (macroCall is StackMutatingMacroCall stackMutatingMacroCall)
+            {
+                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.TypeOp))
+                    yield return str;
+                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.SizeOp))
+                    yield return str;
             }
         }
     }

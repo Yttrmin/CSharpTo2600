@@ -184,7 +184,7 @@ namespace VCSCompiler.V2
             return definition;
         }
 
-        public ImmutableArray<AssemblyEntry> CompileEntryPoint()
+        public ImmutableArray<IAssemblyEntry> CompileEntryPoint()
         {
             var entryPoint = UserAssembly.EntryPoint;
             var compiledBody = MethodCompiler.Compile(entryPoint, UserAssembly, false, new CilInstructionCompiler.Options
@@ -208,7 +208,7 @@ namespace VCSCompiler.V2
                 .ToImmutableArray();
         }
 
-        private IEnumerable<ImmutableArray<AssemblyEntry>> GetAllFunctions(ImmutableArray<AssemblyEntry> body)
+        private IEnumerable<ImmutableArray<IAssemblyEntry>> GetAllFunctions(ImmutableArray<IAssemblyEntry> body)
         {
             foreach (var entry in body)
             {

@@ -11,39 +11,37 @@ namespace VCSCompiler.V2
 {
     internal class LabelMap
     {
-        public ImmutableDictionary<string, GlobalLabel> AliasToGlobal { get; }
-        public ImmutableDictionary<GlobalLabel, string> GlobalToAddress { get; }
+        public ImmutableDictionary<string, GlobalFieldLabel> AliasToGlobal { get; }
+        public ImmutableDictionary<GlobalFieldLabel, string> GlobalToAddress { get; }
         public ImmutableDictionary<LocalLabel, string> LocalToAddress { get; }
-        public ImmutableDictionary<ConstantLabel, string> ConstantToValue { get; }
-        public ImmutableDictionary<BaseTypeLabel, string> TypeToString { get; }
-        public ImmutableDictionary<SizeLabel, string> SizeToValue { get; }
-        public ImmutableDictionary<TypeLabel, SizeLabel> TypeToSize { get; }
+        //public ImmutableDictionary<ConstantLabel, string> ConstantToValue { get; }
+        public ImmutableDictionary<ITypeLabel, string> TypeToString { get; }
+        public ImmutableDictionary<ISizeLabel, string> SizeToValue { get; }
+        public ImmutableDictionary<TypeLabel, ISizeLabel> TypeToSize { get; }
         public ImmutableDictionary<PointerTypeLabel, TypeLabel> PointerToType { get; }
-        public ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> FunctionToBody { get; }
+        public ImmutableDictionary<MethodDefinition, ImmutableArray<IAssemblyEntry>> FunctionToBody { get; }
 
         public LabelMap(
-            IEnumerable<ImmutableArray<AssemblyEntry>> functions,
+            IEnumerable<ImmutableArray<IAssemblyEntry>> functions,
             AssemblyDefinition userAssembly)
         {
-            var aliasToGlobal = new Dictionary<string, GlobalLabel>();
-            var globalToAddress = new Dictionary<GlobalLabel, string>();
+            var aliasToGlobal = new Dictionary<string, GlobalFieldLabel>();
+            var globalToAddress = new Dictionary<GlobalFieldLabel, string>();
             var localToAddress = new Dictionary<LocalLabel, string>();
-            var constantToValue = new Dictionary<ConstantLabel, string>();
-            var typeToString = new Dictionary<BaseTypeLabel, string>();
-            var sizeToValue = new Dictionary<SizeLabel, string>();
-            var typeToSize = new Dictionary<TypeLabel, SizeLabel>();
+            //var constantToValue = new Dictionary<ConstantLabel, string>();
+            var typeToString = new Dictionary<ITypeLabel, string>();
+            var sizeToValue = new Dictionary<ISizeLabel, string>();
+            var typeToSize = new Dictionary<TypeLabel, ISizeLabel>();
             var pointerToType = new Dictionary<PointerTypeLabel, TypeLabel>();
-            var functionToBody = new Dictionary<MethodDefinition, ImmutableArray<AssemblyEntry>>();
+            var functionToBody = new Dictionary<MethodDefinition, ImmutableArray<IAssemblyEntry>>();
 
             var allLabelParams = functions
                 .SelectMany(it => it)
-                .OfType<Macro>()
-                .SelectMany(it => it.Params)
-                .Concat(BuiltInDefinitions.Types.SelectMany(t => new Label[] { new TypeLabel(t), new SizeLabel(t) })) // Force built-in types since there are VIL checks that rely on them.
-                .Prepend(new GlobalLabel("INTERNAL_RESERVED_0", BuiltInDefinitions.Byte)) // @TODO - Find a better way
+                .OfType<IMacroCall>()
+                .SelectMany(it => it.Parameters)
+                .Concat(BuiltInDefinitions.Types.SelectMany(t => new ILabel[] { new TypeLabel(t), new TypeSizeLabel(t) })) // Force built-in types since there are VIL checks that rely on them.
+                .Prepend(new PredefinedGlobalLabel("INTERNAL_RESERVED_0")) // @TODO - Find a better way
                 .Where(it => !(it is InstructionLabel))
-                .Where(it => !(it is StackSizeArrayLabel))
-                .Where(it => !(it is StackTypeArrayLabel))
                 .Distinct()
                 .ToImmutableArray();
 
@@ -58,7 +56,7 @@ namespace VCSCompiler.V2
                     .Select(l => l.Type)
                     .Concat(
                         allLabelParams
-                        .OfType<SizeLabel>()
+                        .OfType<ISizeLabel>()
                         .Select(l => l.Type)))
                 .Distinct(new TypeReferenceEqualityComparer());
             foreach (var typeRef in allTypes)
@@ -75,14 +73,14 @@ namespace VCSCompiler.V2
                 // Pointer types use the same number as the type they're pointing to, but with the LSB set to 1.
                 typeToString[new PointerTypeLabel(type)] = (thisTypeNumber | 0x1).ToString();
                 pointerToType[new PointerTypeLabel(type)] = new TypeLabel(type);
-                sizeToValue[new SizeLabel(type)] = $"{TypeData.Of(type, userAssembly).Size}";
-                typeToSize[new TypeLabel(type)] = new SizeLabel(type);
+                sizeToValue[new TypeSizeLabel(type)] = $"{TypeData.Of(type, userAssembly).Size}";
+                typeToSize[new TypeLabel(type)] = new TypeSizeLabel(type);
             }
 
-            foreach (var constantLabel in allLabelParams.OfType<ConstantLabel>())
+            /*foreach (var constantLabel in allLabelParams.OfType<ConstantLabel>())
             {
                 constantToValue[constantLabel] = constantLabel.Value.ToString()!;
-            }
+            }*/
 
             // @TODO - 
             var aliasedFields = userAssembly.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
@@ -97,13 +95,13 @@ namespace VCSCompiler.V2
                         throw new InvalidOperationException($"Alias '{alias}' must begin with '{AssemblyUtilities.AliasPrefix}'");
                     if (aliasToGlobal.ContainsKey(alias))
                         throw new InvalidOperationException($"Alias '{alias}' is already being aliased to '{aliasToGlobal[alias].Name}', can't alias to '{field.FullName}' too.");
-                    aliasToGlobal[alias] = LabelGenerator.Global(field);
+                    aliasToGlobal[alias] = new(field);
                 }
             }
 
             // @TODO - Need to reserve some for VIL.
             var ramStart = 0x80;
-            foreach (var globalLabel in allLabelParams.OfType<GlobalLabel>().Where(l => !l.Predefined))
+            foreach (var globalLabel in allLabelParams.OfType<GlobalFieldLabel>().Where(l => !l.Predefined))
             {
                 globalToAddress[globalLabel] = $"${ramStart:X2}";
                 ramStart += TypeData.Of(globalLabel.Type, userAssembly).Size;
@@ -123,7 +121,7 @@ namespace VCSCompiler.V2
             AliasToGlobal = aliasToGlobal.ToImmutableDictionary();
             GlobalToAddress = globalToAddress.ToImmutableDictionary();
             LocalToAddress = localToAddress.ToImmutableDictionary();
-            ConstantToValue = constantToValue.ToImmutableDictionary();
+            //ConstantToValue = constantToValue.ToImmutableDictionary();
             TypeToString = typeToString.ToImmutableDictionary();
             SizeToValue = sizeToValue.ToImmutableDictionary();
             TypeToSize = typeToSize.ToImmutableDictionary();
