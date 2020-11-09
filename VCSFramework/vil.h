@@ -36,7 +36,7 @@ storeTo
 copyTo
 */
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=type;size
 // Pushes {size} bytes starting at {address} onto the stack.
 // Effects: STACK+1, AccChange
 pushGlobal .macro global, type, size
@@ -46,7 +46,7 @@ pushGlobal .macro global, type, size
 	.next
 .endmacro
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=pointerType;pointerSize
 pushAddressOfGlobal .macro global, pointerType, pointerSize
 	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfGlobal"
@@ -54,7 +54,7 @@ pushAddressOfGlobal .macro global, pointerType, pointerSize
 	PHA
 .endmacro
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=pointerType;pointerSize
 pushAddressOfLocal .macro local, pointerType, pointerSize
 	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfLocal"
@@ -62,7 +62,7 @@ pushAddressOfLocal .macro local, pointerType, pointerSize
 	PHA
 .endmacro
 
-// @GENERATE @POP=1 @PUSH=1
+// @GENERATE @POP=1 @PUSH=pointerType;pointerStackSize
 pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerStackSize != 1, "Currently only zero-page pointers are supported for pushAddressOfField"
@@ -72,7 +72,7 @@ pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 	PHA
 .endmacro
 
-// @GENERATE @POP=1 @PUSH=1
+// @GENERATE @POP=1 @PUSH=type;size
 pushDereferenceFromStack .macro type, size
 	// @TODO - Take pointer size
 	.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack"
@@ -82,7 +82,7 @@ pushDereferenceFromStack .macro type, size
 	PHA
 .endmacro
 
-// @GENERATE @POP=1 @PUSH=1
+// @GENERATE @POP=1 @PUSH=fieldType;fieldSize
 pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, stackType, stackSize
 	.if isPointer(\stackType) == true
 		.errorif \stackSize != 1, "Currently, only zero-page pointers are allowed for pushFieldFromStack"
@@ -213,16 +213,18 @@ copyGlobalToGlobal .macro fromGlobal, fromSize, toGlobal, toSize
 	.next
 .endmacro
 
-getAddResultType .function firstOperandType, secondOperandType
-	.if firstOperandType == TYPE_System_Byte && secondOperandType == TYPE_System_Byte
+// @GENERATE
+getAddResultType .function firstOperandTypeExpression, secondOperandTypeExpression
+	.if firstOperandTypeExpression == TYPE_System_Byte && secondOperandTypeExpression == TYPE_System_Byte
 		.return TYPE_System_Byte
 	.else
 		.error "Unsupported add types"
 	.endif
 .endfunction
 
-getBitOpResultType .function firstOperandType, secondOperandType
-	.if firstOperandType == TYPE_System_Boolean && secondOperandType == TYPE_System_Boolean
+// @GENERATE
+getBitOpResultType .function firstOperandTypeExpression, secondOperandTypeExpression
+	.if firstOperandTypeExpression == TYPE_System_Boolean && secondOperandTypeExpression == TYPE_System_Boolean
 		.return TYPE_System_Boolean
 	.else
 		.error "Unsupported bit op types"
@@ -256,17 +258,19 @@ isShortInteger .function type
 	.return type == TYPE_System_Byte || type == TYPE_System_Boolean
 .endfunction
 
-getSizeFromBuiltInType .function type
-	.if type == TYPE_System_Byte
+// @GENERATE
+// Could be either a label or a stack type array access. No discriminated unions, so just drop it to IExpression.
+getSizeFromBuiltInType .function typeExpression
+	.if typeExpression == TYPE_System_Byte
 		.return SIZE_System_Byte
-	.else if type == TYPE_System_Boolean
+	.else if typeExpression == TYPE_System_Boolean
 		.return SIZE_System_Boolean
 	.else
 		.error "Unknown builtin type"
 	.endif 
 .endfunction
 
-// @GENERATE @PUSH=1 @POP=2
+// @GENERATE @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0]) @POP=2
 // Primitive
 addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
@@ -286,7 +290,7 @@ addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandS
 	.endif
 .endmacro
 
-// @GENERATE @COMPOSITE @PUSH=1
+// @GENERATE @COMPOSITE @PUSH=getAddResultType(globalType,constantType);getSizeFromBuiltInType([0])
 // .pushGlobal + .pushConstant + .addFromStack
 // OR
 // .pushConstant + .pushGlobal + .addFromStack
@@ -348,7 +352,7 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 	.endif
 .endmacro
 
-// @GENERATE @POP=2 @PUSH=1
+// @GENERATE @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
 // Primitive
 subFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.invoke getAddResultType(\firstOperandStackType, \secondOperandStackType) // @TODO - Does this apply to add+sub?
@@ -419,7 +423,7 @@ convertToByte .macro
 	// @TODO
 .endmacro
 
-// @GENERATE @POP=2 @PUSH=1
+// @GENERATE @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
 orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for orFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for orFromStack"
@@ -430,7 +434,7 @@ orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandSt
 	PHA
 .endmacro
 
-// @GENERATE @POP=2 @PUSH=1
+// @GENERATE @POP=2 @PUSH=bool;bool
 compareEqualToFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for compareEqualToFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for compareEqualToFromStack"
@@ -606,7 +610,7 @@ branchTrueFromLocal .macro local, instruction
 .endmacro
 
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=type;size
 //@TODO Check if messed up endianness.
 //@TODO - Delete type?
 pushConstant .macro constant, type, size
@@ -618,7 +622,7 @@ pushConstant .macro constant, type, size
 	.next
 .endmacro
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=type;size
 // Primitive
 pushLocal .macro local, type, size
 	.pushGlobal \local, \type, \size
@@ -630,12 +634,13 @@ popToLocal .macro local, localType, localSize, stackType, stackSize
 	.popToGlobal \local, \localType, \localSize, \stackType, \stackSize
 .endmacro
 
+// @GENERATE @COMPOSITE
 // pushConstant + popToGlobal
-assignConstantToGlobal .macro value, address, size
+assignConstantToGlobal .macro constant, global, size
 	//@TODO SIZE
 	.errorif \size > 1, "assignConstantToGlobal only supports 8-bit constants currently."
-	LDA #\value
-	STA \address
+	LDA #\constant
+	STA \global
 .endmacro
 
 // pushConstant + popToLocal
@@ -643,7 +648,7 @@ assignConstantToLocal .macro value, address, size
 	.assignConstantToGlobal \value, \address, \size
 .endmacro
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=stackType;stackSize
 duplicate .macro stackType, stackSize
 	.errorif \stackSize != 1, "duplicate currently only supports 1-byte dups."
 	// We pull first since it's not guaranteed that the last operation ended in a push (which
@@ -670,7 +675,7 @@ callVoid .macro method
 //	JSR \method
 //.endmacro
 
-// @GENERATE @PUSH=1
+// @GENERATE @PUSH=resultType;resultSize
 callNonVoid .macro method, resultType, resultSize
 	// Allocate space for the return value.
 	.for i = 0, i < \resultSize, i = i + 1

@@ -14,8 +14,13 @@ namespace VILMacroGenerator
     [Generator]
     public class MacroGenerator : ISourceGenerator
     {
-        [Obsolete]
-        private GeneratorExecutionContext Context;
+        public const string VilCategory = "VIL";
+        private const string ResultsId = "VIL001";
+        private const string GeneratedId = "VIL002";
+        private const string HeaderParseFailId = "VIL010";
+        private const string GenerateFailId = "VIL011";
+        public const string OldPushFormatId = "VIL020";
+
 
         private sealed class MacroInfo
         {
@@ -34,59 +39,109 @@ namespace VILMacroGenerator
         public void Execute(GeneratorExecutionContext context)
         {
             Debugger.Launch();
-            Context = context;
             InfoDianostic(context, "HELLO!??!?!?!", "hi");
             var vilLines = context.AdditionalFiles.Single(f => f.Path.Contains("vil.h")).GetText()!.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToImmutableArray();
-            foreach (var tuple in FetchMacrosToGenerate(vilLines))
+            var generated = FetchMacrosToGenerate(vilLines, context).ToArray();
+            foreach (var tuple in generated)
             {
                 context.AddSource(tuple.Name, SourceText.From(tuple.Source, Encoding.UTF8));
-                context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("VIL0010", "Macro Generated", tuple.Name, "VIL", DiagnosticSeverity.Warning, true), null));
             }
+            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(ResultsId, "Results", "Generated {0} macros/functions: {1}", VilCategory, DiagnosticSeverity.Warning, true), null, generated.Length, string.Join(", ", generated.Select(p => p.Name).OrderBy(n => n))));
             HelloWorld(context);
             context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("VI0011", "Macro Generator Finished", "See previous diagnostics for results.", "VIL", DiagnosticSeverity.Warning, true), null));
         }
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            Debugger.Launch();
         }
 
-        private IEnumerable<(string Name, string Source)> FetchMacrosToGenerate(ImmutableArray<string> lines)
+        private IEnumerable<(string Name, string Source)> FetchMacrosToGenerate(ImmutableArray<string> lines, GeneratorExecutionContext context)
         {
-            MacroInfo? macroInfo = null;
+            Header? header = null;
             foreach (var line in lines)
             {
                 if (line.Contains("@GENERATE"))
                 {
-                    macroInfo = GetMacroInfo(line);
+                    try
+                    {
+                        header = Header.Parse(line, context);
+                    }
+                    catch (Exception e)
+                    {
+                        var desc = new DiagnosticDescriptor(HeaderParseFailId, "Header parse failed", "Exception thrown when parsing line \"{0}\": {1}", VilCategory, DiagnosticSeverity.Error, true);
+                        context.ReportDiagnostic(Diagnostic.Create(desc, null, line, e.ToString()));
+                    }
                 }
 
-                if (macroInfo != null && line.Contains(".macro"))
+                var isMacro = line.Contains(".macro");
+                var isFunction = line.Contains(".function");
+                if (header != null && (isMacro || isFunction))
                 {
-                    var macroName = line.Split(' ').FirstOrDefault();
-                    var source = GenerateMacro(line, macroInfo);
+                    var name = line.Split(' ').FirstOrDefault();
+                    string? source;
+                    try
+                    {
+                        source = isMacro ? GenerateMacro(line, header, context)
+                            : GenerateFunction(line, header, context);
+                    } 
+                    catch (Exception e)
+                    {
+                        var desc = new DiagnosticDescriptor(GenerateFailId, $"{(isMacro ? "Macro" : "Function")} generation failed", "Exception thrown when generating \"{0}\": {1}", VilCategory, DiagnosticSeverity.Error, true);
+                        context.ReportDiagnostic(Diagnostic.Create(desc, null, name, e.ToString()));
+                        source = null;
+                    }
                     if (source != null)
                     {
-                        yield return (macroName, source);
+                        yield return (name, source);
                     }
-                    macroInfo = null;
+                    header = null;
                 }
             }
         }
 
-        private string? GenerateMacro(string source, MacroInfo info)
+        private string? GenerateFunction(string source, Header header, GeneratorExecutionContext context)
         {
-            var interfaces = "";
+            var parts = source.Replace(",", "").Split(' ');
+            var functionName = parts.First();
+            var csharpName = functionName.Capitalize();
+
+            var variables = parts.Skip(2).ToImmutableArray();
+            var paramTypes = variables.Select(TypeNameFromHungarian).ToImmutableArray();
+            var typesWithNames = paramTypes.Zip(variables, (Type, Name) => (Type, Name)).ToImmutableArray();
+
+            var constructorParamText = string.Join(", ", typesWithNames.Select(p => $"{p.Type} {p.Name.Capitalize()}").Where(s => !string.IsNullOrEmpty(s)));
+            var parametersArrayValues = new StringBuilder();
+            foreach (var variable in variables)
+                parametersArrayValues.AppendLine($"\t\t\t{variable.Capitalize()},");
+
+            return $@"
+#nullable enable
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using VCSFramework.V2;
+
+namespace VCSFramework.V2
+{{
+    public sealed partial record {csharpName}({constructorParamText}) : IFunctionCall
+    {{
+        string IFunctionCall.Name {{ get; }} = ""{functionName}"";
+
+        ImmutableArray<IExpression> IFunctionCall.Parameters => new IExpression[]
+        {{
+{parametersArrayValues}
+        }}.ToImmutableArray();
+    }}
+}}";
+        }
+
+        private string? GenerateMacro(string source, Header header, GeneratorExecutionContext context)
+        {
             var annotationsBuilder = new StringBuilder();
-            if (info.PushCount != 0)
-            {
-                interfaces = ", IStackPusher";
-                annotationsBuilder.AppendLine($"\t[PushStack(Count = {info.PushCount})]");
-            }
-            if (info.PopCount != 0)
-            {
-                annotationsBuilder.AppendLine($"\t[PopStack(Count = {info.PopCount})]");
-            }
+            annotationsBuilder.AppendLine($"\t[PushStack(Count = {(header.TypeParam != null ? 1 : 0)})]");
+            annotationsBuilder.AppendLine($"\t[PopStack(Count = {header.PopCount})]");
 
             var parts = source.Replace(",", "").Split(' ');
             var macroName = parts.First();
@@ -94,28 +149,26 @@ namespace VILMacroGenerator
 
             var variables = parts.Skip(2).ToImmutableArray();
             var paramTypes = variables.Select(TypeNameFromHungarian).ToImmutableArray();
-            InfoDianostic(Context, "README", string.Join(" ", variables));
             var typesWithNames = paramTypes.Zip(variables, (Type, Name) => (Type, Name)).ToImmutableArray();
 
-            var firstConstructorParam = "";
-            if (info.InstructionParam == MacroInfo.InstructionParamType.Single)
-                firstConstructorParam = "Instruction cilInstruction";
-            else if (info.InstructionParam == MacroInfo.InstructionParamType.Multiple)
-                firstConstructorParam = "IEnumerable<Instruction> cilInstructions";
-            var constructorParamText = string.Join(", ", typesWithNames.Select(p => $"{p.Type} {p.Name}"));
-            firstConstructorParam = constructorParamText.Any() ? firstConstructorParam + ", " : firstConstructorParam;
-
-            var firstBaseParam = "";
-            if (info.InstructionParam == MacroInfo.InstructionParamType.Single)
-                firstBaseParam = "cilInstruction, ";
-            else if (info.InstructionParam == MacroInfo.InstructionParamType.Multiple)
-                firstBaseParam = "cilInstructions, ";
-            var baseConstructorParamText = string.Join(", ", variables);
-            var publicProperties = string.Join(Environment.NewLine,
-                typesWithNames.Zip(Enumerable.Range(0, typesWithNames.Length), (pair, index) =>
+            var instructionProperty = header.InstructionParam switch
             {
-                return $"\t\tpublic {pair.Type} {pair.Name.Capitalize()} => ({pair.Type})Params[{index}];";
-            }));
+                Header.InstructionParamType.Single => "Instruction SourceInstruction",
+                Header.InstructionParamType.Multiple => "IEnumerable<Instruction> SourceInstructions",
+                _ => ""
+            };
+            var instructionInterfaceProperty = header.InstructionParam switch
+            {
+                Header.InstructionParamType.Single => "new Inst[] { SourceInstruction }.ToImmutableArray()",
+                Header.InstructionParamType.Multiple => "SourceInstructions.Select(i => (Inst)i).ToImmutableArray()",
+                _ => "ImmutableArray<Inst>.Empty"
+            };
+
+            var constructorParamText = string.Join(", ", typesWithNames.Select(p => $"{p.Type} {p.Name.Capitalize()}").Prepend(instructionProperty).Where(s => !string.IsNullOrEmpty(s)));
+
+            var parametersArrayValues = new StringBuilder();
+            foreach (var variable in variables)
+                parametersArrayValues.AppendLine($"\t\t\t{variable.Capitalize()},");
 
             var deconstructParamText = string.Join(", ", typesWithNames.Select(p => $"out {p.Type} {p.Name}"));
 
@@ -127,23 +180,35 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using VCSFramework.V2;
 
 namespace VCSFramework.V2
 {{
 {annotationsBuilder}
-    public sealed partial record {csharpName} : Macro{interfaces}
+    public sealed record {csharpName}({constructorParamText}) : IMacroCall
     {{
-        public {csharpName}({firstConstructorParam}{constructorParamText})
-            : base({firstBaseParam}new MacroLabel(""{macroName}""){baseConstructorParamText.DelimitIfAny()}{baseConstructorParamText}) {{}}
+        string IMacroCall.Name {{ get; }} = ""{macroName}"";
 
-{publicProperties}
+        ImmutableArray<Inst> IMacroCall.Instructions => {instructionInterfaceProperty};
 
-        public void Deconstruct(out ImmutableArray<Instruction> instructions{deconstructParamText.DelimitIfAny()}{deconstructParamText})
+        ImmutableArray<IExpression> IMacroCall.Parameters => new IExpression[]
+        {{
+{parametersArrayValues}
+        }}.ToImmutableArray();
+
+        void IMacroCall.PerformStackOperation(IStackTracker stackTracker)
+        {{
+            {$"stackTracker.Pop({header.PopCount});"}
+            {(header.TypeParam != null ? $"stackTracker.Push({header.TypeParam.ToString(true)}, {header.SizeParam.ToString(false)});" : "return;")}
+        }}
+/*
+        public void Deconstruct(out ImmutableArray<Inst> instructions{deconstructParamText.DelimitIfAny()}{deconstructParamText})
         {{
             instructions = Instructions;
 {deconstructAssignments}
         }}
+*/
     }}
 }}";
         }
@@ -151,59 +216,36 @@ namespace VCSFramework.V2
         private string TypeNameFromHungarian(string variableName)
         {
             if (variableName.EndsWith("StackType", StringComparison.CurrentCultureIgnoreCase))
-                return "StackTypeArrayLabel";
+                return "ArrayAccessOp";
             else if (variableName.EndsWith("StackSize", StringComparison.CurrentCultureIgnoreCase))
-                return "StackSizeArrayLabel";
+                return "ArrayAccessOp";
             else if (variableName.EndsWith("PointerType", StringComparison.CurrentCultureIgnoreCase))
                 return "PointerTypeLabel";
             else if (variableName.EndsWith("PointerSize", StringComparison.CurrentCultureIgnoreCase))
                 return "PointerSizeLabel";
             else if (variableName.EndsWith("Type", StringComparison.CurrentCultureIgnoreCase))
-                return "TypeLabel";
+                return "ITypeLabel";
             else if (variableName.EndsWith("Size", StringComparison.CurrentCultureIgnoreCase))
-                return "BaseSizeLabel";
+                return "ISizeLabel";
             else if (variableName.EndsWith("Global", StringComparison.CurrentCultureIgnoreCase))
-                return "GlobalLabel";
+                return "IGlobalLabel";
             else if (variableName.EndsWith("Local", StringComparison.CurrentCultureIgnoreCase))
-                return "LocalLabel";
+                return "LiftedLocalLabel";
             else if (variableName.EndsWith("Constant", StringComparison.CurrentCultureIgnoreCase))
-                return "ConstantLabel";
+                return "Constant";
             else if (variableName.EndsWith("Instruction", StringComparison.CurrentCultureIgnoreCase))
                 return "InstructionLabel";
             else if (variableName.EndsWith("Method", StringComparison.CurrentCultureIgnoreCase))
                 return "MethodLabel";
+            else if (variableName.EndsWith("Expression", StringComparison.CurrentCultureIgnoreCase))
+                return "IExpression";
             else
                 throw new ArgumentException($"Could not determine type of: {variableName}");
         }
 
-        private MacroInfo GetMacroInfo(string generateLine)
-        {
-            var info = new MacroInfo();
-            var parts = generateLine.Split(' ');
-            
-            var pushStr = parts.SingleOrDefault(p => p.StartsWith("@PUSH=", StringComparison.CurrentCultureIgnoreCase));
-            if (pushStr != null)
-            {
-                info.PushCount = Convert.ToInt32(pushStr.Last().ToString());
-            }
-
-            var popStr = parts.SingleOrDefault(p => p.StartsWith("@POP=", StringComparison.CurrentCultureIgnoreCase));
-            if (popStr != null)
-            {
-                info.PopCount = Convert.ToInt32(popStr.Last().ToString());
-            }
-
-            if (parts.Any(p => p.Equals("@NOINSTPARAM", StringComparison.CurrentCultureIgnoreCase)))
-                info.InstructionParam = MacroInfo.InstructionParamType.None;
-            else if (parts.Any(p => p.Equals("@MULTIINSTPARAM", StringComparison.CurrentCultureIgnoreCase))
-                || parts.Any(p => p.Equals("@COMPOSITE", StringComparison.CurrentCultureIgnoreCase)))
-                info.InstructionParam = MacroInfo.InstructionParamType.Multiple;
-            return info;
-        }
-
         private void InfoDianostic(GeneratorExecutionContext context, string title, string message)
         {
-            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("VI0012", title, message, "VIL", DiagnosticSeverity.Warning, true), null));
+            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("VI0012", title, message, "VIL", DiagnosticSeverity.Info, true), null));
         }
 
         private void HelloWorld(GeneratorExecutionContext context)
