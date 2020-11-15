@@ -316,7 +316,13 @@ namespace VCSCompiler.V2
         }
 
         private static int GetReservedBytes(IEnumerable<Function> functions) 
-            => functions.SelectMany(GetAllMacroCalls).Select(m => m.GetType()).Max(t => t.GetCustomAttribute<ReservedBytesAttribute>()?.Count ?? 0);
+            => functions.SelectMany(GetAllMacroCalls)
+            .Select(m => m switch
+            {
+                StackMutatingMacroCall sm => sm.MacroCall,
+                _ => m
+            })
+            .Select(m => m.GetType()).Max(t => t.GetCustomAttribute<ReservedBytesAttribute>()!.Count);
 
         private IEnumerable<FieldReference> GetAllFieldRefs(Function function)
             => GetAllMacroParameters(function).OfType<GlobalFieldLabel>().Select(l => l.Field).Distinct().Select(f => f.Field);

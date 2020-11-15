@@ -121,7 +121,7 @@ namespace VCSCompiler.V2
             PredefinedGlobalLabel pg => pg.Name,
             ReservedGlobalLabel rg => $"INTERNAL_RESERVED_{rg.Index}",
             GlobalFieldLabel g => $"GLOBAL_{g.Field.Field.DeclaringType.NamespaceAndName()}_{g.Field.Field.Name}",
-            LiftedLocalLabel ll => $"LOCAL_{ll.Method}_{ll.Index}",
+            LiftedLocalLabel ll => $"LIFTED_LOCAL_{ll.Method.DeclaringType.NamespaceAndName()}_{ll.Method.Name}_{ll.Index}",
             LocalLabel l => throw new NotImplementedException(),
             TypeSizeLabel ts => $"SIZE_{ts.Type.Type.NamespaceAndName()}",
             PointerSizeLabel ps => ps.ZeroPage ? "SIZE_SHORT_POINTER" : "SIZE_LONG_POINTER",
