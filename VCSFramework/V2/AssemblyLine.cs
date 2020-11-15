@@ -159,8 +159,6 @@ namespace VCSFramework.V2
 
         public override int GetHashCode()
             => Type.FullName.GetHashCode();
-
-        public override string ToString() => Type.NamespaceAndName();
     }
 
     public sealed record MethodDef(MethodDefinition Method)
@@ -175,8 +173,6 @@ namespace VCSFramework.V2
 
         public override int GetHashCode()
             => Method.FullName.GetHashCode();
-
-        public override string ToString() => $"{Method.DeclaringType.NamespaceAndName()}_{Method.Name}";
     }
 
     public sealed record FieldRef(FieldReference Field)

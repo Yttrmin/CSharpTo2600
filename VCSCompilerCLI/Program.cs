@@ -13,7 +13,7 @@ namespace VCSCompilerCLI
 		/// </summary>
 		/// <param name="arguments">A list of C# source files to compile.</param>
 		/// <param name="outputPath">The path to save the compiled binary to. The same path with a different extension will be used for related files.
-		/// If a path is not provided, no files will be saved.</param>
+		/// If a path is not provided, temp files will be used.</param>
 		/// <param name="emulatorPath">Path of the emulator executable. 
 		/// If provided, it will be launched with the path to the output binary passed as an argument.</param>
 		/// <param name="textEditorPath">Path of the text editor executable.

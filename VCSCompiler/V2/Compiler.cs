@@ -79,16 +79,7 @@ namespace VCSCompiler.V2
             //var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
 
             var qq = AssemblyTemplate.FooToString(fullProgram, SourceAnnotation.Both);
-            RomInfo romInfo = new();
-            
-            /*if (options.OutputPath != null)
-            {
-                romInfo = assemblyWriter.WriteToFile(options.OutputPath);
-            }
-            else
-            {
-                romInfo = assemblyWriter.WriteToConsole();
-            }*/
+            var romInfo = Assemble(qq, options.OutputPath);
 
             if (options.TextEditorPath != null && romInfo.AssemblyPath != null)
             {
@@ -126,6 +117,63 @@ namespace VCSCompiler.V2
             Console.WriteLine(final);
             _Options = null;
             return romInfo;
+
+            static RomInfo Assemble(string assembly, string? outputPath)
+            {
+                // @TODO - Should probably delete these?? If there's 65K temp files it'll fail.
+                var binPath = outputPath ?? Path.GetTempFileName();
+                var asmPath = outputPath != null ? Path.ChangeExtension(outputPath, "asm") : Path.GetTempFileName();
+                var listPath = outputPath != null ? Path.ChangeExtension(outputPath, "lst") : Path.GetTempFileName();
+
+                File.WriteAllText(asmPath, assembly);
+
+                var assemblerArgs = new[]
+                {
+                    //"-l",
+                    //Path.Combine(Path.GetDirectoryName(asmPath)!, "labeltest.asm"),
+                    asmPath,
+                    "-o",
+                    binPath,
+                    "-L",
+                    listPath,
+                    "--format=flat"
+                };
+
+                using var stdoutStream = new MemoryStream();
+                using var writer = new StreamWriter(stdoutStream) { AutoFlush = true };
+                Console.SetOut(writer);
+                Console.SetError(writer);
+
+                Core6502DotNet.Core6502DotNet.Main(assemblerArgs);
+
+                Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+                Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+                stdoutStream.Position = 0;
+                using var reader = new StreamReader(stdoutStream);
+                var stdoutText = reader.ReadToEnd();
+                Console.WriteLine("Assembler output:");
+                Console.WriteLine(stdoutText);
+
+                if (!stdoutText.Contains("Assembly completed successfully."))
+                {
+                    Console.WriteLine("Assembly failed, there is probably an internal problem with the code that the compiler is generating.");
+                    return new RomInfo
+                    {
+                        IsSuccessful = false,
+                        AssemblyPath = asmPath
+                    };
+                }
+
+                Console.WriteLine("Assembly was successful.");
+                return new RomInfo
+                {
+                    IsSuccessful = true,
+                    // @TODO - Don't emit if we used temp files?
+                    AssemblyPath = asmPath,
+                    RomPath = binPath,
+                    ListPath = listPath
+                };
+            }
         }
 
         private static AssemblyDefinition CreateAssemblyDefinition(ImmutableArray<string> sourcePaths)
@@ -230,6 +278,7 @@ namespace VCSCompiler.V2
             var allTypes = functions.SelectMany(GetAllMacroParameters).OfType<TypeLabel>().Select(l => l.Type)
                 .Concat(functions.SelectMany(GetAllMacroParameters).OfType<PointerTypeLabel>().Select(l => l.ReferentType))
                 .Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte)
+                .Distinct()
                 .ToImmutableArray();
             var allPairedTypes = allTypes.Select(t => (new AssignLabel(new TypeLabel(t), typeId++.ToString()), new AssignLabel(new PointerTypeLabel(t), typeId++.ToString())));
 

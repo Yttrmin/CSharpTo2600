@@ -24,11 +24,11 @@ namespace VCSCompiler.V2
             var depth = 0;
             foreach (var entry in entries.OfType<IMacroCall>())
             {
-                if (entry.GetType().CustomAttributes.OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
+                if (entry.GetType().GetCustomAttributes(false).OfType<PushStackAttribute>().SingleOrDefault() is PushStackAttribute pushAttr)
                 {
                     depth += pushAttr.Count;
                 }
-                if (entry.GetType().CustomAttributes.OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
+                if (entry.GetType().GetCustomAttributes(false).OfType<PopStackAttribute>().SingleOrDefault() is PopStackAttribute popAttr)
                 {
                     depth -= popAttr.Count;
                 }
