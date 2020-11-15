@@ -10,26 +10,28 @@ namespace Samples.CSharpFeatures
         {
             while (true)
             {
+                ref var color = ref RefReturningMethod();
+                color += ReturnByte();
                 ColuBk = GetColorContainingStruct().ValueB;
             }
         }
 
-        private static void VoidMethod()
+        private static void VoidMethod(byte parameter)
         {
-            byte local = BackgroundColor;
-            byte increment = 1;
-            byte finalValue = (byte)(local + increment);
-            BackgroundColor = finalValue;
+            BackgroundColor = parameter;
+        }
+
+        private static ref byte RefReturningMethod()
+        {
+            return ref BackgroundColor;
         }
 
         private static ReturnStruct GetColorContainingStruct()
         {
-            var newColor = (byte)(BackgroundColor + ReturnByte());
-            BackgroundColor = newColor;
             return new ReturnStruct
             {
                 ValueA = default,
-                ValueB = newColor,
+                ValueB = BackgroundColor,
                 ValueC = 0x0E
             };
         }

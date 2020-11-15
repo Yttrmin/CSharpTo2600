@@ -271,7 +271,7 @@ namespace VCSCompiler.V2
             // @TODO - Aliases
             var start = 0x80;
             var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new AssignLabel(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
-            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Select(l => new AssignLabel(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Distinct().Select(l => new AssignLabel(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
             // @TODO - Check if we overflowed into stack.
 
             var typeId = 100;
