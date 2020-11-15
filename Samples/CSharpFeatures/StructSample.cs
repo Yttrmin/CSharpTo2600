@@ -12,6 +12,7 @@ namespace Samples.CSharpFeatures
 
         public static void Main()
         {
+            //var qq = new SequentialStruct(0x48); // @TODO
             _CompositeStruct = new CompositeStruct
             {
                 Value = 0x12,
@@ -72,6 +73,11 @@ namespace Samples.CSharpFeatures
             public byte ValueA;
             public byte ValueB;
             public byte ValueC;
+
+            public SequentialStruct(byte value)
+            {
+                ValueA = ValueB = ValueC = value;
+            }
         }
 
         [StructLayout(LayoutKind.Auto)]

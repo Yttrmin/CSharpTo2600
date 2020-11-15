@@ -76,7 +76,8 @@ namespace VCSCompiler.V2
         private static IEnumerable<string> GetStringFromEntry(IAssemblyEntry entry, MethodDefinition? method, SourceAnnotation annotations) => entry switch
         {
             IMacroCall mc => GetStringFromMacro(mc, method, annotations),
-            MultilineComment mc => mc.Text,
+            // @TODO - Check if comments contain "/*" or "*/" already and fallback to "//" ?
+            MultilineComment mc => mc.Text.Prepend("/*").Append("*/"),
             InlineAssembly ia => ia.Assembly,
             InlineFunction or EndFunction => Enumerable.Empty<string>(),
             _ => Enumerable.Repeat(entry switch
