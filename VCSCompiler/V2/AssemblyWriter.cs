@@ -10,7 +10,7 @@ using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
-    internal class AssemblyWriter
+    /*internal class AssemblyWriter
     {
         private readonly ImmutableDictionary<MethodDefinition, ImmutableArray<AssemblyEntry>> CompiledMethods;
         private readonly LabelMap LabelMap;
@@ -95,83 +95,6 @@ namespace VCSCompiler.V2
             };
         }
 
-        private IEnumerable<IAssemblyEntry> GenerateProgram()
-        {
-            yield return new Comment($"// Generated on {DateTime.Now:R}");
-            yield return new Blank();
-
-        }
-
-        private string BuildAssemblyText()
-        {
-            var builder = new StringBuilder();
-            builder.AppendLine($"// Generated on {DateTime.Now:R}");
-            builder.AppendLine();
-            builder.AppendLine(@".cpu ""6502""");
-            builder.AppendLine("* = $F000");
-            builder.AppendLine();
-
-            AppendLabels(builder);
-            builder.AppendLine();
-            //AppendFunctions(builder);
-            //builder.AppendLine();
-            builder.AppendLine(@".include ""vcs.h""");
-            builder.AppendLine(@".include ""vil.h""");
-            builder.AppendLine();
-
-            builder.AppendLine(new Comment("Begin function definitions"));
-            builder.AppendLine("START");
-            // Entry point needs to come first so we execute it after init/clear.
-            var entryPointPair = CompiledMethods.Single(it => it.Value.OfType<EntryPoint>().Any());
-            AppendMethod(entryPointPair, builder);
-            foreach (var pair in CompiledMethods.Where(it => !it.Equals(entryPointPair)))
-            {
-                builder.AppendLine();
-                AppendMethod(pair, builder);
-            }
-
-            builder.AppendLine(new Comment("End function definitions"));
-            builder.AppendLine();
-            builder.AppendLine("* = $FFFC");
-            builder.AppendLine(".word START");
-            builder.AppendLine(".word START");
-            return builder.ToString();
-        }
-
-        private void AppendMethod(KeyValuePair<MethodDefinition, ImmutableArray<AssemblyEntry>> methodPair, StringBuilder builder)
-        {
-            builder.AppendLine(new Comment($"Begin {methodPair.Key.FullName}"));
-            builder.AppendLine(LabelGenerator.Function(methodPair.Key).Output);
-            AppendAssemblyEntries(methodPair.Key, methodPair.Value, builder);
-            builder.AppendLine(new Comment($"End {methodPair.Key.FullName}"));
-        }
-
-        private void AppendAssemblyEntries(MethodDefinition method, ImmutableArray<AssemblyEntry> entries, StringBuilder builder)
-        {
-            foreach (var entry in entries)
-            {
-                if (entry is InlineMethod inlineMethod)
-                {
-                    AppendAssemblyEntries(inlineMethod.Method, inlineMethod.Entries, builder);
-                    continue;
-                }
-                var macro = entry as Macro;
-                if (macro != null)
-                {
-                    AppendSource(method, macro, builder);
-                }
-                var indent = entry is InstructionLabel ? "" : Indent;
-                builder.AppendLine($"{indent}{entry.Output}");
-                if (macro != null)
-                {
-                    foreach (var stackLet in macro.StackLets)
-                    {
-                        builder.AppendLine($"{StackIndex}{stackLet.Output}");
-                    }
-                }
-            }
-        }
-
         private void AppendSource(MethodDefinition method, Macro macro, StringBuilder builder)
         {
             if (SourceAnnotations == SourceAnnotation.None)
@@ -239,89 +162,6 @@ namespace VCSCompiler.V2
             return new[] { subLine };
         }
 
-        private void AppendLabels(StringBuilder builder)
-        {
-            if (LabelMap.AliasToGlobal.Any())
-            {
-                builder.AppendLine(new Comment("Begin Aliases"));
-                foreach (var aliasPair in LabelMap.AliasToGlobal.OrderBy(p => p.Value))
-                {
-                    builder.AppendLine($"{aliasPair.Key} = {aliasPair.Value.Output}");
-                }
-                builder.AppendLine(new Comment("End Aliases"));
-            }
-
-            if (LabelMap.GlobalToAddress.Any())
-            {
-                builder.AppendLine(new Comment("Begin Globals"));
-                foreach (var globalPair in LabelMap.GlobalToAddress.OrderBy(p => p.Value))
-                {
-                    builder.AppendLine($"{globalPair.Key.Output} = {globalPair.Value}");
-                }
-                builder.AppendLine(new Comment("End Globals"));
-            }
-
-            if (LabelMap.LocalToAddress.Any())
-            {
-                builder.AppendLine(new Comment("Begin Locals"));
-                foreach (var localPair in LabelMap.LocalToAddress.OrderBy(p => p.Value))
-                {
-                    builder.AppendLine($"{localPair.Key.Output} = {localPair.Value}");
-                }
-                builder.AppendLine(new Comment("End Locals"));
-            }
-
-            if (LabelMap.ConstantToValue.Any())
-            {
-                builder.AppendLine(new Comment("Begin Constants"));
-                foreach (var constantPair in LabelMap.ConstantToValue.OrderBy(p => Convert.ToInt32(p.Value)))
-                {
-                    builder.AppendLine($"{constantPair.Key.Output} = {constantPair.Value}");
-                }
-                builder.AppendLine(new Comment("End Constants"));
-            }
-
-
-            if (LabelMap.TypeToString.Any() || LabelMap.SizeToValue.Any())
-            {
-                builder.AppendLine(new Comment("Begin Types"));
-                foreach (var typePair in LabelMap.TypeToString.OrderBy(p => p.Value))
-                {
-                    builder.AppendLine($"{typePair.Key.Output} = {typePair.Value}");
-                }
-                foreach (var sizePair in LabelMap.SizeToValue)
-                {
-                    builder.AppendLine($"{sizePair.Key.Output} = {sizePair.Value}");
-                }
-                // Print pointer sizes. There's only 2, so, not much point in going through the
-                // LabelMap flow like these other sizes.
-                builder.AppendLine($"{new PointerSizeLabel(true).Output} = 1");
-                builder.AppendLine($"{new PointerSizeLabel(false).Output} = 2");
-                builder.AppendLine(new Comment("End Types"));
-            }
-        }
-
-        private void AppendFunctions(StringBuilder builder)
-        {
-            builder.AppendLine(new Comment("Begin generated functions."));
-            AppendGetSizeFromType();
-            builder.AppendLine(new Comment("End generated functions."));
-
-            void AppendGetSizeFromType()
-            {
-                builder.AppendLine("getSizeFromType .function type");
-                builder.AppendLine("  .switch type");
-                foreach (var pair in LabelMap.TypeToSize)
-                {
-                    builder.AppendLine($"    .case {pair.Key.Output}");
-                    builder.AppendLine($"      .return {pair.Value.Output}");
-                }
-                builder.AppendLine("  .endswitch");
-                builder.AppendLine(@"  .error format(""Unknown type ${0}"", type)");
-                builder.AppendLine(".endfunction");
-            }
-        }
-
         private IEnumerable<string> GetStringFromEntry(IAssemblyEntry entry) => entry switch
         {
             IMacroCall mc => GetStringFromMacro(mc),
@@ -382,5 +222,5 @@ namespace VCSCompiler.V2
                     yield return str;
             }
         }
-    }
+    }*/
 }

@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 
 namespace VCSFramework.V2
 {
     public interface IStackTracker
     {
         IEnumerable<ArrayLetOp> GenerateInitializationEntries();
-        bool TryGenerateStackOperation(out StackOperation stackOperation);
+        bool TryGenerateStackOperation([NotNullWhen(true)] out StackOperation? stackOperation);
         void Pop(int amount);
         void Push(IExpression typeExpression, IExpression sizeExpression);
         void Push(int stackIndex);

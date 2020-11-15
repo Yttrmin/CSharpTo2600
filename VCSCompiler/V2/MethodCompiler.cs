@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -12,44 +13,67 @@ namespace VCSCompiler.V2
     internal partial class MethodCompiler
     {
         private readonly MethodDefinition Method;
+        // @TODO - Probably just use an enum.
         private readonly bool Inline;
+        private readonly bool Entrypoint;
         private readonly AssemblyDefinition UserAssembly;
         private readonly CilInstructionCompiler.Options? CilOptions;
 
-        public static ImmutableArray<IAssemblyEntry> Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions = null)
-            => new MethodCompiler(method, userAssembly, inline, cilOptions).Compile();
+        public static Function Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, bool entrypoint = false, CilInstructionCompiler.Options? cilOptions = null)
+            => new MethodCompiler(method, userAssembly, inline, entrypoint, cilOptions).Compile();
 
-        public MethodCompiler(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, CilInstructionCompiler.Options? cilOptions)
+        private MethodCompiler(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, bool entrypoint, CilInstructionCompiler.Options? cilOptions)
         {
             Method = method;
             UserAssembly = userAssembly;
             Inline = inline;
-            CilOptions = cilOptions;
+            Entrypoint = entrypoint;
+            CilOptions = cilOptions != null ? cilOptions with { LiftLocals = !method.IsRecursive() } : null;
         }
 
-        public ImmutableArray<IAssemblyEntry> Compile()
+        private Function Compile()
         {
             var cilCompiler = new CilInstructionCompiler(Method, UserAssembly, CilOptions);
-            var body = cilCompiler.Compile().ToImmutableArray();
+            var body = cilCompiler.Compile()
+                .ToImmutableArray();
             if (Inline)
             {
-                var endLabel = new InstructionLabel("INLINE_RET_TARGET");
+                var endLabel = new BranchTargetLabel("INLINE_RET_TARGET");
                 body = body.Prepend(new BeginBlock()).Append(endLabel).Append(new EndBlock()).Select(entry =>
                 {
                     if (entry is ReturnVoid returnFromCall)
                     {
                         // Probably will always have exactly 1 instruction, right?
-                        return new Branch(returnFromCall.Instructions.Single(), endLabel);
+                        return new Branch(returnFromCall.SourceInstruction, endLabel);
                     }
                     return entry;
                 }).ToImmutableArray();
+            }
+            else if (Entrypoint)
+            {
+                // @TODO - Should invoke all .cctors.
+                // Prepend the .cctor if there is one.
+                var cctor = Method.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor");
+                if (cctor != null)
+                {
+                    var inlineCctor = MethodCompiler.Compile(cctor, UserAssembly, true);
+                    body = inlineCctor.Body.Concat(body).ToImmutableArray();
+                }
+                body = body.Prepend(new EntryPoint()).ToImmutableArray();
             }
             if (!Compiler.Options.DisableOptimizations)
             {
                 body = Optimize(body);
             }
+            var inlineString = Inline ? " inline call of " : " ";
             body = GenerateStackOps(body);
-            return body;
+            if (!Inline) // @TODO - Extension PrependIf() ?
+                body = body.Prepend(new MethodLabel(Method)).ToImmutableArray();
+            body = body
+                .Prepend(new Comment($"Begin{inlineString}{Method.FullName}"))
+                .Append(new Comment($"End{inlineString}{Method.FullName}"))
+                .ToImmutableArray();
+            return new Function(Method, body);
         }
 
         private ImmutableArray<IAssemblyEntry> Optimize(ImmutableArray<IAssemblyEntry> entries)
@@ -75,7 +99,7 @@ namespace VCSCompiler.V2
                 var messageBuilder = new StringBuilder();
                 messageBuilder.AppendLine("Invalid entries found in post-optimized code. This is likely the result of using special features (e.g. InlineAssembly()) that were compiled into a form that wasn't detected by its Optimizer. Make sure you're only invoking them exactly how they're documented.");
                 messageBuilder.AppendLine("Invalid entries:");
-                messageBuilder.AppendLine(string.Join(Environment.NewLine, invalidEntries.Select(e => e.Output)));
+                messageBuilder.AppendLine(string.Join(Environment.NewLine, invalidEntries));
                 throw new InvalidOperationException(messageBuilder.ToString());
             }
             return postOptimize;

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using VCSFramework.V2;
 
@@ -14,6 +15,7 @@ namespace VCSCompiler.V2
         private const string StackTypeLabel = "STACK_TYPEOF";
         private const string StackSizeLabel = "STACK_SIZEOF";
         private readonly StackElement[] StackState;
+        private bool IsDirty = false;
         private int MaxDepth => StackState.Length;
 
         public StackTracker(ImmutableArray<IAssemblyEntry> entries)
@@ -44,6 +46,7 @@ namespace VCSCompiler.V2
             CheckDepth();
             PercolateUp();
             StackState[0] = new(typeExpression, sizeExpression);
+            IsDirty = true;
         }
 
         public void Push(int stackIndex)
@@ -59,6 +62,7 @@ namespace VCSCompiler.V2
             {
                 PopInternal();
             }
+            IsDirty = true;
 
             void PopInternal()
             {
@@ -78,9 +82,20 @@ namespace VCSCompiler.V2
             yield return new(StackSizeLabel, Enumerable.Repeat(LabelGenerator.NothingSize, MaxDepth).Cast<IExpression>().ToImmutableArray());
         }
 
-        public bool TryGenerateStackOperation(out StackOperation stackOperation)
+        public bool TryGenerateStackOperation([NotNullWhen(true)]out StackOperation? stackOperation)
         {
-            throw new NotImplementedException();
+            if (!IsDirty)
+            {
+                stackOperation = default;
+                return false;
+            }
+            CheckDepth();
+            var typeValues = StackState.Select(e => e.Type).ToImmutableArray();
+            var sizeValues = StackState.Select(e => e.Size).ToImmutableArray();
+            stackOperation = new(new(StackTypeLabel, typeValues), new(StackSizeLabel, sizeValues));
+
+            ReplaceStackWithIndexes();
+            return true;
         }
 
         public ImmutableArray<ArrayLetOp> GenerateStackSetters()
@@ -120,6 +135,7 @@ namespace VCSCompiler.V2
             {
                 StackState[i] = new StackElement(new ArrayAccessOp(StackTypeLabel, i), new ArrayAccessOp(StackSizeLabel, i));
             }
+            IsDirty = false;
         }
 
         private void PercolateUp()

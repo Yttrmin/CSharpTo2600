@@ -55,17 +55,17 @@ namespace VCSFramework.V2
     }
 
     /// <summary>
-    /// Replaces invocations of this method with the provided macro, instead of an invocation macro.
-    /// Macro must have a constructor that takes a single <see cref="Mono.Cecil.Cil.Instruction"/> as the only parameter.
+    /// Replaces invocations of this method with the provided <see cref="IAssemblyEntry"/>, instead of a macro invocation.
+    /// Type must have a constructor that takes a single <see cref="Mono.Cecil.Cil.Instruction"/> as the only parameter.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-    public sealed class ReplaceWithMacroAttribute : Attribute
+    public sealed class ReplaceWithEntryAttribute : Attribute
     {
-        public Type MacroType { get; }
+        public Type Type { get; }
 
-        public ReplaceWithMacroAttribute(Type macroType)
+        public ReplaceWithEntryAttribute(Type macroType)
         {
-            MacroType = macroType;
+            Type = macroType;
         }
     }
 

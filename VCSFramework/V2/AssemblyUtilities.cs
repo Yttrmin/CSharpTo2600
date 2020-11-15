@@ -19,7 +19,7 @@ namespace VCSFramework.V2
         /// </summary>
         /// <param name="assembly">6502.NET-compatible assembly code. MUST be a compile time constant.</param>
         // @TODO - Do we need this attribute, or can we just look for CallVoid in the optimization?
-        [ReplaceWithMacro(typeof(InlineAssembly))]
+        [ReplaceWithEntry(typeof(InlineAssemblyCall))]
         public static void InlineAssembly(string assembly)
         {
             throw new NotImplementedException();

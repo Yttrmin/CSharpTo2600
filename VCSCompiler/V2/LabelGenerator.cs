@@ -23,28 +23,6 @@ namespace VCSCompiler.V2
         public static TypeSizeLabel NothingSize
             => new(BuiltInDefinitions.Nothing);
 
-        public static ISizeLabel FieldSize(FieldReference field)
-        {
-            // @TODO - IsByRef?
-            if (field.FieldType.IsPointer)
-            {
-                // Fields are variables, so will always be stored in RAM, so can use a short pointer (for cartridges without extra RAM).
-                return new PointerSizeLabel(true);
-            }
-            return new TypeSizeLabel(field.FieldType);
-        }
-
-        public static ISizeLabel LocalSize(VariableDefinition variable)
-        {
-            var type = variable.VariableType;
-            if (type.IsPointer || type.IsPinned || type.IsByReference)
-            {
-                // Locals are variables, so will always be stored in RAM, so can use a short pointer (for cartridges without extra RAM).
-                return new PointerSizeLabel(true);
-            }
-            return new TypeSizeLabel(type);
-        }
-
         public static TypeLabel Type(TypeReference type)
             => new(type);
     }

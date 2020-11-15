@@ -9,6 +9,7 @@ using VCSFramework.V2;
 
 namespace VCSCompiler.V2
 {
+    /*
     internal class LabelMap
     {
         public ImmutableDictionary<string, GlobalFieldLabel> AliasToGlobal { get; }
@@ -18,7 +19,6 @@ namespace VCSCompiler.V2
         public ImmutableDictionary<ITypeLabel, string> TypeToString { get; }
         public ImmutableDictionary<ISizeLabel, string> SizeToValue { get; }
         public ImmutableDictionary<TypeLabel, ISizeLabel> TypeToSize { get; }
-        public ImmutableDictionary<PointerTypeLabel, TypeLabel> PointerToType { get; }
         public ImmutableDictionary<MethodDefinition, ImmutableArray<IAssemblyEntry>> FunctionToBody { get; }
 
         public LabelMap(
@@ -32,7 +32,6 @@ namespace VCSCompiler.V2
             var typeToString = new Dictionary<ITypeLabel, string>();
             var sizeToValue = new Dictionary<ISizeLabel, string>();
             var typeToSize = new Dictionary<TypeLabel, ISizeLabel>();
-            var pointerToType = new Dictionary<PointerTypeLabel, TypeLabel>();
             var functionToBody = new Dictionary<MethodDefinition, ImmutableArray<IAssemblyEntry>>();
 
             var allLabelParams = functions
@@ -53,7 +52,7 @@ namespace VCSCompiler.V2
                 .Concat(
                     allLabelParams
                     .OfType<PointerTypeLabel>()
-                    .Select(l => l.Type)
+                    .Select(l => l.ReferentType)
                     .Concat(
                         allLabelParams
                         .OfType<ISizeLabel>()
@@ -72,15 +71,9 @@ namespace VCSCompiler.V2
                 typeToString[new TypeLabel(type)] = thisTypeNumber.ToString();
                 // Pointer types use the same number as the type they're pointing to, but with the LSB set to 1.
                 typeToString[new PointerTypeLabel(type)] = (thisTypeNumber | 0x1).ToString();
-                pointerToType[new PointerTypeLabel(type)] = new TypeLabel(type);
                 sizeToValue[new TypeSizeLabel(type)] = $"{TypeData.Of(type, userAssembly).Size}";
                 typeToSize[new TypeLabel(type)] = new TypeSizeLabel(type);
             }
-
-            /*foreach (var constantLabel in allLabelParams.OfType<ConstantLabel>())
-            {
-                constantToValue[constantLabel] = constantLabel.Value.ToString()!;
-            }*/
 
             // @TODO - 
             var aliasedFields = userAssembly.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
@@ -94,17 +87,17 @@ namespace VCSCompiler.V2
                     if (!alias.StartsWith(AssemblyUtilities.AliasPrefix))
                         throw new InvalidOperationException($"Alias '{alias}' must begin with '{AssemblyUtilities.AliasPrefix}'");
                     if (aliasToGlobal.ContainsKey(alias))
-                        throw new InvalidOperationException($"Alias '{alias}' is already being aliased to '{aliasToGlobal[alias].Name}', can't alias to '{field.FullName}' too.");
+                        throw new InvalidOperationException($"Alias '{alias}' is already being aliased to '{aliasToGlobal[alias].Field.Name}', can't alias to '{field.FullName}' too.");
                     aliasToGlobal[alias] = new(field);
                 }
             }
 
             // @TODO - Need to reserve some for VIL.
             var ramStart = 0x80;
-            foreach (var globalLabel in allLabelParams.OfType<GlobalFieldLabel>().Where(l => !l.Predefined))
+            foreach (var globalLabel in allLabelParams.OfType<GlobalFieldLabel>())
             {
                 globalToAddress[globalLabel] = $"${ramStart:X2}";
-                ramStart += TypeData.Of(globalLabel.Type, userAssembly).Size;
+                ramStart += TypeData.Of(globalLabel.Field.Type, userAssembly).Size;
             }
             foreach (var localLabel in allLabelParams.OfType<LocalLabel>())
             {
@@ -125,7 +118,6 @@ namespace VCSCompiler.V2
             TypeToString = typeToString.ToImmutableDictionary();
             SizeToValue = sizeToValue.ToImmutableDictionary();
             TypeToSize = typeToSize.ToImmutableDictionary();
-            PointerToType = pointerToType.ToImmutableDictionary();
             FunctionToBody = functionToBody.ToImmutableDictionary();
         }
 
@@ -138,5 +130,5 @@ namespace VCSCompiler.V2
             [return: NotNullIfNotNull("obj")]
             private string? TrimSymbols(TypeReference? obj) => obj?.FullName?.Replace("*", "")?.Replace("&", "");
         }
-    }
+    }*/
 }

@@ -2,8 +2,10 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 
 namespace VCSFramework.V2
 {
@@ -21,8 +23,6 @@ namespace VCSFramework.V2
     /// </summary>
     public interface IAssemblyEntry
     {
-        /// <summary>A text representation of the unit. Each line should be its own element in the array.</summary>
-        //ImmutableArray<string> Text { get; }
     }
 
     public interface IMacroCall : IAssemblyEntry
@@ -58,8 +58,6 @@ namespace VCSFramework.V2
 
     public sealed record Constant(object Value) : IExpression;
 
-    public sealed record Blank() : IAssemblyEntry;
-
     public sealed record Comment(string Text) : IAssemblyEntry;
 
     public sealed record MultilineComment(ImmutableArray<string> Text) : IAssemblyEntry;
@@ -70,7 +68,9 @@ namespace VCSFramework.V2
     // by making them macros, but that doesn't really make sense.
     public sealed record LoadString(Instruction SourceInstruction) : IAssemblyEntry;
 
-    public sealed record InlineAssemblyCall() : IAssemblyEntry;
+    public sealed record InlineAssemblyCall(Instruction SourceInstruction) : IAssemblyEntry;
+
+    public sealed record LabelAssignment(ILabel Label, string Value) : IAssemblyEntry;
 
     #region Labels
     public interface ILabel : IExpression { }
@@ -97,6 +97,9 @@ namespace VCSFramework.V2
 
     public sealed record GlobalFieldLabel(FieldRef Field) : IGlobalLabel;
 
+    public sealed record ReservedGlobalLabel(int Index) : IGlobalLabel;
+
+    /// <summary>A global whose label is defined elsewhere (e.g. COLUBK in a header).</summary>
     public sealed record PredefinedGlobalLabel(string Name) : IGlobalLabel;
 
     /// <summary>
@@ -119,11 +122,29 @@ namespace VCSFramework.V2
     public sealed record BranchTargetLabel(string Name) : IBranchTargetLabel;
     #endregion
 
-    public sealed record ArrayAccessOp(string VariableName, int Index) : IExpression;
+    public record ArrayAccessOp(string VariableName, int Index) : IExpression;
+
+    public sealed record StackTypeArrayAccess(int Index) : ArrayAccessOp("STACK_TYPEOF", Index);
+
+    public sealed record StackSizeArrayAccess(int Index) : ArrayAccessOp("STACK_SIZEOF", Index);
     
     public sealed record ArrayLetOp(string VariableName, ImmutableArray<IExpression> Elements) : IAssemblyEntry;
 
     public sealed record StackOperation(ArrayLetOp TypeOp, ArrayLetOp SizeOp);
+
+    //
+    public interface IPsuedoOp : IAssemblyEntry { }
+    public sealed record BeginBlock() : IPsuedoOp;
+    public sealed record EndBlock() : IPsuedoOp;
+    public sealed record Blank() : IAssemblyEntry;
+    public sealed record AssignLabel(ILabel Label, string Value) : IPsuedoOp;
+    public sealed record IncludeOp(string Filename) : IPsuedoOp;
+    public sealed record CpuOp(string Architecture) : IPsuedoOp;
+    public sealed record WordOp(ILabel Label) : IPsuedoOp;
+    public sealed record ProgramCounterAssignOp(int Address) : IPsuedoOp;
+    /// <summary>A marker that a method call was inlined here.</summary>
+    public sealed record InlineFunction(Inst SourceInstruction, MethodDef Definition) : IAssemblyEntry;
+    public sealed record Function(MethodDef Definition, ImmutableArray<IAssemblyEntry> Body);
 
     // TypeReference only has referential equality, this reusable wrapper gives it value equality.
     public sealed record TypeRef(TypeReference Type)
@@ -145,6 +166,8 @@ namespace VCSFramework.V2
         public static implicit operator MethodDef(MethodDefinition m) => new(m);
         public static implicit operator MethodDefinition(MethodDef m) => m.Method;
 
+        public MethodBody Body => Method.Body;
+
         public bool Equals(MethodDef? other)
             => Method.FullName == other?.Method.FullName;
 
@@ -158,6 +181,9 @@ namespace VCSFramework.V2
     {
         public static implicit operator FieldRef(FieldReference f) => new(f);
         public static implicit operator FieldReference(FieldRef f) => f.Field;
+
+        public string Name => Field.Name;
+        public TypeReference Type => Field.FieldType;
 
         public bool Equals(FieldRef? other)
             => Field.FullName == other?.Field.FullName;
@@ -175,12 +201,10 @@ namespace VCSFramework.V2
         public static implicit operator Instruction(Inst i) => i.Instruction;
 
         public bool Equals(Inst? other)
-            => Instruction.ToString() == other?.ToString();
+            => Instruction.ToString() == other?.Instruction?.ToString();
 
         public override int GetHashCode()
             => Instruction.ToString().GetHashCode();
-
-        //public override string ToString() => $"{Instruction.Offset:x4}";
     }
 
     /*internal interface IStackPusher

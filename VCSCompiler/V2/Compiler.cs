@@ -71,21 +71,24 @@ namespace VCSCompiler.V2
 
             var compiler = new Compiler(userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
-            var allFunctions = compiler.GetAllFunctions(entryPointBody).Prepend(entryPointBody);
-            var labelMap = new LabelMap(allFunctions, userAssemblyDefinition);
+            var allFunctions = compiler.RecursiveCompileAllFunctions(entryPointBody);
+            var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userAssemblyDefinition);
 
-            var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
+            var fullProgram = AssemblyTemplate.Foo(entryPointBody, allFunctions, allLabelAssignments);
 
-            RomInfo romInfo;
+            //var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
+
+            var qq = AssemblyTemplate.FooToString(fullProgram, SourceAnnotation.Both);
+            RomInfo romInfo = new();
             
-            if (options.OutputPath != null)
+            /*if (options.OutputPath != null)
             {
                 romInfo = assemblyWriter.WriteToFile(options.OutputPath);
             }
             else
             {
                 romInfo = assemblyWriter.WriteToConsole();
-            }
+            }*/
 
             if (options.TextEditorPath != null && romInfo.AssemblyPath != null)
             {
@@ -184,55 +187,77 @@ namespace VCSCompiler.V2
             return definition;
         }
 
-        public ImmutableArray<IAssemblyEntry> CompileEntryPoint()
+        public Function CompileEntryPoint()
         {
             var entryPoint = UserAssembly.EntryPoint;
-            var compiledBody = MethodCompiler.Compile(entryPoint, UserAssembly, false, new CilInstructionCompiler.Options
+            return MethodCompiler.Compile(entryPoint, UserAssembly, false, true, new CilInstructionCompiler.Options
             {
                 InlineAllCalls = true
             });
             // @TODO - Control should never return from the entry point. For RawTemplate, this means ensuring the _user_'s entry point
             // never returns. For StandardTemplate, _its_ entry point should never return.
-
-            // Prepend the .cctor if there is one.
-            var cctor = entryPoint.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor");
-            if (cctor != null)
-            {
-                var inlineCctorCall = new InlineMethod(Instruction.Create(OpCodes.Call, cctor), cctor, MethodCompiler.Compile(cctor, UserAssembly, true));
-                compiledBody = compiledBody.Prepend(inlineCctorCall).ToImmutableArray();
-            }
-
-            // Prepend EntryPoint(), which performs CPU/memory initialization.
-            return compiledBody
-                .Prepend(new EntryPoint())
-                .ToImmutableArray();
         }
 
-        private IEnumerable<ImmutableArray<IAssemblyEntry>> GetAllFunctions(ImmutableArray<IAssemblyEntry> body)
+        private ImmutableArray<Function> RecursiveCompileAllFunctions(Function function)
         {
-            foreach (var entry in body)
+            var set = new HashSet<Function>();
+            CompileAllFunctionsInternal(function, UserAssembly, set);
+            return set.ToImmutableArray();
+
+            static void CompileAllFunctionsInternal(Function function, AssemblyDefinition userAssembly, ISet<Function> set)
             {
-                if (entry is InlineMethod inlineMethod)
+                foreach (var entry in GetAllMacroParameters(function).OfType<MethodLabel>())
                 {
-                    yield return inlineMethod.Entries;
-                    foreach (var function in GetAllFunctions(inlineMethod.Entries))
+                    if (!set.Any(f => f.Definition == entry.Method))
                     {
-                        yield return function;
-                    }
-                }
-                else if (entry is ICallMacro call)
-                {
-                    // Non-inline methods are compiled twice. Here it's compiled just so we can extract
-                    // labels for LabelMap. LabelMap will re-compile it (hopefully identically), and
-                    // that's what will actually be written out.
-                    var compiledBody = MethodCompiler.Compile(call.Method, UserAssembly, false);
-                    yield return compiledBody;
-                    foreach (var function in GetAllFunctions(compiledBody))
-                    {
-                        yield return function;
+                        var compiledFunction = MethodCompiler.Compile(entry.Method, userAssembly, false);
+                        set.Add(compiledFunction);
+                        CompileAllFunctionsInternal(compiledFunction, userAssembly, set);
                     }
                 }
             }
         }
+
+        private static ImmutableArray<AssignLabel> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyDefinition userAssembly)
+        {
+            // @TODO - Aliases
+            var start = 0x80;
+            var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new AssignLabel(new ReservedGlobalLabel(i), "${start++:X2}"));
+            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Select(l => new AssignLabel(l, $"${start++:X2}"));
+            // @TODO - Check if we overflowed into stack.
+
+            var typeId = 100;
+            var allTypes = functions.SelectMany(GetAllMacroParameters).OfType<TypeLabel>().Select(l => l.Type)
+                .Concat(functions.SelectMany(GetAllMacroParameters).OfType<PointerTypeLabel>().Select(l => l.ReferentType))
+                .Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte)
+                .ToImmutableArray();
+            var allPairedTypes = allTypes.Select(t => (new AssignLabel(new TypeLabel(t), typeId++.ToString()), new AssignLabel(new PointerTypeLabel(t), typeId++.ToString())));
+
+            var allTypeSizes = allTypes.Select(t => new AssignLabel(new TypeSizeLabel(t), TypeData.Of(t, userAssembly).Size.ToString()));
+
+            var allLabelAssignments = new List<AssignLabel>();
+            allLabelAssignments.AddRange(reserved);
+            allLabelAssignments.AddRange(otherGlobals);
+            foreach (var pair in allPairedTypes)
+            {
+                allLabelAssignments.Add(pair.Item1);
+                allLabelAssignments.Add(pair.Item2);
+            }
+            allLabelAssignments.AddRange(allTypeSizes);
+            allLabelAssignments.AddRange(new AssignLabel[] { new(new PointerSizeLabel(true), 1.ToString()), new(new PointerSizeLabel(false), 2.ToString()) });
+            return allLabelAssignments.ToImmutableArray();
+        }
+
+        private static int GetReservedBytes(IEnumerable<Function> functions) 
+            => functions.SelectMany(GetAllMacroCalls).Select(m => m.GetType()).Max(t => t.GetCustomAttribute<ReservedBytesAttribute>()?.Count ?? 0);
+
+        private IEnumerable<FieldReference> GetAllFieldRefs(Function function)
+            => GetAllMacroParameters(function).OfType<GlobalFieldLabel>().Select(l => l.Field).Distinct().Select(f => f.Field);
+
+        private static IEnumerable<IExpression> GetAllMacroParameters(Function function)
+            => function.Body.OfType<IMacroCall>().SelectMany(m => m.Parameters).Distinct();
+
+        private static IEnumerable<IMacroCall> GetAllMacroCalls(Function function)
+            => function.Body.OfType<IMacroCall>();
     }
 }
