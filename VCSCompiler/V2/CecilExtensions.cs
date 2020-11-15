@@ -106,6 +106,14 @@ namespace VCSCompiler.V2
             }
         }
 
+		public static string NamespaceAndName(this TypeReference @this)
+		{
+			var formattedNamespace = @this.Namespace.Replace('.', '_');
+			return $"{formattedNamespace}_{@this.Name}";
+		}
+
+		public static string NamespaceAndName(this TypeRef @this) => ((TypeReference)@this).NamespaceAndName();
+
 		// @TODO - Probably move to another file, or make this one more generic.
 		public static IEnumerable<Instruction> Concat(this Instruction @this, Instruction other)
 			=> Enumerable.Repeat(@this, 1).Concat(Enumerable.Repeat(other, 1));

@@ -14,6 +14,8 @@ namespace VCSCompiler.V2
 
         private const string StackTypeLabel = "STACK_TYPEOF";
         private const string StackSizeLabel = "STACK_SIZEOF";
+        private static readonly TypeLabel NothingType = new(BuiltInDefinitions.Nothing);
+        private static readonly TypeSizeLabel NothingSize = new(BuiltInDefinitions.Nothing);
         private readonly StackElement[] StackState;
         private bool IsDirty = false;
         private int MaxDepth => StackState.Length;
@@ -50,7 +52,7 @@ namespace VCSCompiler.V2
         }
 
         public void Push(int stackIndex)
-            => Push(new ArrayAccessOp(StackTypeLabel, stackIndex), new ArrayAccessOp(StackSizeLabel, stackIndex));
+            => Push(new ArrayAccess(StackTypeLabel, stackIndex), new ArrayAccess(StackSizeLabel, stackIndex));
 
         public void Pop(int amount = 1)
         {
@@ -70,7 +72,7 @@ namespace VCSCompiler.V2
                 {
                     StackState[i] = StackState[i + 1];
                 }
-                StackState[StackState.Length - 1] = new(LabelGenerator.NothingType, LabelGenerator.NothingSize);
+                StackState[StackState.Length - 1] = new(NothingType, NothingSize);
             }
         }
 
@@ -78,8 +80,8 @@ namespace VCSCompiler.V2
         {
             if (MaxDepth == 0)
                 yield break;
-            yield return new(StackTypeLabel, Enumerable.Repeat(LabelGenerator.NothingType, MaxDepth).Cast<IExpression>().ToImmutableArray());
-            yield return new(StackSizeLabel, Enumerable.Repeat(LabelGenerator.NothingSize, MaxDepth).Cast<IExpression>().ToImmutableArray());
+            yield return new(StackTypeLabel, Enumerable.Repeat(NothingType, MaxDepth).Cast<IExpression>().ToImmutableArray());
+            yield return new(StackSizeLabel, Enumerable.Repeat(NothingSize, MaxDepth).Cast<IExpression>().ToImmutableArray());
         }
 
         public bool TryGenerateStackOperation([NotNullWhen(true)]out StackOperation? stackOperation)
@@ -133,7 +135,7 @@ namespace VCSCompiler.V2
         {
             for (var i = 0; i < StackState.Length; i++)
             {
-                StackState[i] = new StackElement(new ArrayAccessOp(StackTypeLabel, i), new ArrayAccessOp(StackSizeLabel, i));
+                StackState[i] = new StackElement(new ArrayAccess(StackTypeLabel, i), new ArrayAccess(StackSizeLabel, i));
             }
             IsDirty = false;
         }

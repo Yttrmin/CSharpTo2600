@@ -74,11 +74,11 @@ namespace VCSCompiler.V2
             var allFunctions = compiler.RecursiveCompileAllFunctions(entryPointBody);
             var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userAssemblyDefinition);
 
-            var fullProgram = AssemblyTemplate.Foo(entryPointBody, allFunctions, allLabelAssignments);
+            var fullProgram = AssemblyTemplate.GenerateProgram(entryPointBody, allFunctions, allLabelAssignments);
 
             //var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
 
-            var qq = AssemblyTemplate.FooToString(fullProgram, SourceAnnotation.Both);
+            var qq = AssemblyTemplate.ProgramToString(fullProgram, SourceAnnotation.Both);
             var romInfo = Assemble(qq, options.OutputPath);
 
             if (options.TextEditorPath != null && romInfo.AssemblyPath != null)
@@ -266,12 +266,12 @@ namespace VCSCompiler.V2
             }
         }
 
-        private static ImmutableArray<AssignLabel> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyDefinition userAssembly)
+        private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyDefinition userAssembly)
         {
             // @TODO - Aliases
             var start = 0x80;
-            var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new AssignLabel(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
-            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Distinct().Select(l => new AssignLabel(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new LabelAssign(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Distinct().Select(l => new LabelAssign(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
             // @TODO - Check if we overflowed into stack.
 
             var typeId = 100;
@@ -280,11 +280,11 @@ namespace VCSCompiler.V2
                 .Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte)
                 .Distinct()
                 .ToImmutableArray();
-            var allPairedTypes = allReferencedTypes.Select(t => (new AssignLabel(new TypeLabel(t), new Constant((byte)typeId++)), new AssignLabel(new PointerTypeLabel(t), new Constant((byte)typeId++))));
+            var allPairedTypes = allReferencedTypes.Select(t => (new LabelAssign(new TypeLabel(t), new Constant((byte)typeId++)), new LabelAssign(new PointerTypeLabel(t), new Constant((byte)typeId++))));
 
-            var allTypeSizes = allReferencedTypes.Select(t => new AssignLabel(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userAssembly).Size)));
+            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userAssembly).Size)));
 
-            var allLabelAssignments = new List<AssignLabel>();
+            var allLabelAssignments = new List<LabelAssign>();
 
             var aliasedFields = userAssembly.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
             foreach (var field in aliasedFields)
@@ -311,7 +311,7 @@ namespace VCSCompiler.V2
                 allLabelAssignments.Add(pair.Item2);
             }
             allLabelAssignments.AddRange(allTypeSizes);
-            allLabelAssignments.AddRange(new AssignLabel[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
+            allLabelAssignments.AddRange(new LabelAssign[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
             return allLabelAssignments.ToImmutableArray();
         }
 

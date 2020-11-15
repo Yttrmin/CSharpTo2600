@@ -36,7 +36,7 @@ namespace VILMacroGenerator
                 {
                     Function function => $"new {function.Name.Capitalize()}({string.Join(", ", function.Parameters.Select(p => p.ToString(isType)))})",
                     string param => param,
-                    int index => isType ? $"new ArrayAccessOp(\"STACK_TYPEOF\", {index})" : $"new ArrayAccessOp(\"STACK_SIZEOF\", {index})",
+                    int index => isType ? $"new StackTypeArrayAccess({index})" : $"new StackSizeArrayAccess({index})",
                     _ => throw new InvalidOperationException()
                 };
             }

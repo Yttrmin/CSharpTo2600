@@ -21,6 +21,8 @@ namespace VCSCompiler.V2
 			public bool LiftLocals { get; init; }
         }
 
+		private static readonly TypeLabel ByteType = new(BuiltInDefinitions.Byte);
+		private static readonly TypeSizeLabel ByteSize = new(BuiltInDefinitions.Byte);
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
 		private readonly AssemblyDefinition UserAssembly;
@@ -135,7 +137,7 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction, byte value)
 		{
-			yield return new PushConstant(instruction, new Constant(value), LabelGenerator.ByteType, LabelGenerator.ByteSize);
+			yield return new PushConstant(instruction, new Constant(value), ByteType, ByteSize);
 		}
 
 		private IEnumerable<IAssemblyEntry> LoadLocal(Instruction instruction)
@@ -238,7 +240,7 @@ namespace VCSCompiler.V2
                     {
 						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
                     }
-					yield return new PopToGlobal(instruction, new PredefinedGlobalLabel(overrideStore.Symbol), LabelGenerator.ByteType, LabelGenerator.ByteSize, new(0), new(0));
+					yield return new PopToGlobal(instruction, new PredefinedGlobalLabel(overrideStore.Symbol), ByteType, ByteSize, new(0), new(0));
 				}
             }
 			else if (method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
@@ -357,7 +359,7 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> Ldind_U1(Instruction instruction)
         {
-			yield return new PushDereferenceFromStack(instruction, LabelGenerator.ByteType, LabelGenerator.ByteSize);
+			yield return new PushDereferenceFromStack(instruction, ByteType, ByteSize);
         }
 
 		private IEnumerable<IAssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
@@ -437,7 +439,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<IAssemblyEntry> Stind_I1(Instruction instruction)
         {
 			// Stind.i1 is also used to store to bytes.
-			yield return new PopToAddressFromStack(instruction, LabelGenerator.ByteType, LabelGenerator.ByteSize);
+			yield return new PopToAddressFromStack(instruction, ByteType, ByteSize);
         }
 
 		private IEnumerable<IAssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);
