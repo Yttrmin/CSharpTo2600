@@ -52,6 +52,7 @@ namespace VILMacroGenerator
         public PushParam? TypeParam { get; private set; }
         public PushParam? SizeParam { get; private set; }
         public int PopCount { get; set; }
+        public int ReservedBytes { get; private set; }
         public InstructionParamType InstructionParam { get; set; } = InstructionParamType.Single;
 
         public static Header? Parse(string generateLine, GeneratorExecutionContext context)
@@ -106,6 +107,9 @@ namespace VILMacroGenerator
             else if (parts.Any(p => p.Equals("@MULTIINSTPARAM", StringComparison.CurrentCultureIgnoreCase))
                 || parts.Any(p => p.Equals("@COMPOSITE", StringComparison.CurrentCultureIgnoreCase)))
                 header.InstructionParam = InstructionParamType.Multiple;
+
+            var reserveString = parts.SingleOrDefault(p => p.StartsWith("@RESERVED=", StringComparison.CurrentCultureIgnoreCase));
+            header.ReservedBytes = reserveString != null ? Convert.ToInt32(reserveString.Last().ToString()) : 0;
             return header;
 
             static bool TryGetBuiltInType(string value, out string typeLabel)

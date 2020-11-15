@@ -270,7 +270,7 @@ getSizeFromBuiltInType .function typeExpression
 	.endif 
 .endfunction
 
-// @GENERATE @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0]) @POP=2
+// @GENERATE @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0]) @POP=2
 // Primitive
 addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
@@ -352,7 +352,7 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 	.endif
 .endmacro
 
-// @GENERATE @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
 // Primitive
 subFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.invoke getAddResultType(\firstOperandStackType, \secondOperandStackType) // @TODO - Does this apply to add+sub?
@@ -405,25 +405,26 @@ subLocalByConstant .macro local, constant // @TODO SIZES
 	.endif
 .endmacro
 
+// @GENERATE
 // Primitive, also optimizable.
 // addFromAddressesToAddress + copyTo = addFromAddressesToAddress + storeTo iff ToAddress target == copyTo source.
-storeTo .macro address
-	STA \address
+storeTo .macro global
+	STA \global
 .endmacro
 
 //
 
 // @GENERATE
 // Primitive
-branch .macro instruction
-	JMP \instruction
+branch .macro branchTarget
+	JMP \branchTarget
 .endmacro
 
 convertToByte .macro
 	// @TODO
 .endmacro
 
-// @GENERATE @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
 orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for orFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for orFromStack"
@@ -434,7 +435,7 @@ orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandSt
 	PHA
 .endmacro
 
-// @GENERATE @POP=2 @PUSH=bool;bool
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=bool;bool
 compareEqualToFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for compareEqualToFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for compareEqualToFromStack"
@@ -591,22 +592,22 @@ branchIfGreaterThanFromLocalAndConstantToLocal .macro local, constant, targetLoc
 .endmacro
 
 // @GENERATE @POP=1
-branchFalseFromStack .macro instruction
+branchFalseFromStack .macro branchTarget
 	PLA
-	JEQ \instruction
+	JEQ \branchTarget
 .endmacro
 
 // @GENERATE @POP=1
 // Primitive
-branchTrueFromStack .macro instruction
+branchTrueFromStack .macro branchTarget
 	PLA
-	JNE \instruction
+	JNE \branchTarget
 .endmacro
 
 // pushLocal + branchTrueFromStack
-branchTrueFromLocal .macro local, instruction
+branchTrueFromLocal .macro local, branchTarget
 	LDA \local
-	BNE \instruction
+	BNE \branchTarget
 .endmacro
 
 

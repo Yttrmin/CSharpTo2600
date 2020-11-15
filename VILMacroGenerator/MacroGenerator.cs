@@ -142,6 +142,7 @@ namespace VCSFramework.V2
             var annotationsBuilder = new StringBuilder();
             annotationsBuilder.AppendLine($"\t[PushStack(Count = {(header.TypeParam != null ? 1 : 0)})]");
             annotationsBuilder.AppendLine($"\t[PopStack(Count = {header.PopCount})]");
+            annotationsBuilder.AppendLine($"\t[ReservedBytes(Count = {header.ReservedBytes})]");
 
             var parts = source.Replace(",", "").Split(' ');
             var macroName = parts.First();
@@ -216,9 +217,9 @@ namespace VCSFramework.V2
         private string TypeNameFromHungarian(string variableName)
         {
             if (variableName.EndsWith("StackType", StringComparison.CurrentCultureIgnoreCase))
-                return "ArrayAccessOp";
+                return "StackTypeArrayAccess";
             else if (variableName.EndsWith("StackSize", StringComparison.CurrentCultureIgnoreCase))
-                return "ArrayAccessOp";
+                return "StackSizeArrayAccess";
             else if (variableName.EndsWith("PointerType", StringComparison.CurrentCultureIgnoreCase))
                 return "PointerTypeLabel";
             else if (variableName.EndsWith("PointerSize", StringComparison.CurrentCultureIgnoreCase))
@@ -233,8 +234,8 @@ namespace VCSFramework.V2
                 return "LiftedLocalLabel";
             else if (variableName.EndsWith("Constant", StringComparison.CurrentCultureIgnoreCase))
                 return "Constant";
-            else if (variableName.EndsWith("Instruction", StringComparison.CurrentCultureIgnoreCase))
-                return "InstructionLabel";
+            else if (variableName.EndsWith("BranchTarget", StringComparison.CurrentCultureIgnoreCase))
+                return "IBranchTargetLabel";
             else if (variableName.EndsWith("Method", StringComparison.CurrentCultureIgnoreCase))
                 return "MethodLabel";
             else if (variableName.EndsWith("Expression", StringComparison.CurrentCultureIgnoreCase))
