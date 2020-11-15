@@ -1,7 +1,10 @@
 ﻿#nullable enable
+using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -48,20 +51,33 @@ namespace VCSCompiler.V2
 
         public static string FooToString(IEnumerable<IAssemblyEntry> program, SourceAnnotation annotations)
         {
+            var currentMethodStack = new Stack<MethodDefinition>();
             var builder = new StringBuilder();
             foreach (var entry in program)
             {
-                foreach (var str in GetStringFromEntry(entry, annotations))
+                foreach (var str in GetStringFromEntry(entry, currentMethodStack.Count == 0 ? null : currentMethodStack.Peek(), annotations))
                     builder.AppendLine(str);
+                switch (entry)
+                {
+                    case MethodLabel m:
+                        currentMethodStack.Push(m.Method);
+                        break;
+                    case InlineFunction f:
+                        currentMethodStack.Push(f.Definition);
+                        break;
+                    case EndFunction:
+                        currentMethodStack.Pop();
+                        break;
+                }
             }
             return builder.ToString();
         }
 
-        private static IEnumerable<string> GetStringFromEntry(IAssemblyEntry entry, SourceAnnotation annotations) => entry switch
+        private static IEnumerable<string> GetStringFromEntry(IAssemblyEntry entry, MethodDefinition? method, SourceAnnotation annotations) => entry switch
         {
-            IMacroCall mc => GetStringFromMacro(mc, annotations),
+            IMacroCall mc => GetStringFromMacro(mc, method, annotations),
             MultilineComment mc => mc.Text,
-            InlineFunction => Enumerable.Empty<string>(),
+            InlineFunction or EndFunction => Enumerable.Empty<string>(),
             _ => Enumerable.Repeat(entry switch
             {
                 Blank => "",
@@ -71,10 +87,10 @@ namespace VCSCompiler.V2
                 {
                     BeginBlock => ".block",
                     EndBlock => ".endblock",
-                    AssignLabel al => $"{GetStringFromEntry(al.Label, annotations).Single()} = {al.Value}",
+                    AssignLabel al => $"{GetStringFromEntry(al.Label, method, annotations).Single()} = {al.Value}",
                     IncludeOp io => $@".include ""{io.Filename}""",
                     CpuOp co => $@".cpu ""{co.Architecture}""",
-                    WordOp wo => $".word {GetStringFromEntry(wo.Label, annotations).Single()}",
+                    WordOp wo => $".word {GetStringFromEntry(wo.Label, method, annotations).Single()}",
                     ProgramCounterAssignOp pc => $"* = ${pc.Address:X4}",
                     _ => throw new ArgumentException($"PsuedoOp {entry} is not mapped to a string.")
                 },
@@ -114,24 +130,67 @@ namespace VCSCompiler.V2
             _ => throw new ArgumentException($"{label} does not map to a string.")
         };
 
-        private static IEnumerable<string> GetStringFromMacro(IMacroCall macroCall, SourceAnnotation annotations)
+        private static IEnumerable<string> GetStringFromMacro(IMacroCall macroCall, MethodDefinition? method, SourceAnnotation annotations)
         {
-            if (annotations.HasFlag(SourceAnnotation.CSharp))
+            if (method == null)
+                throw new ArgumentException($"{nameof(method)} shouldn't be null when processing a macro call");
+            foreach (Instruction instruction in macroCall.Instructions)
             {
-
-            }
-            if (annotations.HasFlag(SourceAnnotation.CIL))
-            {
-
+                if (annotations.HasFlag(SourceAnnotation.CSharp))
+                {
+                    var point = method.DebugInformation.GetSequencePoint(instruction);
+                    if (point != null && !point.IsHidden)
+                    {
+                        var sourceFile = File.ReadAllLines(point.Document.Url).ToImmutableArray();
+                        var source = ReadSource(sourceFile, point.StartLine, point.StartColumn, point.EndLine, point.EndColumn);
+                        if (source.Count() == 1)
+                            yield return GetStringFromEntry(new Comment(source.Single()), method, annotations).Single();
+                        else
+                            foreach (var str in GetStringFromEntry(new MultilineComment(source), method, annotations))
+                                yield return str;
+                    }
+                }
+                if (annotations.HasFlag(SourceAnnotation.CIL))
+                {
+                    yield return $"// {instruction}";
+                }
             }
             yield return $".{macroCall.Name} {string.Join(", ", macroCall.Parameters.Select(GetStringFromExpression))}";
             if (macroCall is StackMutatingMacroCall stackMutatingMacroCall)
             {
-                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.TypeOp, annotations))
+                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.TypeOp, method, annotations))
                     yield return str;
-                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.SizeOp, annotations))
+                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.SizeOp, method, annotations))
                     yield return str;
             }
+        }
+
+        private static ImmutableArray<string> ReadSource(
+            ImmutableArray<string> sourceText,
+            int lineStart,
+            int columnStart,
+            int lineEnd,
+            int columnEnd)
+        {
+            if (lineStart != lineEnd)
+            {
+                // Multi-line comment support.
+                var allLines = new List<string>();
+                var startLine = sourceText[lineStart - 1];
+                var subStartLine = startLine[(columnStart - 1)..];
+                allLines.Add(subStartLine);
+                for (var i = lineStart; i < lineEnd - 1; i++)
+                {
+                    allLines.Add(sourceText[i]);
+                }
+                var endLine = sourceText[lineEnd - 1];
+                var subEndLine = endLine[..(columnEnd - 1)];
+                allLines.Add(subEndLine);
+                return allLines.ToImmutableArray();
+            }
+            var line = sourceText[lineStart - 1];
+            var subLine = line[(columnStart - 1)..(columnEnd - 1)];
+            return new[] { subLine }.ToImmutableArray();
         }
     }
 }

@@ -145,6 +145,8 @@ namespace VCSFramework.V2
     /// <summary>A marker that a method call was inlined here.</summary>
     public sealed record InlineFunction(Inst SourceInstruction, MethodDef Definition) : IAssemblyEntry;
     public sealed record Function(MethodDef Definition, ImmutableArray<IAssemblyEntry> Body);
+    /// <summary>A marker that a function (inlined or otherwise) has ended.</summary>
+    public sealed record EndFunction() : IAssemblyEntry;
 
     // TypeReference only has referential equality, this reusable wrapper gives it value equality.
     public sealed record TypeRef(TypeReference Type)

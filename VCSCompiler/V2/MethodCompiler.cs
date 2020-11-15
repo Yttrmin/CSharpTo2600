@@ -72,6 +72,7 @@ namespace VCSCompiler.V2
             body = body
                 .Prepend(new Comment($"Begin{inlineString}{Method.FullName}"))
                 .Append(new Comment($"End{inlineString}{Method.FullName}"))
+                .Append(new EndFunction())
                 .ToImmutableArray();
             return new Function(Method, body);
         }
