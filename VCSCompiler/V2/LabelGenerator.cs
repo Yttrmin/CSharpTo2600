@@ -8,9 +8,6 @@ namespace VCSCompiler.V2
 {
     internal static class LabelGenerator
     {
-        public static TypeSizeLabel Size(TypeReference typeReference) 
-            => new(typeReference);
-
         public static TypeSizeLabel ByteSize
             => new(BuiltInDefinitions.Byte);
 
@@ -22,9 +19,6 @@ namespace VCSCompiler.V2
 
         public static TypeSizeLabel NothingSize
             => new(BuiltInDefinitions.Nothing);
-
-        public static TypeLabel Type(TypeReference type)
-            => new(type);
     }
 
     static class TypeReferenceStringExtensions

@@ -154,7 +154,7 @@ namespace VCSFramework.V2
     public sealed record WordOp(ILabel Label) : IPsuedoOp;
     public sealed record ProgramCounterAssignOp(int Address) : IPsuedoOp;
     /// <summary>A marker that a method call was inlined here.</summary>
-    public sealed record InlineFunction(Inst SourceInstruction, MethodDef Definition) : IAssemblyEntry;
+    public sealed record InlineFunction(Inst? SourceInstruction, MethodDef Definition) : IAssemblyEntry;
     public sealed record Function(MethodDef Definition, ImmutableArray<IAssemblyEntry> Body);
     /// <summary>A marker that a function (inlined or otherwise) has ended.</summary>
     public sealed record EndFunction() : IAssemblyEntry;

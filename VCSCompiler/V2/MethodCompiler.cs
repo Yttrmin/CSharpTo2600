@@ -51,13 +51,12 @@ namespace VCSCompiler.V2
             }
             else if (Entrypoint)
             {
-                // @TODO - Should invoke all .cctors.
-                // Prepend the .cctor if there is one.
-                var cctor = Method.DeclaringType.Methods.SingleOrDefault(m => m.Name == ".cctor");
-                if (cctor != null)
+                // Prepend all cctors. The invocation order is completely undefined!
+                var cctors = UserAssembly.CompilableTypes().SelectMany(t => t.Methods).Where(m => m.Name == ".cctor");
+                foreach (var cctor in cctors)
                 {
                     var inlineCctor = MethodCompiler.Compile(cctor, UserAssembly, true);
-                    body = inlineCctor.Body.Concat(body).ToImmutableArray();
+                    body = inlineCctor.Body.Append(new InlineFunction(null, cctor)).Concat(body).ToImmutableArray();
                 }
                 body = body.Prepend(new EntryPoint()).ToImmutableArray();
             }

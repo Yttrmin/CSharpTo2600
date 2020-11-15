@@ -156,7 +156,7 @@ namespace VCSCompiler.V2
 			IEnumerable<IAssemblyEntry> LoadLocal(int index)
             {
 				var variable = MethodDefinition.Body.Variables[index];
-				yield return new PushLocal(instruction, new(MethodDefinition, index), LocalType(variable), LocalSize(variable));
+				yield return new PushLocal(instruction, new(MethodDefinition, index), TypeLabel(variable.VariableType), LocalSize(variable));
             }
         }
 
@@ -178,7 +178,7 @@ namespace VCSCompiler.V2
 			IEnumerable<IAssemblyEntry> StoreLocal(int index)
             {
 				var variable = MethodDefinition.Body.Variables[index];
-				yield return new PopToLocal(instruction, new(MethodDefinition, index), LocalType(variable), LocalSize(variable), new(0), new(0));
+				yield return new PopToLocal(instruction, new(MethodDefinition, index), TypeLabel(variable.VariableType), LocalSize(variable), new(0), new(0));
             }
         }
 
@@ -290,7 +290,7 @@ namespace VCSCompiler.V2
 					// @TODO - Probably doesn't work for returning ptr/ref.
 					// @TODO - We could maybe do a special case if the return type is 1-byte in size. Enregister
 					// the value or something instead of having to jump over the return address.
-					yield return new CallNonVoid(instruction, new(method), LabelGenerator.Type(method.ReturnType), LabelGenerator.Size(method.ReturnType));
+					yield return new CallNonVoid(instruction, new(method), TypeLabel(method.ReturnType), ReturnSize(method));
                 }
             }
         }
@@ -339,7 +339,7 @@ namespace VCSCompiler.V2
 		private IEnumerable<IAssemblyEntry> Ldfld(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
-			var fieldType = LabelGenerator.Type(field.FieldType);
+			var fieldType = TypeLabel(field.FieldType);
 			var fieldSize = FieldSize(field);
 			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
 
@@ -374,7 +374,7 @@ namespace VCSCompiler.V2
         {
 			var field = (FieldDefinition)instruction.Operand;
 			var fieldLabel = new GlobalFieldLabel(field);
-			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
+			var fieldTypeLabel = TypeLabel(field.FieldType);
 			var fieldSizeLabel = FieldSize(field);
 
 			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
@@ -419,8 +419,8 @@ namespace VCSCompiler.V2
 			else
             {
 				// @TODO - Probably doesn't work for returning ptr/ref.
-				var typeLabel = LabelGenerator.Type(MethodDefinition.ReturnType);
-				var sizeLabel = LabelGenerator.Size(MethodDefinition.ReturnType);
+				var typeLabel = TypeLabel(MethodDefinition.ReturnType);
+				var sizeLabel = ReturnSize(MethodDefinition);
 				yield return new ReturnNonVoid(instruction, typeLabel, sizeLabel);
             }
         }
@@ -431,7 +431,7 @@ namespace VCSCompiler.V2
 			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
 
 			// Value is at stack[0], pointer at stack[1]
-			yield return new PopToFieldFromStack(instruction, new(offset), FieldType(field), FieldSize(field), new(1), new(1));
+			yield return new PopToFieldFromStack(instruction, new(offset), TypeLabel(field.FieldType), FieldSize(field), new(1), new(1));
         }
 
 		private IEnumerable<IAssemblyEntry> Stind_I1(Instruction instruction)
@@ -446,7 +446,7 @@ namespace VCSCompiler.V2
         {
 			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = new GlobalFieldLabel(field);
-			var fieldTypeLabel = LabelGenerator.Type(field.FieldType);
+			var fieldTypeLabel = TypeLabel(field.FieldType);
 			var fieldSizeLabel = FieldSize(field);
 
 			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
@@ -474,42 +474,32 @@ namespace VCSCompiler.V2
 			return branchInstructions.Contains(instruction.OpCode);
         }
 
-		private static ITypeLabel FieldType(FieldReference field)
+		private static ITypeLabel TypeLabel(TypeReference type)
         {
-			var type = field.FieldType;
-			if (type.IsPointer || type.IsPinned || type.IsByReference)
-				return new PointerTypeLabel(type.Resolve());
-			return new TypeLabel(type);
-        }
-
-		private static ITypeLabel LocalType(VariableReference variable)
-		{
-			var type = variable.VariableType;
 			if (type.IsPointer || type.IsPinned || type.IsByReference)
 				return new PointerTypeLabel(type.Resolve());
 			return new TypeLabel(type);
 		}
 
-		private static ISizeLabel FieldSize(FieldReference field)
-		{
-			var type = field.FieldType;
+		private static ISizeLabel SizeLabel(TypeReference type)
+        {
 			if (type.IsPointer || type.IsPinned || type.IsByReference)
 			{
-				// Fields are variables, so will always be stored in RAM, so can use a short pointer (for cartridges without extra RAM).
-				return new PointerSizeLabel(true);
-			}
-			return new TypeSizeLabel(field.FieldType);
-		}
-
-		private static ISizeLabel LocalSize(VariableDefinition variable)
-		{
-			var type = variable.VariableType;
-			if (type.IsPointer || type.IsPinned || type.IsByReference)
-			{
-				// Locals are variables, so will always be stored in RAM, so can use a short pointer (for cartridges without extra RAM).
+				// @TODO - Pointers to ROM are probably gonna need special support here. Pointers _TO_ RAM will always
+				// be short (barring different cartridge types), but don't know if a field/local is holding a pointer
+				// to ROM or expanded RAM (for other cartridges).
 				return new PointerSizeLabel(true);
 			}
 			return new TypeSizeLabel(type);
 		}
+
+		private static ISizeLabel ReturnSize(MethodDefinition method)
+			=> SizeLabel(method.ReturnType);
+
+		private static ISizeLabel FieldSize(FieldReference field)
+			=> SizeLabel(field.FieldType);
+
+		private static ISizeLabel LocalSize(VariableDefinition variable)
+			=> SizeLabel(variable.VariableType);
 	}
 }
