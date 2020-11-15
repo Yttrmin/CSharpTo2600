@@ -96,7 +96,7 @@ namespace VCSCompiler.V2
                 postOptimize = MandatoryOptimizations.Aggregate(postOptimize, Optimize);
             } while (!preOptimize.SequenceEqual(postOptimize));
 
-            var invalidEntries = postOptimize.Where(e => e.GetType() == typeof(LoadString) || e.GetType() == typeof(InlineAssembly)).ToImmutableArray();
+            var invalidEntries = postOptimize.Where(e => e.GetType() == typeof(LoadString) || e.GetType() == typeof(InlineAssemblyCall)).ToImmutableArray();
             if (invalidEntries.Any())
             {
                 var messageBuilder = new StringBuilder();

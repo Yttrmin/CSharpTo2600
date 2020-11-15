@@ -35,7 +35,8 @@ namespace VCSCompiler.V2
             // Turns an AssemblyUtilities.InlineAssembly() call into an entry that emits the assembly string.
             next => next switch
             {
-                (LoadString(var ldStrInstruction), (InlineAssemblyCall, var trueNext)) => new(new InlineAssembly(((string)ldStrInstruction.Operand).Split(Environment.NewLine).Select(s => s.Trim()).ToImmutableArray()), trueNext),
+                (LoadString(var ldStrInstruction), (InlineAssemblyCall, var trueNext)) => 
+                    new(new InlineAssembly(((string)ldStrInstruction.Operand).Split(Environment.NewLine).Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).Prepend("// Begin inline assembly").Append("// End inline assembly").ToImmutableArray()), trueNext),
                 _ => next
             },
         }.ToImmutableArray();

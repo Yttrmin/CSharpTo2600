@@ -270,21 +270,39 @@ namespace VCSCompiler.V2
         {
             // @TODO - Aliases
             var start = 0x80;
-            var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new AssignLabel(new ReservedGlobalLabel(i), "${start++:X2}"));
-            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Select(l => new AssignLabel(l, $"${start++:X2}"));
+            var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new AssignLabel(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Select(l => new AssignLabel(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
             // @TODO - Check if we overflowed into stack.
 
             var typeId = 100;
-            var allTypes = functions.SelectMany(GetAllMacroParameters).OfType<TypeLabel>().Select(l => l.Type)
+            var allReferencedTypes = functions.SelectMany(GetAllMacroParameters).OfType<TypeLabel>().Select(l => l.Type)
                 .Concat(functions.SelectMany(GetAllMacroParameters).OfType<PointerTypeLabel>().Select(l => l.ReferentType))
                 .Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte)
                 .Distinct()
                 .ToImmutableArray();
-            var allPairedTypes = allTypes.Select(t => (new AssignLabel(new TypeLabel(t), typeId++.ToString()), new AssignLabel(new PointerTypeLabel(t), typeId++.ToString())));
+            var allPairedTypes = allReferencedTypes.Select(t => (new AssignLabel(new TypeLabel(t), new Constant((byte)typeId++)), new AssignLabel(new PointerTypeLabel(t), new Constant((byte)typeId++))));
 
-            var allTypeSizes = allTypes.Select(t => new AssignLabel(new TypeSizeLabel(t), TypeData.Of(t, userAssembly).Size.ToString()));
+            var allTypeSizes = allReferencedTypes.Select(t => new AssignLabel(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userAssembly).Size)));
 
             var allLabelAssignments = new List<AssignLabel>();
+
+            var aliasedFields = userAssembly.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
+            foreach (var field in aliasedFields)
+            {
+                if (!field.IsStatic)
+                    throw new InvalidOperationException($"[{nameof(InlineAssemblyAliasAttribute)}] can only be used on static fields. '{field.FullName}' is not static.");
+                var aliases = field.CustomAttributes.Where(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName).Select(a => (string)a.ConstructorArguments[0].Value);
+                foreach (var alias in aliases)
+                {
+                    if (!alias.StartsWith(AssemblyUtilities.AliasPrefix))
+                        throw new InvalidOperationException($"Alias '{alias}' must begin with '{AssemblyUtilities.AliasPrefix}'");
+                    var existingAlias = allLabelAssignments.Where(a => a.Label is PredefinedGlobalLabel p && p.Name == alias).SingleOrDefault();
+                    if (existingAlias != null)
+                        throw new InvalidOperationException($"Alias '{alias}' is already being aliased to '{existingAlias.Value}', can't alias to '{field.FullName}' too.");
+                    allLabelAssignments.Add(new(new PredefinedGlobalLabel(alias), new GlobalFieldLabel(field)));
+                }
+            }
+
             allLabelAssignments.AddRange(reserved);
             allLabelAssignments.AddRange(otherGlobals);
             foreach (var pair in allPairedTypes)
@@ -293,7 +311,7 @@ namespace VCSCompiler.V2
                 allLabelAssignments.Add(pair.Item2);
             }
             allLabelAssignments.AddRange(allTypeSizes);
-            allLabelAssignments.AddRange(new AssignLabel[] { new(new PointerSizeLabel(true), 1.ToString()), new(new PointerSizeLabel(false), 2.ToString()) });
+            allLabelAssignments.AddRange(new AssignLabel[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
             return allLabelAssignments.ToImmutableArray();
         }
 

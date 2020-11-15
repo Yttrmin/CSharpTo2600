@@ -77,6 +77,7 @@ namespace VCSCompiler.V2
         {
             IMacroCall mc => GetStringFromMacro(mc, method, annotations),
             MultilineComment mc => mc.Text,
+            InlineAssembly ia => ia.Assembly,
             InlineFunction or EndFunction => Enumerable.Empty<string>(),
             _ => Enumerable.Repeat(entry switch
             {
@@ -87,7 +88,7 @@ namespace VCSCompiler.V2
                 {
                     BeginBlock => ".block",
                     EndBlock => ".endblock",
-                    AssignLabel al => $"{GetStringFromEntry(al.Label, method, annotations).Single()} = {al.Value}",
+                    AssignLabel al => $"{GetStringFromEntry(al.Label, method, annotations).Single()} = {GetStringFromExpression(al.Value)}",
                     IncludeOp io => $@".include ""{io.Filename}""",
                     CpuOp co => $@".cpu ""{co.Architecture}""",
                     WordOp wo => $".word {GetStringFromEntry(wo.Label, method, annotations).Single()}",
@@ -104,6 +105,8 @@ namespace VCSCompiler.V2
             Constant c => c.Value switch
             {
                 byte b => Convert.ToString(b),
+                int i => Convert.ToString(i),
+                FormattedByte fb => fb.ToString(),
                 bool b => Convert.ToString(b),
                 _ => throw new ArgumentException($"No support for constant of type {c.Value.GetType()}")
             },

@@ -57,6 +57,17 @@ namespace VCSFramework.V2
     public interface IExpression : IAssemblyEntry { }
 
     public sealed record Constant(object Value) : IExpression;
+    public enum ByteFormat { Decimal, Hex, Binary }
+    public sealed record FormattedByte(byte Value, ByteFormat Format)
+    {
+        public override string ToString() => Format switch
+        {
+            ByteFormat.Decimal => Convert.ToString(Value),
+            ByteFormat.Hex => $"${Value:X2}",
+            ByteFormat.Binary => $"%{Convert.ToString(Value, 2)}",
+            _ => throw new ArgumentException($"Unknown format: {Format}")
+        };
+    }
 
     public sealed record Comment(string Text) : IAssemblyEntry;
 
@@ -137,7 +148,7 @@ namespace VCSFramework.V2
     public sealed record BeginBlock() : IPsuedoOp;
     public sealed record EndBlock() : IPsuedoOp;
     public sealed record Blank() : IAssemblyEntry;
-    public sealed record AssignLabel(ILabel Label, string Value) : IPsuedoOp;
+    public sealed record AssignLabel(ILabel Label, IExpression Value) : IPsuedoOp;
     public sealed record IncludeOp(string Filename) : IPsuedoOp;
     public sealed record CpuOp(string Architecture) : IPsuedoOp;
     public sealed record WordOp(ILabel Label) : IPsuedoOp;
