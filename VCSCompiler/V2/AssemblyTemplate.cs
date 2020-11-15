@@ -14,6 +14,7 @@ namespace VCSCompiler.V2
 {
     internal static class AssemblyTemplate
     {
+        private sealed record IndentInfo(int DeltaIndent = 0, int? AbsoluteIndent = null);
         private static readonly ILabel StartLabel = new BranchTargetLabel("START");
 
         public static IEnumerable<IAssemblyEntry> Foo(
@@ -51,12 +52,17 @@ namespace VCSCompiler.V2
 
         public static string FooToString(IEnumerable<IAssemblyEntry> program, SourceAnnotation annotations)
         {
+            const string IndentString = "\t";
             var currentMethodStack = new Stack<MethodDefinition>();
             var builder = new StringBuilder();
+            var indentLevel = 0;
             foreach (var entry in program)
             {
+                var indentInfo = GetIndentInfo(entry, indentLevel);
                 foreach (var str in GetStringFromEntry(entry, currentMethodStack.Count == 0 ? null : currentMethodStack.Peek(), annotations))
-                    builder.AppendLine(str);
+                    builder.AppendLine($"{string.Join(string.Empty, Enumerable.Repeat(IndentString, indentInfo.AbsoluteIndent ?? indentLevel))}{str}");
+                indentLevel += indentInfo.DeltaIndent;
+
                 switch (entry)
                 {
                     case MethodLabel m:
@@ -71,6 +77,14 @@ namespace VCSCompiler.V2
                 }
             }
             return builder.ToString();
+
+            static IndentInfo GetIndentInfo(IAssemblyEntry entry, int indentLevel) => entry switch
+            {
+                InstructionLabel => new(AbsoluteIndent: 0),
+                InlineFunction or MethodLabel => new(DeltaIndent: 1),
+                EndFunction => new(DeltaIndent: -1),
+                _ => new()
+            };
         }
 
         private static IEnumerable<string> GetStringFromEntry(IAssemblyEntry entry, MethodDefinition? method, SourceAnnotation annotations) => entry switch
