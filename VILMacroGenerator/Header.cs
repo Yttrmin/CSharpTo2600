@@ -87,7 +87,7 @@ namespace VILMacroGenerator
                     }
                     else if (text.EndsWith("]"))
                         // @PUSH=[0];[0]
-                        return new PushParam(Convert.ToInt32(text[text.Length - 2]));
+                        return new PushParam(Convert.ToInt32(text[text.Length - 2].ToString()));
                     else if (TryGetBuiltInType(text, out var typeLabel))
                         return new PushParam(typeLabel);
                     else
