@@ -55,6 +55,7 @@ namespace VCSFramework.V2
     public interface IGlobalLabel : ILabel { }
     public interface IBranchTargetLabel : ILabel { }
     public sealed record BranchTargetLabel(string Name) : IBranchTargetLabel;
+    public sealed record FunctionLabel(MethodDef Method) : ILabel;
     public sealed record GlobalFieldLabel(FieldRef Field) : IGlobalLabel;
     public sealed record InstructionLabel(Inst Instruction) : IBranchTargetLabel;
     /// <summary>
@@ -68,7 +69,6 @@ namespace VCSFramework.V2
     /// This can only be used in the context of a frame pointer or some other offsetable value.
     /// </summary>
     public sealed record LocalLabel(MethodDef Method, int Index) : ILabel;
-    public sealed record MethodLabel(MethodDef Method) : ILabel;
     public sealed record PointerSizeLabel(bool ZeroPage) : ISizeLabel;
     public sealed record PointerTypeLabel(TypeRef ReferentType) : ITypeLabel;
     /// <summary>A global whose label is defined elsewhere (e.g. COLUBK in a header).</summary>

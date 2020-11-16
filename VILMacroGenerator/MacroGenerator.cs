@@ -237,7 +237,9 @@ namespace VCSFramework.V2
             else if (variableName.EndsWith("BranchTarget", StringComparison.CurrentCultureIgnoreCase))
                 return "IBranchTargetLabel";
             else if (variableName.EndsWith("Method", StringComparison.CurrentCultureIgnoreCase))
-                return "MethodLabel";
+                return "FunctionLabel";
+            else if (variableName.EndsWith("Function", StringComparison.CurrentCultureIgnoreCase))
+                return "FunctionLabel";
             else if (variableName.EndsWith("Expression", StringComparison.CurrentCultureIgnoreCase))
                 return "IExpression";
             else

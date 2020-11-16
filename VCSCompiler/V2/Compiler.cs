@@ -254,7 +254,7 @@ namespace VCSCompiler.V2
 
             static void CompileAllFunctionsInternal(Function function, AssemblyDefinition userAssembly, ISet<Function> set)
             {
-                foreach (var entry in GetAllMacroParameters(function).OfType<MethodLabel>())
+                foreach (var entry in GetAllMacroParameters(function).OfType<FunctionLabel>())
                 {
                     if (!set.Any(f => f.Definition == entry.Method))
                     {

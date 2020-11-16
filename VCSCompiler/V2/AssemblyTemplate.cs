@@ -64,7 +64,7 @@ namespace VCSCompiler.V2
 
                 switch (entry)
                 {
-                    case MethodLabel m:
+                    case FunctionLabel m:
                         currentMethodStack.Push(m.Method);
                         break;
                     case InlineFunction f:
@@ -80,7 +80,7 @@ namespace VCSCompiler.V2
             static IndentInfo GetIndentInfo(IAssemblyEntry entry, int indentLevel) => entry switch
             {
                 InstructionLabel => new(AbsoluteIndent: 0),
-                InlineFunction or MethodLabel => new(DeltaIndent: 1),
+                InlineFunction or FunctionLabel => new(DeltaIndent: 1),
                 EndFunction => new(DeltaIndent: -1),
                 _ => new()
             };
@@ -124,11 +124,11 @@ namespace VCSCompiler.V2
                     ILabel label => label switch
                     {
                         BranchTargetLabel b => b.Name,
+                        FunctionLabel m => $"FUNCTION_{m.Method.DeclaringType.NamespaceAndName()}_{m.Method.Name}",
                         GlobalFieldLabel g => $"GLOBAL_{g.Field.DeclaringType.NamespaceAndName()}_{g.Field.Field.Name}",
                         InstructionLabel i => $"IL_{i.Instruction.Instruction.Offset:X4}",
                         LiftedLocalLabel ll => $"LIFTED_LOCAL_{ll.Method.DeclaringType.NamespaceAndName()}_{ll.Method.Name}_{ll.Index}",
                         LocalLabel l => throw new NotImplementedException(),
-                        MethodLabel m => $"METHOD_{m.Method.DeclaringType.NamespaceAndName()}_{m.Method.Name}",
                         PointerSizeLabel ps => ps.ZeroPage ? "SIZE_SHORT_POINTER" : "SIZE_LONG_POINTER",
                         PointerTypeLabel p => $"TYPE_{p.ReferentType.NamespaceAndName()}_PTR",
                         PredefinedGlobalLabel pg => pg.Name,
