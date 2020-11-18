@@ -256,7 +256,7 @@ namespace VCSCompiler.V2
             {
                 foreach (var entry in GetAllMacroParameters(function).OfType<FunctionLabel>())
                 {
-                    if (!set.Any(f => f.Definition == entry.Method))
+                    if (!set.Any(f => (MethodDef)f.Definition == entry.Method))
                     {
                         var compiledFunction = MethodCompiler.Compile(entry.Method, userAssembly, false);
                         set.Add(compiledFunction);

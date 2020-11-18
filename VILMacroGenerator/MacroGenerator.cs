@@ -114,8 +114,8 @@ namespace VILMacroGenerator
             foreach (var variable in variables)
                 parametersArrayValues.AppendLine($"\t\t\t{variable.Capitalize()},");
 
-            return $@"
-#nullable enable
+            return 
+$@"#nullable enable
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System.Collections.Generic;
@@ -171,12 +171,8 @@ namespace VCSFramework.V2
             foreach (var variable in variables)
                 parametersArrayValues.AppendLine($"\t\t\t{variable.Capitalize()},");
 
-            var deconstructParamText = string.Join(", ", typesWithNames.Select(p => $"out {p.Type} {p.Name}"));
-
-            var deconstructAssignments = string.Join(Environment.NewLine, variables.Select(v => $"\t\t\t{v} = {v.Capitalize()};"));
-
-            return $@"
-#nullable enable
+            return
+$@"#nullable enable
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System.Collections.Generic;
@@ -201,15 +197,8 @@ namespace VCSFramework.V2
         void IMacroCall.PerformStackOperation(IStackTracker stackTracker)
         {{
             {$"stackTracker.Pop({header.PopCount});"}
-            {(header.TypeParam != null ? $"stackTracker.Push({header.TypeParam.ToString(true)}, {header.SizeParam.ToString(false)});" : "return;")}
+            {(header.TypeParam != null ? $"stackTracker.Push({header.TypeParam.CSharpCode}, {header.SizeParam?.CSharpCode});" : "return;")}
         }}
-/*
-        public void Deconstruct(out ImmutableArray<Inst> instructions{deconstructParamText.DelimitIfAny()}{deconstructParamText})
-        {{
-            instructions = Instructions;
-{deconstructAssignments}
-        }}
-*/
     }}
 }}";
         }

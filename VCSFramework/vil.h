@@ -261,6 +261,7 @@ isShortInteger .function type
 // @GENERATE
 // Could be either a label or a stack type array access. No discriminated unions, so just drop it to IExpression.
 getSizeFromBuiltInType .function typeExpression
+	// @TODO - When we accidentally fed a SIZE_foo value of size 1 here, the result was a bool for some reason. Some sort of assembler issue.
 	.if typeExpression == TYPE_System_Byte
 		.return SIZE_System_Byte
 	.else if typeExpression == TYPE_System_Boolean
@@ -270,7 +271,7 @@ getSizeFromBuiltInType .function typeExpression
 	.endif 
 .endfunction
 
-// @GENERATE @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0]) @POP=2
+// @GENERATE @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0]) @POP=2
 // Primitive
 addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
@@ -290,7 +291,7 @@ addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandS
 	.endif
 .endmacro
 
-// @GENERATE @COMPOSITE @PUSH=getAddResultType(globalType,constantType);getSizeFromBuiltInType([0])
+// @GENERATE @COMPOSITE @PUSH=getAddResultType(globalType,constantType);getSizeFromBuiltInType(type[0])
 // .pushGlobal + .pushConstant + .addFromStack
 // OR
 // .pushConstant + .pushGlobal + .addFromStack
@@ -352,7 +353,7 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 	.endif
 .endmacro
 
-// @GENERATE @RESERVED=1 @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0])
 // Primitive
 subFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.invoke getAddResultType(\firstOperandStackType, \secondOperandStackType) // @TODO - Does this apply to add+sub?
@@ -424,7 +425,7 @@ convertToByte .macro
 	// @TODO
 .endmacro
 
-// @GENERATE @RESERVED=1 @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType([0])
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0])
 orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for orFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for orFromStack"

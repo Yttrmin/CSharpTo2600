@@ -9,7 +9,7 @@ namespace VILMacroGenerator
 {
     internal sealed class Header
     {
-        public struct Function
+        private struct Function
         {
             public string Name { get; }
             public PushParam[] Parameters { get; }
@@ -21,24 +21,32 @@ namespace VILMacroGenerator
             }
         }
 
+        private struct StackAccess
+        {
+            public bool IsType { get; }
+            public int Index { get; }
+
+            public StackAccess(bool isType, int index)
+            {
+                IsType = isType;
+                Index = index;
+            }
+        }
+
         public class PushParam
         {
-            object Value;
+            private readonly object Value;
+            public string CSharpCode => Value switch
+            {
+                Function function => $"new {function.Name.Capitalize()}({string.Join(", ", function.Parameters.Select(p => p.CSharpCode))})",
+                string param => param,
+                StackAccess stackAccess => stackAccess.IsType ? $"new StackTypeArrayAccess({stackAccess.Index})" : $"new StackSizeArrayAccess({stackAccess.Index})",
+                _ => throw new InvalidOperationException($"Unknown param: {Value}")
+            };
 
             public PushParam(object value)
             {
                 Value = value;
-            }
-
-            public string ToString(bool isType)
-            {
-                return Value switch
-                {
-                    Function function => $"new {function.Name.Capitalize()}({string.Join(", ", function.Parameters.Select(p => p.ToString(isType)))})",
-                    string param => param,
-                    int index => isType ? $"new StackTypeArrayAccess({index})" : $"new StackSizeArrayAccess({index})",
-                    _ => throw new InvalidOperationException()
-                };
             }
         }
 
@@ -85,9 +93,12 @@ namespace VILMacroGenerator
                         var funcParams = paramsString.Split(',').Select(ParseParam).ToArray();
                         return new PushParam(new Function(funcName, funcParams));
                     }
+                    else if (text.StartsWith("type["))
+                        return new PushParam(new StackAccess(true, Convert.ToInt32(text[text.Length - 2].ToString())));
+                    else if (text.StartsWith("size["))
+                        return new PushParam(new StackAccess(false, Convert.ToInt32(text[text.Length - 2].ToString())));
                     else if (text.EndsWith("]"))
-                        // @PUSH=[0];[0]
-                        return new PushParam(Convert.ToInt32(text[text.Length - 2].ToString()));
+                        throw new InvalidOperationException($"Failed to parse param '{text}'. Stack array access must be in the form of 'type[n]' or 'size[n]'.");
                     else if (TryGetBuiltInType(text, out var typeLabel))
                         return new PushParam(typeLabel);
                     else
