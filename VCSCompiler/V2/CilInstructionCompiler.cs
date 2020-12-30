@@ -374,10 +374,11 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> Ldsfld(Instruction instruction)
         {
-			var field = (FieldDefinition)instruction.Operand;
+			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = new GlobalFieldLabel(field);
-			var fieldTypeLabel = TypeLabel(field.FieldType);
-			var fieldSizeLabel = FieldSize(field);
+			var type = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name).FieldType;
+			var fieldTypeLabel = TypeLabel(type);
+			var fieldSizeLabel = SizeLabel(type);
 
 			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
 		}
@@ -448,8 +449,9 @@ namespace VCSCompiler.V2
         {
 			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = new GlobalFieldLabel(field);
-			var fieldTypeLabel = TypeLabel(field.FieldType);
-			var fieldSizeLabel = FieldSize(field);
+			var type = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name).FieldType;
+			var fieldTypeLabel = TypeLabel(type);
+			var fieldSizeLabel = SizeLabel(type);
 
 			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
         }

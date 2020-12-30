@@ -103,6 +103,10 @@ namespace VCSCompiler.V2
                 {
                     yield return new FieldData(field, GetFieldType(field, genericArgs), (byte)field.Offset);
                 }
+                foreach (var field in type.StaticFields())
+                {
+                    yield return new FieldData(field, GetFieldType(field, genericArgs), 0);
+                }
             }
             else
             {
@@ -112,6 +116,10 @@ namespace VCSCompiler.V2
                     var fieldType = GetFieldType(field, genericArgs);
                     yield return new FieldData(field, fieldType, offset);
                     offset += (byte)GetSize(fieldType.Resolve(), genericArgs, userAssembly);
+                }
+                foreach (var field in type.StaticFields())
+                {
+                    yield return new FieldData(field, GetFieldType(field, genericArgs), 0);
                 }
             }
         }

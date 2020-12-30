@@ -17,5 +17,8 @@ namespace VCSCompiler
 
 		public static IEnumerable<FieldDefinition> InstanceFields(this TypeDefinition @this)
 			=> @this.Fields.Where(field => !field.IsStatic);
+
+		public static IEnumerable<FieldDefinition> StaticFields(this TypeDefinition @this)
+			=> @this.Fields.Where(field => field.IsStatic);
     }
 }

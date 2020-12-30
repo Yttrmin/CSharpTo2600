@@ -154,7 +154,7 @@ namespace VCSFramework.V2
         public static implicit operator MethodDef(MethodDefinition m) => new(m);
         public static implicit operator MethodDefinition(MethodDef m) => m.Method;
 
-        public string Name => Method.Name;
+        public string Name => Method.Name.Replace(".", "_");
         public TypeDefinition DeclaringType => Method.DeclaringType;
         public MethodBody Body => Method.Body;
 
