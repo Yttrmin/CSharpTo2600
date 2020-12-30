@@ -328,7 +328,7 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> Initobj(Instruction instruction)
         {
-			var type = (TypeDefinition)instruction.Operand;
+			var type = (TypeReference)instruction.Operand;
 			yield return new InitializeObject(instruction, new TypeSizeLabel(type), new(0));
         }
 
@@ -340,10 +340,10 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> Ldfld(Instruction instruction)
         {
-			var field = (FieldDefinition)instruction.Operand;
-			var fieldType = TypeLabel(field.FieldType);
-			var fieldSize = FieldSize(field);
-			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
+			var field = (FieldReference)instruction.Operand;
+			var (_, type, offset) = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name);
+			var fieldType = TypeLabel(type);
+			var fieldSize = SizeLabel(type);
 
 			yield return new PushFieldFromStack(instruction, new(offset), fieldType, fieldSize, new(0), new(0));
 		}
@@ -429,11 +429,11 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> Stfld(Instruction instruction)
         {
-			var field = (FieldDefinition)instruction.Operand;
-			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
+			var field = (FieldReference)instruction.Operand;
+			var (_, type, offset) = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name);
 
 			// Value is at stack[0], pointer at stack[1]
-			yield return new PopToFieldFromStack(instruction, new(offset), TypeLabel(field.FieldType), FieldSize(field), new(1), new(1));
+			yield return new PopToFieldFromStack(instruction, new(offset), TypeLabel(type), SizeLabel(type), new(1), new(1));
         }
 
 		private IEnumerable<IAssemblyEntry> Stind_I1(Instruction instruction)

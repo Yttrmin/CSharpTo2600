@@ -38,7 +38,6 @@ namespace VILMacroGenerator
 
         public void Execute(GeneratorExecutionContext context)
         {
-            Debugger.Launch();
             InfoDianostic(context, "HELLO!??!?!?!", "hi");
             var vilLines = context.AdditionalFiles.Single(f => f.Path.Contains("vil.h")).GetText()!.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToImmutableArray();
             var generated = FetchMacrosToGenerate(vilLines, context).ToArray();

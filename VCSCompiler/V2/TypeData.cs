@@ -11,25 +11,25 @@ namespace VCSCompiler.V2
 {
     // @TODO - Unless we find a need for other data this can probably
     // just be a util that returns size.
-    internal sealed record TypeData(TypeDefinition? Type, int Size, ImmutableArray<TypeData.FieldData> Fields)
+    internal sealed record TypeData(int Size, ImmutableArray<TypeData.FieldData> Fields)
     {
-        public sealed record FieldData(FieldDefinition Field, byte Offset);
+        public sealed record FieldData(FieldDefinition Field, TypeReference FieldType, byte Offset);
 
-        public static TypeData Byte { get; } = new(GetBuiltInTypeDef<byte>(), 1, ImmutableArray<TypeData.FieldData>.Empty);
+        public static TypeData Byte { get; } = new(1, ImmutableArray<TypeData.FieldData>.Empty);
 
-        public static TypeData Bool { get; } = new(GetBuiltInTypeDef<bool>(), 1, ImmutableArray<TypeData.FieldData>.Empty);
+        public static TypeData Bool { get; } = new(1, ImmutableArray<TypeData.FieldData>.Empty);
 
-        public static TypeData Nothing { get; } = new(GetBuiltInTypeDef<Nothing>(), 0, ImmutableArray<TypeData.FieldData>.Empty);
+        public static TypeData Nothing { get; } = new(0, ImmutableArray<TypeData.FieldData>.Empty);
 
-        public static TypeData Of(TypeDefinition type, AssemblyDefinition userAssembly)
+        public static TypeData Of(TypeDefinition type, ImmutableArray<TypeReference> genericArgs, AssemblyDefinition userAssembly)
         {
             if (type.Namespace.StartsWith("System"))
             {
                 return GetSystemTypeData(type);
             }
 
-            var size = GetSize(type, userAssembly);
-            return new(type, size, GetFieldData(type, userAssembly).ToImmutableArray());
+            var size = GetSize(type, genericArgs, userAssembly);
+            return new(size, GetFieldData(type, genericArgs, userAssembly).ToImmutableArray());
         }
 
         public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
@@ -46,7 +46,7 @@ namespace VCSCompiler.V2
                 // extra RAM outside of the zero-page.
                 // @TODO - Depending on how plausible optimizing is, we could always use
                 // 16-bit pointers and hope enough of it is optimized away...
-                return new(null, 1, ImmutableArray<TypeData.FieldData>.Empty);
+                return new(1, ImmutableArray<TypeData.FieldData>.Empty);
             }
 
             if (type.Namespace.StartsWith("System"))
@@ -54,21 +54,33 @@ namespace VCSCompiler.V2
                 return GetSystemTypeData(type);
             }
 
+            // Generics won't work like other types. Some findings, based off a: struct Foo<T> where T: struct { public T Field; }
+            // Foo<byte> is not in the assembly, Foo<T> is.
+            // Foo<byte> comes in as GenericInstanceType, a TypeReference.
+            // Foo<byte>.GenericParameters is empty. Foo<byte>.GenericArguments contains a TypeReference to byte.
+            // Foo<byte>.Resolve() yields TypeDefinition Foo<T>, and Foo<T>.GenericParameters contains GenericParameter T.
+            // Foo<T>.Fields has FieldDefinition where the FieldType is a GenericParameter (subclass of TypeReference)
+            // GenericParameter.Resolve() returns null.
+
+            var genericArgs = (type as GenericInstanceType)?.GenericArguments?.ToImmutableArray() ?? ImmutableArray<TypeReference>.Empty;
             var typeDef = BuiltInDefinitions.Types
                 .Concat(userAssembly.CompilableTypes())
-                .Single(t => t.FullName == type.FullName);
-            return Of(typeDef, userAssembly);
+                .SingleOrDefault(t => t.FullName == type.FullName) ?? type.Resolve();
+            return Of(typeDef, genericArgs, userAssembly);
         }
 
         private static TypeDefinition GetBuiltInTypeDef<T>()
             => BuiltInDefinitions.Types.Single(it => it.FullName == typeof(T).FullName);
 
-        private static int GetSize(TypeDefinition type, AssemblyDefinition userAssembly)
+        private static int GetSize(TypeDefinition type, ImmutableArray<TypeReference> genericArgs, AssemblyDefinition userAssembly)
         {
             // @TODO - Throw if Pack!=0/Size!=0 for sequential
             if (type.IsAutoLayout || type.IsSequentialLayout)
             {
-                return type.InstanceFields().Sum(f => Of(f.FieldType, userAssembly).Size);
+                return type.InstanceFields().Sum(f =>
+                {
+                    return Of(GetFieldType(f, genericArgs), userAssembly).Size;
+                });
             }
             else
             {
@@ -83,13 +95,13 @@ namespace VCSCompiler.V2
             }
         }
 
-        private static IEnumerable<FieldData> GetFieldData(TypeDefinition type, AssemblyDefinition userAssembly)
+        private static IEnumerable<FieldData> GetFieldData(TypeDefinition type, ImmutableArray<TypeReference> genericArgs, AssemblyDefinition userAssembly)
         {
             if (type.IsExplicitLayout)
             {
                 foreach (var field in type.InstanceFields())
                 {
-                    yield return new FieldData(field, (byte)field.Offset);
+                    yield return new FieldData(field, GetFieldType(field, genericArgs), (byte)field.Offset);
                 }
             }
             else
@@ -97,8 +109,9 @@ namespace VCSCompiler.V2
                 byte offset = 0;
                 foreach (var field in type.InstanceFields())
                 {
-                    yield return new FieldData(field, offset);
-                    offset += (byte)GetSize(field.FieldType.Resolve(), userAssembly);
+                    var fieldType = GetFieldType(field, genericArgs);
+                    yield return new FieldData(field, fieldType, offset);
+                    offset += (byte)GetSize(fieldType.Resolve(), genericArgs, userAssembly);
                 }
             }
         }
@@ -112,5 +125,8 @@ namespace VCSCompiler.V2
             else
                 throw new ArgumentException($"No support for System type: '{type.FullName}'");
         }
+
+        private static TypeReference GetFieldType(FieldReference field, ImmutableArray<TypeReference> genericArgs)
+            => field.FieldType.IsGenericParameter ? genericArgs[((GenericParameter)field.FieldType).Position] : field.FieldType;
     }
 }

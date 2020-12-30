@@ -109,7 +109,8 @@ namespace VCSCompiler.V2
 		public static string NamespaceAndName(this TypeReference @this)
 		{
 			var formattedNamespace = @this.Namespace.Replace('.', '_');
-			return $"{formattedNamespace}_{@this.Name}";
+			var formattedName = @this.Name.Replace("`", "_");
+			return $"{formattedNamespace}_{formattedName}";
 		}
 
 		public static string NamespaceAndName(this TypeRef @this) => ((TypeReference)@this).NamespaceAndName();
