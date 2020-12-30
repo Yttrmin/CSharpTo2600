@@ -49,6 +49,7 @@ namespace VCSCompiler.V2
                 return new(1, ImmutableArray<TypeData.FieldData>.Empty);
             }
 
+            // @TODO - There are generic System types, need to account for that.
             if (type.Namespace.StartsWith("System"))
             {
                 return GetSystemTypeData(type);

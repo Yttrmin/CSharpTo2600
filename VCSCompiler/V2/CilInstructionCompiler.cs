@@ -341,20 +341,18 @@ namespace VCSCompiler.V2
 		private IEnumerable<IAssemblyEntry> Ldfld(Instruction instruction)
         {
 			var field = (FieldReference)instruction.Operand;
-			var (_, type, offset) = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name);
-			var fieldType = TypeLabel(type);
-			var fieldSize = SizeLabel(type);
+			var fieldType = FieldType(field);
+			var fieldSize = FieldSize(field);
 
-			yield return new PushFieldFromStack(instruction, new(offset), fieldType, fieldSize, new(0), new(0));
+			yield return new PushFieldFromStack(instruction, FieldOffset(field), fieldType, fieldSize, new(0), new(0));
 		}
 
 		private IEnumerable<IAssemblyEntry> Ldflda(Instruction instruction)
         {
 			var field = (FieldDefinition)instruction.Operand;
-			var offset = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field == field).Offset;
 
 			// Pops address of object off stack, adds offset to it, pushes it.
-			yield return new PushAddressOfField(instruction, new(offset), new(field.FieldType), new(0));
+			yield return new PushAddressOfField(instruction, FieldOffset(field), new(field.FieldType), new(0));
 		}
 
 		private IEnumerable<IAssemblyEntry> Ldind_U1(Instruction instruction)
@@ -376,9 +374,8 @@ namespace VCSCompiler.V2
         {
 			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = new GlobalFieldLabel(field);
-			var type = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name).FieldType;
-			var fieldTypeLabel = TypeLabel(type);
-			var fieldSizeLabel = SizeLabel(type);
+			var fieldTypeLabel = FieldType(field);
+			var fieldSizeLabel = FieldSize(field);
 
 			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
 		}
@@ -431,10 +428,9 @@ namespace VCSCompiler.V2
 		private IEnumerable<IAssemblyEntry> Stfld(Instruction instruction)
         {
 			var field = (FieldReference)instruction.Operand;
-			var (_, type, offset) = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name);
 
 			// Value is at stack[0], pointer at stack[1]
-			yield return new PopToFieldFromStack(instruction, new(offset), TypeLabel(type), SizeLabel(type), new(1), new(1));
+			yield return new PopToFieldFromStack(instruction, FieldOffset(field), FieldType(field), FieldSize(field), new(1), new(1));
         }
 
 		private IEnumerable<IAssemblyEntry> Stind_I1(Instruction instruction)
@@ -449,9 +445,8 @@ namespace VCSCompiler.V2
         {
 			var field = (FieldReference)instruction.Operand;
 			var fieldLabel = new GlobalFieldLabel(field);
-			var type = TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name).FieldType;
-			var fieldTypeLabel = TypeLabel(type);
-			var fieldSizeLabel = SizeLabel(type);
+			var fieldTypeLabel = FieldType(field);
+			var fieldSizeLabel = FieldSize(field);
 
 			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
         }
@@ -500,10 +495,19 @@ namespace VCSCompiler.V2
 		private static ISizeLabel ReturnSize(MethodDefinition method)
 			=> SizeLabel(method.ReturnType);
 
-		private static ISizeLabel FieldSize(FieldReference field)
-			=> SizeLabel(field.FieldType);
+		private ITypeLabel FieldType(FieldReference field)
+			=> TypeLabel(GetFieldData(field).FieldType);
+
+		private ISizeLabel FieldSize(FieldReference field)
+			=> SizeLabel(GetFieldData(field).FieldType);
+
+		private Constant FieldOffset(FieldReference field)
+			=> new Constant(GetFieldData(field).Offset);
 
 		private static ISizeLabel LocalSize(VariableDefinition variable)
 			=> SizeLabel(variable.VariableType);
+
+		private TypeData.FieldData GetFieldData(FieldReference field)
+			=> TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name);
 	}
 }

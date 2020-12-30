@@ -4,16 +4,16 @@ namespace Samples.CSharpFeatures
 {
     static class GenericsSample
     {
-        private static SingleFieldGeneric<byte> Static;
+        private static SingleFieldGeneric<UserStruct> Static;
 
         public static void Main()
         {
             SingleFieldGeneric<byte>.StaticField = 0x0C;
-            Static = new SingleFieldGeneric<byte> { Field = SingleFieldGeneric<byte>.StaticField };
+            Static = new SingleFieldGeneric<UserStruct> { Field = new UserStruct { Byte = SingleFieldGeneric<byte>.StaticField } };
             var instance = Static;
             while (true)
             {
-                ColuBk = instance.Field;
+                ColuBk = instance.Field.Byte;
             }
         }
 
@@ -21,6 +21,11 @@ namespace Samples.CSharpFeatures
         {
             public static T StaticField;
             public T Field;
+        }
+
+        private struct UserStruct
+        {
+            public byte Byte;
         }
     }
 }
