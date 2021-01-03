@@ -60,10 +60,7 @@ namespace VCSCompiler.V2
                 }
                 body = body.Prepend(new EntryPoint()).ToImmutableArray();
             }
-            if (!Compiler.Options.DisableOptimizations)
-            {
-                body = Optimize(body);
-            }
+            body = Optimize(body);
             var inlineString = Inline ? " inline call of " : " ";
             if (!Inline)
             {

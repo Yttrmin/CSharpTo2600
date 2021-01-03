@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Collections.Generic;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -52,11 +53,21 @@ namespace VCSCompiler.V2
 		}
 
 		public static bool TryGetFrameworkAttribute<T>(
-			this MethodDefinition @this, 
+			this MethodDefinition @this,
+			[NotNullWhen(true)] out T? result) where T : Attribute
+		=> TryGetFrameworkAttribute(@this.CustomAttributes, out result);
+
+		public static bool TryGetFrameworkAttribute<T>(
+			this FieldDefinition @this,
+			[NotNullWhen(true)] out T? result) where T : Attribute
+		=> TryGetFrameworkAttribute(@this.CustomAttributes, out result);
+
+		private static bool TryGetFrameworkAttribute<T>(
+			Collection<CustomAttribute> attributes,
 			[NotNullWhen(true)] out T? result) where T : Attribute
 		{
 			var type = typeof(T);
-			var attribute = @this.CustomAttributes.
+			var attribute = attributes.
 				SingleOrDefault(a => a.AttributeType.FullName == type.FullName);
 			if (attribute != null)
 			{
@@ -72,18 +83,18 @@ namespace VCSCompiler.V2
 				result = default;
 				return false;
 			}
-			
+
 			static object Process(object obj)
-            {
+			{
 				// Attributes that take Types (e.g. [MyAttr(typeof(string))]) end up as TypeDefinitions, so we can't just
 				// pass them into the constructor. Look them up instead.
 				if (obj is TypeDefinition typeDefinition)
-                {
+				{
 					// @TODO - Probably shouldn't be limited to just Framework Macros.
 					return typeof(IAssemblyEntry).GetTypeInfo().Assembly.GetTypes().Single(t => t.FullName == typeDefinition.FullName);
-                }
+				}
 				return obj;
-            }
+			}
 		}
 
 		public static bool IsRecursive(this MethodDefinition @this)

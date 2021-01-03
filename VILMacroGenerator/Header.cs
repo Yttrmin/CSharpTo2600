@@ -78,10 +78,10 @@ namespace VILMacroGenerator
             if (pushStr != null)
             {
                 var values = pushStr.Substring(6).Split(';');
-                header.TypeParam = ParseParam(values[0]);
-                header.SizeParam = ParseParam(values[1]);
+                header.TypeParam = ParseParam(values[0], true);
+                header.SizeParam = ParseParam(values[1], false);
 
-                static PushParam ParseParam(string text)
+                static PushParam ParseParam(string text, bool? isType)
                 {
                     if (text.EndsWith(")"))
                     {
@@ -90,7 +90,7 @@ namespace VILMacroGenerator
                         var funcName = text.Substring(0, text.IndexOf("("));
                         var paramsString = text.Substring(text.IndexOf("(") + 1);
                         paramsString = paramsString.Substring(0, paramsString.Length - 1);
-                        var funcParams = paramsString.Split(',').Select(ParseParam).ToArray();
+                        var funcParams = paramsString.Split(',').Select(s => ParseParam(s, null)).ToArray();
                         return new PushParam(new Function(funcName, funcParams));
                     }
                     else if (text.StartsWith("type["))
@@ -99,7 +99,7 @@ namespace VILMacroGenerator
                         return new PushParam(new StackAccess(false, Convert.ToInt32(text[text.Length - 2].ToString())));
                     else if (text.EndsWith("]"))
                         throw new InvalidOperationException($"Failed to parse param '{text}'. Stack array access must be in the form of 'type[n]' or 'size[n]'.");
-                    else if (TryGetBuiltInType(text, out var typeLabel))
+                    else if (isType != null && TryGetBuiltInLabel(text, (bool)isType, out var typeLabel))
                         return new PushParam(typeLabel);
                     else
                         // @PUSH=type;size
@@ -123,19 +123,27 @@ namespace VILMacroGenerator
             header.ReservedBytes = reserveString != null ? Convert.ToInt32(reserveString.Last().ToString()) : 0;
             return header;
 
-            static bool TryGetBuiltInType(string value, out string typeLabel)
+            static bool TryGetBuiltInLabel(string value, bool isType, out string label)
             {
+                const string longPointerName = "longPtr";
                 if (value.Equals("byte", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    typeLabel = "new TypeLabel(BuiltInDefinitions.Byte)";
+                    label = $"new {(isType ? "TypeLabel" : "TypeSizeLabel")}(BuiltInDefinitions.Byte)";
                     return true;
                 }
                 else if (value.Equals("bool", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    typeLabel = "new TypeLabel(BuiltInDefinitions.Bool)";
+                    label = $"new {(isType ? "TypeLabel" : "TypeSizeLabel")}(BuiltInDefinitions.Bool)";
                     return true;
                 }
-                typeLabel = "";
+                else if (value.Equals(longPointerName, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    if (isType)
+                        throw new InvalidOperationException($"'{longPointerName}' can only be used for the size param of a @PUSH. Use 'GetPointerFromType()' for the type param.");
+                    label = "new PointerSizeLabel(false)";
+                    return true;
+                }
+                label = "";
                 return false;
             }
         }

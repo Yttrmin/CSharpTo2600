@@ -189,6 +189,14 @@ namespace VCSCompiler.V2
 			yield return new AddFromStack(instruction, new(1), new(1), new(0), new(0));
         }
 
+		private IEnumerable<IAssemblyEntry> Blt(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new BranchIfLessThanFromStack(instruction, new InstructionLabel(targetInstruction));
+        }
+
+		private IEnumerable<IAssemblyEntry> Blt_S(Instruction instruction) => Blt(instruction);
+
 		private IEnumerable<IAssemblyEntry> Br(Instruction instruction)
         {
 			var targetInstruction = (Instruction)instruction.Operand;
@@ -220,6 +228,7 @@ namespace VCSCompiler.V2
 			// If it's not a MethodDefintion, it's not in the assembly we're compiling. Search for it in others.
 			var method = methodReference as MethodDefinition
 				?? Assemblies.CompilableTypes().CompilableMethods().SingleOrDefault(it => methodReference.FullName == it.FullName)
+				?? methodReference.Resolve()
 				?? throw new MissingMethodException($"Could not find '{methodReference.FullName}' in any assemblies.");
 			var arity = method.Parameters.Count;
 
@@ -357,7 +366,7 @@ namespace VCSCompiler.V2
 
 		private IEnumerable<IAssemblyEntry> Ldind_U1(Instruction instruction)
         {
-			yield return new PushDereferenceFromStack(instruction, ByteType, ByteSize);
+			yield return new PushDereferenceFromStack(instruction, new StackSizeArrayAccess(0), ByteType, ByteSize);
         }
 
 		private IEnumerable<IAssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
@@ -462,6 +471,8 @@ namespace VCSCompiler.V2
         {
 			var branchInstructions = new[]
 			{
+				OpCodes.Blt,
+				OpCodes.Blt_S,
 				OpCodes.Br,
 				OpCodes.Br_S,
 				OpCodes.Brtrue,
