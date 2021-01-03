@@ -18,7 +18,7 @@ namespace Samples.CSharpFeatures
             {
                 while (ByteDataIndex < ByteRomData.Length)
                 {
-                    ColuBk = ByteRomData[37];
+                    ColuBk = ByteRomData[ByteDataIndex];
                     ByteDataIndex++;
                 }
                 ByteDataIndex = 0;

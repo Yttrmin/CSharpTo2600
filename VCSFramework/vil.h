@@ -73,7 +73,7 @@ pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 .endmacro
 
 // @GENERATE @COMPOSITE @PUSH=getPointerFromType(referentType);longPtr
-pushAddressOfRomDataElement .macro romDataGlobal, referentType, referentTypeSize, indexConstant
+pushAddressOfRomDataElementFromConstant .macro romDataGlobal, referentType, referentTypeSize, indexConstant
 	.let address = \romDataGlobal + (\referentTypeSize * \indexConstant)
 	.let lsb = address & $FF
 	.let msb = (address >> 8) & $FF
@@ -81,6 +81,31 @@ pushAddressOfRomDataElement .macro romDataGlobal, referentType, referentTypeSize
 	PHA
 	LDA #lsb
 	PHA
+.endmacro
+
+// @GENERATE @COMPOSITE @POP=1 @PUSH=getPointerFromType(referentType);longPtr
+pushAddressOfRomDataElementFromStack .macro romDataGlobal, referentType, referentTypeSize
+	.if \referentTypeSize == 1
+		.let address = \romDataGlobal
+		.let lsb = address & $FF
+		.let msb = (address >> 8) & $FF
+		PLA
+		CLC
+		ADC #lsb
+		TAX
+		LDA #msb
+		ADC #0
+		PHA
+		TXA
+		PHA
+	.endif
+	.if \referentTypeSize != 1
+		// Sizes >1 will cause problems due to the lack of any multiplication instructions.
+		// Sizes that can be represented as powers of 2 are fairly easy (just ASL as needed), but still wastes cycles.
+		// The optimal way to solve this would be with a strength reduction optimization (replace loop var logic with an increment by element size),
+		// but that's a very different class of optimization than what we've been doing so far.
+		.error "Only referentTypeSize of 1 is currently supported for pushAddressOfRomDataElementFromStack"
+	.endif
 .endmacro
 
 // @GENERATE @RESERVED=2 @POP=1 @PUSH=type;size

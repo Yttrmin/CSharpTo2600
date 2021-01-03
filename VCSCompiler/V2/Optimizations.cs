@@ -54,12 +54,25 @@ namespace VCSCompiler.V2
                 (PushAddressOfGlobal(var pushGlobalInst, GlobalFieldLabel global, _ ,_),
                 (PushConstant(var pushConstantInst, var constant, _, _),
                 (RomDataGetterCall(var getInst), var trueNext))) => 
-                    new(new PushAddressOfRomDataElement(
+                    new(new PushAddressOfRomDataElementFromConstant(
                         ArrayOf(pushGlobalInst, pushConstantInst, getInst), 
                         new RomDataGlobalLabel(GetGeneratorMethod((FieldDefinition)global.Field)), 
                         GetRomDataArgType(global.Field), 
                         GetRomDataArgSize(global.Field), 
                         constant), trueNext),
+                _ => next
+            },
+            next => next switch
+            {
+                (PushAddressOfGlobal(var pushGlobalInst, GlobalFieldLabel global, _ ,_),
+                (PushGlobal pushGlobal,
+                (RomDataGetterCall(var getInst), var trueNext))) =>
+                    new(pushGlobal,
+                        new(new PushAddressOfRomDataElementFromStack(
+                        ArrayOf(pushGlobalInst, getInst),
+                        new RomDataGlobalLabel(GetGeneratorMethod((FieldDefinition)global.Field)),
+                        GetRomDataArgType(global.Field),
+                        GetRomDataArgSize(global.Field)), trueNext)),
                 _ => next
             },
             // @TODO - Optional optimization of .pushAddressOfRomDataElement + .pushDereferenceFromStack
