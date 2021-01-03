@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using Mono.Cecil;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -39,6 +40,37 @@ namespace VCSCompiler.V2
                     new(new InlineAssembly(((string)ldStrInstruction.Operand).Split(Environment.NewLine).Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).Prepend("// Begin inline assembly").Append("// End inline assembly").ToImmutableArray()), trueNext),
                 _ => next
             },
+            // Turns a RomData<T>::Length call into a Constant.
+            next => next switch
+            {
+                (PushAddressOfGlobal(_, GlobalFieldLabel global, _ ,_),
+                (RomDataLengthCall(var romDataInstruction), var trueNext)) =>
+                    new(new PushConstant(romDataInstruction, new Constant(new RomDataLength(GetGeneratorMethod((FieldDefinition)global.Field))), new TypeLabel(BuiltInDefinitions.Byte), new TypeSizeLabel(BuiltInDefinitions.Byte)), trueNext),
+                _ => next
+            },
+#region RomData<T>_getItem optimizations
+            next => next switch
+            {
+                (PushAddressOfGlobal(var pushGlobalInst, GlobalFieldLabel global, _ ,_),
+                (PushConstant(var pushConstantInst, var constant, _, _),
+                (RomDataGetterCall(var getInst), var trueNext))) => 
+                    new(new PushAddressOfRomDataElement(
+                        ArrayOf(pushGlobalInst, pushConstantInst, getInst), 
+                        new RomDataGlobalLabel(GetGeneratorMethod((FieldDefinition)global.Field)), 
+                        GetRomDataArgType(global.Field), 
+                        GetRomDataArgSize(global.Field), 
+                        constant), trueNext),
+                _ => next
+            },
+            // @TODO - Optional optimization of .pushAddressOfRomDataElement + .pushDereferenceFromStack
+            /*next => next switch
+            {
+                (PushAddressOfGlobal(_, GlobalFieldLabel global, _ ,_),
+                (PushGlobal,
+                (RomDataGetterCall, var trueNext))) => new(new Comment("A"), trueNext),
+                _ => next
+            }*/
+#endregion
         }.ToImmutableArray();
 
         /// <summary>Optimizations that can be disabled, and will just make the program less efficient (perhaps fatally so).</summary>
@@ -108,5 +140,43 @@ namespace VCSCompiler.V2
                 _ => next
             },
         }.ToImmutableArray();
+
+        private static MethodDef GetGeneratorMethod(FieldDefinition field)
+        {
+            if (field.TryGetFrameworkAttribute<RomDataGeneratorAttribute>(out var attribute))
+            {
+                var methodName = attribute.MethodName;
+                var expectedArg = ((GenericInstanceType)field.FieldType).GenericArguments.Single();
+                var matchingMethods = field.DeclaringType.Methods
+                    .Where(m => m.IsStatic)
+                    .Where(m => m.Name == methodName)
+                    .Where(m => !m.Parameters.Any())
+                    .Where(m => m.ReturnType is GenericInstanceType)
+                    .Where(m => ((GenericInstanceType)m.ReturnType).GenericArguments.SingleOrDefault()?.FullName == expectedArg.FullName)
+                    .Where(m => ((GenericInstanceType)m.ReturnType).ElementType.FullName == BuiltInDefinitions.IEnumerable.FullName)
+                    .ToImmutableArray();
+                var expectedMethod = $"static IEnumerable<{expectedArg.Name}> {methodName}() {{ /** ... */ }}";
+                // ReturnType.GenericArguments should equal field's argument
+                // ReturnType.ElementType == IEnumerable`1
+                return matchingMethods.Length switch
+                {
+                    0 => throw new InvalidOperationException($"No matching RomData generator method found for field '{field.FullName}'. Expected a method on type '{field.DeclaringType.FullName}' that matches: '{expectedMethod}'"),
+                    1 => matchingMethods.Single(),
+                    _ => throw new InvalidOperationException($"Multiple RomData generators found for field '{field.FullName}'. There should only be 1 match. Matches:{Environment.NewLine}{string.Join(Environment.NewLine, matchingMethods.Select(m => m.FullName))}")
+                };
+            }
+            else
+            {
+                throw new InvalidOperationException($"Field '{field.FullName}' must be tagged with a {nameof(RomDataGeneratorAttribute)} in order to be used as a RomData.");
+            }
+        }
+
+        private static ImmutableArray<T> ArrayOf<T>(params T[] values) => values.ToImmutableArray();
+
+        private static ITypeLabel GetRomDataArgType(FieldReference field)
+            => new TypeLabel(((GenericInstanceType)field.FieldType).GenericArguments.Single());
+
+        private static ISizeLabel GetRomDataArgSize(FieldReference field)
+            => new TypeSizeLabel(((GenericInstanceType)field.FieldType).GenericArguments.Single());
     }
 }

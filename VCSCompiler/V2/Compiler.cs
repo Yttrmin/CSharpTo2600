@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using VCSFramework.V2;
 using VCSFramework.V2.Templates;
@@ -67,14 +68,34 @@ namespace VCSCompiler.V2
              * 6) In the end, the generated .asm may look like an intermediate representation, with lots of parameterized macro
              *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
              */
-            var userAssemblyDefinition = CreateAssemblyDefinition(new[] { sourcePath }.ToImmutableArray());
+            var (userAssemblyDefinition, userAssembly) = CreateAssemblyDefinition(new[] { sourcePath }.ToImmutableArray());
 
             var compiler = new Compiler(userAssemblyDefinition, options);
             var entryPointBody = compiler.CompileEntryPoint();
             var allFunctions = compiler.RecursiveCompileAllFunctions(entryPointBody);
-            var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userAssemblyDefinition);
-
-            var fullProgram = AssemblyTemplate.GenerateProgram(entryPointBody, allFunctions, allLabelAssignments);
+            var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userAssemblyDefinition, userAssembly);
+            var allRomData = allFunctions.Prepend(entryPointBody)
+                .SelectMany(GetAllMacroParameters)
+                .OfType<RomDataGlobalLabel>()
+                .Select(label =>
+                {
+                    // @TODO - What do we do for 0 elements?
+                    var romData = ImmutableArray.ToImmutableArray(InvokeRomDataGenerator(userAssembly, label.GeneratorMethod));
+                    var elementSize = Marshal.SizeOf(Enumerable.First(romData));
+                    var byteBuffer = new byte[romData.Length * elementSize];
+                    var byteIndex = 0;
+                    foreach (var element in romData)
+                    {
+                        var ptr = Marshal.AllocHGlobal(elementSize);
+                        Marshal.StructureToPtr(element, ptr, false);
+                        Marshal.Copy(ptr, byteBuffer, byteIndex, elementSize);
+                        byteIndex += elementSize;
+                        Marshal.FreeHGlobal(ptr);
+                    }
+                    return (label, byteBuffer.ToImmutableArray());
+                })
+                .ToImmutableArray();
+            var fullProgram = AssemblyTemplate.GenerateProgram(entryPointBody, allFunctions, allLabelAssignments, allRomData);
 
             //var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
 
@@ -176,7 +197,7 @@ namespace VCSCompiler.V2
             }
         }
 
-        private static AssemblyDefinition CreateAssemblyDefinition(ImmutableArray<string> sourcePaths)
+        private static (AssemblyDefinition, Assembly) CreateAssemblyDefinition(ImmutableArray<string> sourcePaths)
         {
             // First we compile without the generated template so we can find what type to use.
             // Then we compile with the generated template and return the AssemblyDefinition containing that and the user types.
@@ -211,7 +232,9 @@ namespace VCSCompiler.V2
             File.WriteAllText(generatedSourcePath, generatedSourceText);
 
             var finalCompilation = CompilationCreator.CreateFromFilePaths(sourcePaths.Append(generatedSourcePath), template.GeneratedTypeName);
-            return GetAssemblyDefinition(finalCompilation, out var _);
+            var definition = GetAssemblyDefinition(finalCompilation, out var finalAssemblyStream);
+            var finalAssembly = new AssemblyLoadContext(null, false).LoadFromStream(finalAssemblyStream);
+            return (definition, finalAssembly);
         }
 
         private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
@@ -266,12 +289,17 @@ namespace VCSCompiler.V2
             }
         }
 
-        private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyDefinition userAssembly)
+        private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyDefinition userAssemblyDef, Assembly userAssembly)
         {
             // @TODO - Aliases
             var start = 0x80;
-            var reserved = Enumerable.Repeat(0, GetReservedBytes(functions)).Select(i => new LabelAssign(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
-            var otherGlobals = functions.SelectMany(GetAllMacroParameters).OfType<IGlobalLabel>().Where(l => l is not PredefinedGlobalLabel).Distinct().Select(l => new LabelAssign(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var reserved = Enumerable.Range(0, GetReservedBytes(functions))
+                .Select(i => new LabelAssign(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var otherGlobals = functions.SelectMany(GetAllMacroParameters)
+                .OfType<IGlobalLabel>()
+                .Where(l => l is not PredefinedGlobalLabel && l is not RomDataGlobalLabel)
+                .Distinct()
+                .Select(l => new LabelAssign(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
             // @TODO - Check if we overflowed into stack.
 
             var typeId = 100;
@@ -282,13 +310,14 @@ namespace VCSCompiler.V2
                 .ToImmutableArray();
             var allPairedTypes = allReferencedTypes.Select(t => (new LabelAssign(new TypeLabel(t), new Constant((byte)typeId++)), new LabelAssign(new PointerTypeLabel(t), new Constant((byte)typeId++))));
 
-            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userAssembly).Size)));
+            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userAssemblyDef).Size)));
 
             var allLabelAssignments = new List<LabelAssign>();
 
-            var aliasedFields = userAssembly.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
+            var aliasedFields = userAssemblyDef.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
             foreach (var field in aliasedFields)
             {
+                // @TODO - Support aliased RomData<>s.
                 if (!field.IsStatic)
                     throw new InvalidOperationException($"[{nameof(InlineAssemblyAliasAttribute)}] can only be used on static fields. '{field.FullName}' is not static.");
                 var aliases = field.CustomAttributes.Where(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName).Select(a => (string)a.ConstructorArguments[0].Value);
@@ -303,6 +332,12 @@ namespace VCSCompiler.V2
                 }
             }
 
+            var romDataLengths = functions.SelectMany(GetAllMacroParameters)
+                .OfType<Constant>()
+                .Select(c => c.Value)
+                .OfType<RomDataLength>()
+                .Select(l => new LabelAssign(l, new Constant(Convert.ToByte(Enumerable.Count(InvokeRomDataGenerator(userAssembly, l.GeneratorMethod))))));
+
             allLabelAssignments.AddRange(reserved);
             allLabelAssignments.AddRange(otherGlobals);
             foreach (var pair in allPairedTypes)
@@ -312,6 +347,7 @@ namespace VCSCompiler.V2
             }
             allLabelAssignments.AddRange(allTypeSizes);
             allLabelAssignments.AddRange(new LabelAssign[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
+            allLabelAssignments.AddRange(romDataLengths);
             return allLabelAssignments.ToImmutableArray();
         }
 
@@ -332,5 +368,11 @@ namespace VCSCompiler.V2
 
         private static IEnumerable<IMacroCall> GetAllMacroCalls(Function function)
             => function.Body.OfType<IMacroCall>();
+
+        private static dynamic InvokeRomDataGenerator(Assembly userAssembly, MethodDefinition generator)
+        {
+            var compiledMethod = userAssembly.Modules.Single().ResolveMethod(generator.MetadataToken.ToInt32()) ?? throw new InvalidOperationException($"Failed to lookup RomData generator '{generator.FullName}' in user assembly '{userAssembly}'.");
+            return (dynamic)(compiledMethod.Invoke(null, null) ?? throw new InvalidOperationException($"Return value of RomData generator '{generator.FullName}' was NULL."));
+        }
     }
 }

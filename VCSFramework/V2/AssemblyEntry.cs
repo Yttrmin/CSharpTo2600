@@ -74,6 +74,9 @@ namespace VCSFramework.V2
     /// <summary>A global whose label is defined elsewhere (e.g. COLUBK in a header).</summary>
     public sealed record PredefinedGlobalLabel(string Name) : IGlobalLabel;
     public sealed record ReservedGlobalLabel(int Index) : IGlobalLabel;
+    /// <summary>Label to a readonly global located in ROM. May be a single value or the first element of multiple values.</summary>
+    public sealed record RomDataGlobalLabel(MethodDef GeneratorMethod) : IGlobalLabel;
+    public sealed record RomDataLength(MethodDef GeneratorMethod) : ILabel;
     public sealed record TypeSizeLabel(TypeRef Type) : ISizeLabel;
     public sealed record TypeLabel(TypeRef Type) : ITypeLabel;
     #endregion
@@ -82,6 +85,7 @@ namespace VCSFramework.V2
     public interface IPseudoOp : IAssemblyEntry { }
     public sealed record ArrayLetOp(string VariableName, ImmutableArray<IExpression> Elements) : IPseudoOp;
     public sealed record BeginBlock() : IPseudoOp;
+    public sealed record ByteOp(ImmutableArray<byte> Bytes) : IPseudoOp;
     public sealed record EndBlock() : IPseudoOp;
     public sealed record IncludeOp(string Filename) : IPseudoOp;
     public sealed record CpuOp(string Architecture) : IPseudoOp;
@@ -96,6 +100,7 @@ namespace VCSFramework.V2
     /// <summary>A marker that a function (inlined or otherwise) has ended.</summary>
     public sealed record EndFunction() : IAssemblyEntry;
     public sealed record InlineAssembly(ImmutableArray<string> Assembly) : IAssemblyEntry;
+    /// <summary>Replaces a call to <see cref="VCSFramework.V2.AssemblyUtilities.InlineAssembly(string)"/>.</summary>
     public sealed record InlineAssemblyCall(Instruction SourceInstruction) : IAssemblyEntry;
     /// <summary>A marker that a method call was inlined here.</summary>
     public sealed record InlineFunction(Inst? SourceInstruction, MethodDef Definition) : IAssemblyEntry;
@@ -105,6 +110,8 @@ namespace VCSFramework.V2
     public sealed record LoadString(Instruction SourceInstruction) : IAssemblyEntry;
     public sealed record MultilineComment(ImmutableArray<string> Text) : IAssemblyEntry;
     public sealed record ProgramCounterAssign(int Address) : IAssemblyEntry;
+    public sealed record RomDataGetterCall(Instruction SourceInstruction) : IAssemblyEntry;
+    public sealed record RomDataLengthCall(Instruction SourceInstruction) : IAssemblyEntry;
     // We split this out and not IMacroCall.Instructions, which is also optional, since Instructions will
     // always be set at instantiation. StackOperation is never set at instantiation, it'll only be set 
     // with a `with` operation long after the fact.

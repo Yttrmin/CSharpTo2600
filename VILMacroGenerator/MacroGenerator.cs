@@ -216,6 +216,8 @@ namespace VCSFramework.V2
                 return "ITypeLabel";
             else if (variableName.EndsWith("Size", StringComparison.CurrentCultureIgnoreCase))
                 return "ISizeLabel";
+            else if (variableName.EndsWith("RomDataGlobal", StringComparison.CurrentCultureIgnoreCase))
+                return "RomDataGlobalLabel";
             else if (variableName.EndsWith("Global", StringComparison.CurrentCultureIgnoreCase))
                 return "IGlobalLabel";
             else if (variableName.EndsWith("Local", StringComparison.CurrentCultureIgnoreCase))

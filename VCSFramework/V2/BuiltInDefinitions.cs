@@ -27,6 +27,8 @@ namespace VCSFramework.V2
 
         public static readonly TypeDefinition Bool = AllTypeDefinitions.Single(t => t.FullName == typeof(bool).FullName);
 
+        public static readonly TypeDefinition IEnumerable = AllTypeDefinitions.Single(t => t.Name == "IEnumerable`1");
+
         public static readonly TypeDefinition Nothing = AllTypeDefinitions.Single(t => t.FullName == typeof(Nothing).FullName);
     }
 }

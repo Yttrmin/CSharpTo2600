@@ -72,14 +72,36 @@ pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 	PHA
 .endmacro
 
-// @GENERATE @POP=1 @PUSH=type;size
-pushDereferenceFromStack .macro type, size
-	// @TODO - Take pointer size
-	.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack"
-	PLA
-	TAX
-	LDA 0,X
+// @GENERATE @COMPOSITE @PUSH=getPointerFromType(referentType);longPtr
+pushAddressOfRomDataElement .macro romDataGlobal, referentType, referentTypeSize, indexConstant
+	.let address = \romDataGlobal + (\referentTypeSize * \indexConstant)
+	.let lsb = address & $FF
+	.let msb = (address >> 8) & $FF
+	LDA #msb
 	PHA
+	LDA #lsb
+	PHA
+.endmacro
+
+// @GENERATE @RESERVED=2 @POP=1 @PUSH=type;size
+pushDereferenceFromStack .macro pointerStackSize, type, size
+	.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack"
+	.if \pointerStackSize == 1
+		PLA
+		TAX
+		LDA 0,X
+		PHA
+	.endif
+	// @TODO @BUG - Again, elif doesn't work as expected.
+	.if \pointerStackSize == 2
+		PLA
+		STA INTERNAL_RESERVED_0
+		PLA
+		STA INTERNAL_RESERVED_1
+		LDY #0
+		LDA (INTERNAL_RESERVED_0),Y
+		PHA
+	.endif
 .endmacro
 
 // @GENERATE @POP=1 @PUSH=fieldType;fieldSize
@@ -233,6 +255,12 @@ getBitOpResultType .function firstOperandTypeExpression, secondOperandTypeExpres
 
 getTypeFromPointer .function pointerType
 	.return pointerType - 1
+.endfunction
+
+// @GENERATE
+getPointerFromType .function referentType
+	.assert isPointer(referentType) == false, "Called getPointerFromType with a pointer"
+	.return referentType + 1
 .endfunction
 
 assertIsPointer .function type
@@ -551,6 +579,18 @@ branchIfGreaterThanFromGlobalAndConstant .macro address, constant, branchTarget
 		JMP \branchTarget
 	+
 	.endif
+.endmacro
+
+// @GENERATE @POP=2 @RESERVED=1
+branchIfLessThanFromStack .macro branchTarget
+	// @TODO - Parameter sizes
+	// Pop value2 into RESERVED. Pop value1 into A. Branch if value1 < value2.
+	PLA
+	STA INTERNAL_RESERVED_0
+	PLA
+	CMP INTERNAL_RESERVED_0
+
+	BCC \branchTarget
 .endmacro
 
 // pushLocal + pushConstant + compareGreaterThanFromStack

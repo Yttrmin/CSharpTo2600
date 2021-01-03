@@ -69,6 +69,7 @@ namespace VCSFramework.V2
         }
     }
 
+    [Obsolete]
     public sealed class RomDataAttribute : Attribute
     {
         public byte[] Data { get; }
@@ -76,6 +77,17 @@ namespace VCSFramework.V2
         public RomDataAttribute(byte[] data)
         {
             Data = data;
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    public sealed class RomDataGeneratorAttribute : Attribute
+    {
+        public string MethodName { get; }
+
+        public RomDataGeneratorAttribute(string methodName)
+        {
+            MethodName = methodName;
         }
     }
 }

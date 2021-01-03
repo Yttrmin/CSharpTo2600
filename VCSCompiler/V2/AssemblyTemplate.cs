@@ -19,7 +19,8 @@ namespace VCSCompiler.V2
         public static IEnumerable<IAssemblyEntry> GenerateProgram(
             Function entryPoint,
             ImmutableArray<Function> nonInlineFunctions,
-            ImmutableArray<LabelAssign> labelAssignments)
+            ImmutableArray<LabelAssign> labelAssignments,
+            ImmutableArray<(RomDataGlobalLabel, ImmutableArray<byte>)> allRomData)
         {
             yield return new Comment($"Generated on {DateTime.Now:R}");
             yield return new Blank();
@@ -42,6 +43,13 @@ namespace VCSCompiler.V2
                 yield return new Blank();
                 foreach (var entry in func.Body)
                     yield return entry;
+            }
+            yield return new Blank();
+            foreach (var (label, data) in allRomData)
+            {
+                yield return label;
+                foreach (var dataByte in data)
+                    yield return new ByteOp(ImmutableArray.Create(dataByte));
             }
             yield return new Blank();
             yield return new ProgramCounterAssign(0xFFFC);
@@ -103,6 +111,7 @@ namespace VCSCompiler.V2
                 IPseudoOp p => p switch
                 {
                     BeginBlock => ".block",
+                    ByteOp bo => $".byte {string.Join(",", bo.Bytes.Select(b => $"${b:X2}"))}",
                     CpuOp co => $@".cpu ""{co.Architecture}""",
                     EndBlock => ".endblock",
                     IncludeOp io => $@".include ""{io.Filename}""",
@@ -118,6 +127,7 @@ namespace VCSCompiler.V2
                         byte b => Convert.ToString(b),
                         FormattedByte fb => fb.ToString(),
                         int i => Convert.ToString(i),
+                        ILabel l => GetStringFromEntry(l, method, annotations).Single(),
                         _ => throw new ArgumentException($"No support for constant of type {c.Value.GetType()}")
                     },
                     IFunctionCall fc => $"{fc.Name}({string.Join(", ", fc.Parameters.Select(e => GetStringFromEntry(e, method, annotations).Single()))})",
@@ -133,6 +143,8 @@ namespace VCSCompiler.V2
                         PointerTypeLabel p => $"TYPE_{p.ReferentType.NamespaceAndName()}_PTR",
                         PredefinedGlobalLabel pg => pg.Name,
                         ReservedGlobalLabel rg => $"INTERNAL_RESERVED_{rg.Index}",
+                        RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.Name}",
+                        RomDataLength rdl => $"ROMDATA_LENGTH_{rdl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdl.GeneratorMethod.Name}",
                         TypeLabel t => $"TYPE_{t.Type.NamespaceAndName()}",
                         TypeSizeLabel ts => $"SIZE_{ts.Type.NamespaceAndName()}",
                         _ => throw new ArgumentException($"Label {label} does not map to a string.")
