@@ -127,7 +127,6 @@ namespace VCSCompiler.V2
                         byte b => Convert.ToString(b),
                         FormattedByte fb => fb.ToString(),
                         int i => Convert.ToString(i),
-                        ILabel l => GetStringFromEntry(l, method, annotations).Single(),
                         _ => throw new ArgumentException($"No support for constant of type {c.Value.GetType()}")
                     },
                     IFunctionCall fc => $"{fc.Name}({string.Join(", ", fc.Parameters.Select(e => GetStringFromEntry(e, method, annotations).Single()))})",
@@ -144,7 +143,6 @@ namespace VCSCompiler.V2
                         PredefinedGlobalLabel pg => pg.Name,
                         ReservedGlobalLabel rg => $"INTERNAL_RESERVED_{rg.Index}",
                         RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.Name}",
-                        RomDataLength rdl => $"ROMDATA_LENGTH_{rdl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdl.GeneratorMethod.Name}",
                         TypeLabel t => $"TYPE_{t.Type.NamespaceAndName()}",
                         TypeSizeLabel ts => $"SIZE_{ts.Type.NamespaceAndName()}",
                         _ => throw new ArgumentException($"Label {label} does not map to a string.")

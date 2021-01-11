@@ -129,15 +129,25 @@ pushDereferenceFromStack .macro pointerStackSize, type, size
 	.endif
 .endmacro
 
-// @GENERATE @POP=1 @PUSH=fieldType;fieldSize
+// @GENERATE @RESERVED=2 @POP=1 @PUSH=fieldType;fieldSize
 pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, stackType, stackSize
 	.if isPointer(\stackType) == true
-		.errorif \stackSize != 1, "Currently, only zero-page pointers are allowed for pushFieldFromStack"
 		.errorif \fieldSize != 1, "Currently, only 1-byte types are allowed for pushFieldFromStack"
-		PLA
-		TAX
-		LDA \offsetConstant,X
-		PHA
+		.if \stackSize == 1
+			PLA
+			TAX
+			LDA \offsetConstant,X
+			PHA
+		.endif
+		.if \stackSize == 2
+			PLA
+			STA INTERNAL_RESERVED_0
+			PLA
+			STA INTERNAL_RESERVED_1
+			LDY \offsetConstant
+			LDA (INTERNAL_RESERVED_0),Y
+			PHA
+		.endif
 	.else
 		// Note even if we're only fetching a 1-byte field off a 10-byte instance, we still gotta clear the whole
 		// thing off of the stack.

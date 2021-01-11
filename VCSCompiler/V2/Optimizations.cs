@@ -28,28 +28,29 @@ namespace VCSCompiler.V2
             }
         }
 
-        private delegate LinkedEntry Optimizer(LinkedEntry next);
+        private delegate LinkedEntry Optimizer(AssemblyPair userPair, LinkedEntry next);
 
         /// <summary>Optimizations that can't be disabled because the program literally won't assemble.</summary>
         private static ImmutableArray<Optimizer> MandatoryOptimizations = new Optimizer[]
         {
             // Turns an AssemblyUtilities.InlineAssembly() call into an entry that emits the assembly string.
-            next => next switch
+            (_, next) => next switch
             {
                 (LoadString(var ldStrInstruction), (InlineAssemblyCall, var trueNext)) => 
                     new(new InlineAssembly(((string)ldStrInstruction.Operand).Split(Environment.NewLine).Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).Prepend("// Begin inline assembly").Append("// End inline assembly").ToImmutableArray()), trueNext),
                 _ => next
             },
             // Turns a RomData<T>::Length call into a Constant.
-            next => next switch
+            (userPair, next) => next switch
             {
                 (PushAddressOfGlobal(_, GlobalFieldLabel global, _ ,_),
                 (RomDataLengthCall(var romDataInstruction), var trueNext)) =>
-                    new(new PushConstant(romDataInstruction, new Constant(new RomDataLength(GetGeneratorMethod((FieldDefinition)global.Field))), new TypeLabel(BuiltInDefinitions.Byte), new TypeSizeLabel(BuiltInDefinitions.Byte)), trueNext),
+                    new(new PushConstant(romDataInstruction, 
+                        new Constant(Convert.ToByte(Enumerable.Count(userPair.Assembly.InvokeRomDataGenerator(GetGeneratorMethod((FieldDefinition)global.Field))))), new TypeLabel(BuiltInDefinitions.Byte), new TypeSizeLabel(BuiltInDefinitions.Byte)), trueNext),
                 _ => next
             },
 #region RomData<T>_getItem optimizations
-            next => next switch
+            (_, next) => next switch
             {
                 (PushAddressOfGlobal(var pushGlobalInst, GlobalFieldLabel global, _ ,_),
                 (PushConstant(var pushConstantInst, var constant, _, _),
@@ -62,7 +63,7 @@ namespace VCSCompiler.V2
                         constant), trueNext),
                 _ => next
             },
-            next => next switch
+            (_, next) => next switch
             {
                 (PushAddressOfGlobal(var pushGlobalInst, GlobalFieldLabel global, _ ,_),
                 (PushGlobal pushGlobal,
@@ -90,7 +91,7 @@ namespace VCSCompiler.V2
         private static ImmutableArray<Optimizer> OptionalOptimizations = new Optimizer[]
         {
             // PushConstant + PopToGlobal = AssignConstantToGlobal
-            next => next switch
+            (_, next) => next switch
             {
                 // Pushing an integer and popping to a boolean is valid CIL, so requiring identical types would be incorrect.
                 (PushConstant(var instA, var constant, _, var size),
@@ -100,7 +101,7 @@ namespace VCSCompiler.V2
             },
 
             // PushGlobal + PopToGlobal = CopyGlobalToGlobal
-            next => next switch
+            (_, next) => next switch
             {
                 (PushGlobal(var instA, var global, _, var size),
                 (PopToGlobal(var instB, var targetGlobal, _, var targetSize, _, _), var trueNext))
@@ -109,7 +110,7 @@ namespace VCSCompiler.V2
             },
 
             // Adding a global and constant via the stack can be done in one macro, avoiding putting the constant on the stack.
-            next => next switch
+            (_, next) => next switch
             {
                 // PushGlobal+PushConstant or PushConstant+PushGlobal are both fine.
                 (PushGlobal(var instA, var global, var globalType, var globalSize),
@@ -124,7 +125,7 @@ namespace VCSCompiler.V2
             },
 
             // Adding a global and constant and storing to a global, can all be done in one macro off the stack.
-            next => next switch
+            (_, next) => next switch
             {
                 (AddFromGlobalAndConstant(var instA, var global, var globalType, var globalSize, var constant, var constantType, var constantSize),
                 (PopToGlobal(var instB, var targetGlobal, var targetType, var targetSize, _, _), var trueNext))
@@ -133,7 +134,7 @@ namespace VCSCompiler.V2
             },
 
             // Adding 1 to a global, and storing it in the same global, can be done as a single increment macro.
-            next => next switch
+            (_, next) => next switch
             {
                 (AddFromGlobalAndConstantToGlobal(var inst, var sourceGlobal, var globalType, var globalSize, var constant, _, _, var targetGlobal, _, _), var trueNext)
                     when sourceGlobal == targetGlobal && constant.Value is byte b && b == 1
@@ -142,7 +143,7 @@ namespace VCSCompiler.V2
             },
 
             // Remove unconditional jumps to the very next instruction.
-            next => next switch
+            (_, next) => next switch
             {
                 // This primarily happens when inlining methods that have a single exit point. The 'ret' gets replaced with an
                 // unconditional jump to the end of the method, which the 'ret' is already at, so it's completely useless.
@@ -156,6 +157,7 @@ namespace VCSCompiler.V2
 
         private static MethodDef GetGeneratorMethod(FieldDefinition field)
         {
+            // @TODO - Add check that RomData<> type arg is public, or else `dynamic` will fail.
             if (field.TryGetFrameworkAttribute<RomDataGeneratorAttribute>(out var attribute))
             {
                 var methodName = attribute.MethodName;

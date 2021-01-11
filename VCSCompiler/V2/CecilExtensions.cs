@@ -121,7 +121,19 @@ namespace VCSCompiler.V2
 		{
 			var formattedNamespace = @this.Namespace.Replace('.', '_');
 			var formattedName = @this.Name.Replace("`", "_");
-			return $"{formattedNamespace}_{formattedName}";
+			var formattedArgs = "";
+			if (@this is GenericInstanceType genericInstanceType)
+            {
+				// Symbols aren't really supported in labels so going with GenericsStart, GenericsNext, GenericsEnd (abbreviated).
+				formattedArgs = $"_GS_{string.Join("_GN_", genericInstanceType.GenericArguments.Select(a => a.NamespaceAndName()))}_GE";
+            }
+			return $"{formattedNamespace}_{formattedName}{formattedArgs}";
+		}
+
+		public static dynamic InvokeRomDataGenerator(this Assembly userAssembly, MethodDefinition generator)
+		{
+			var compiledMethod = userAssembly.Modules.Single().ResolveMethod(generator.MetadataToken.ToInt32()) ?? throw new InvalidOperationException($"Failed to lookup RomData generator '{generator.FullName}' in user assembly '{userAssembly}'.");
+			return (dynamic)(compiledMethod.Invoke(null, null) ?? throw new InvalidOperationException($"Return value of RomData generator '{generator.FullName}' was NULL."));
 		}
 
 		public static string NamespaceAndName(this TypeRef @this) => ((TypeReference)@this).NamespaceAndName();

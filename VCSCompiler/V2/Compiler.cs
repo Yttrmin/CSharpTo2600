@@ -2,7 +2,6 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Mono.Cecil;
-using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -17,9 +16,11 @@ using VCSFramework.V2.Templates;
 
 namespace VCSCompiler.V2
 {
+    internal sealed record AssemblyPair(Assembly Assembly, AssemblyDefinition Definition);
+
     public sealed class Compiler
     {
-        private readonly AssemblyDefinition UserAssembly;
+        private readonly AssemblyPair UserPair;
         private static CompilerOptions? _Options;
         internal static CompilerOptions Options
         {
@@ -31,9 +32,9 @@ namespace VCSCompiler.V2
             }
         }
 
-        private Compiler(AssemblyDefinition userAssemblyDefinition, CompilerOptions options)
+        private Compiler(AssemblyPair userPair, CompilerOptions options)
         {
-            UserAssembly = userAssemblyDefinition;
+            UserPair = userPair;
             _Options = options;
         }
 
@@ -68,19 +69,25 @@ namespace VCSCompiler.V2
              * 6) In the end, the generated .asm may look like an intermediate representation, with lots of parameterized macro
              *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
              */
-            var (userAssemblyDefinition, userAssembly) = CreateAssemblyDefinition(new[] { sourcePath }.ToImmutableArray());
+            var userPair = CreateAssemblyPair(new[] { sourcePath }.ToImmutableArray());
 
-            var compiler = new Compiler(userAssemblyDefinition, options);
-            var entryPointBody = compiler.CompileEntryPoint();
-            var allFunctions = compiler.RecursiveCompileAllFunctions(entryPointBody);
-            var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userAssemblyDefinition, userAssembly);
+            var compiler = new Compiler(userPair, options);
+            var entryPointBody = MethodCompiler.Compile(userPair.Definition.EntryPoint, userPair, false, true, new CilInstructionCompiler.Options
+            {
+                InlineAllCalls = true
+            });
+            // @TODO - Control should never return from the entry point. For RawTemplate, this means ensuring the _user_'s entry point
+            // never returns. For StandardTemplate, _its_ entry point should never return.
+
+            var allFunctions = compiler.RecursiveCompileAllFunctions(userPair, entryPointBody);
+            var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userPair);
             var allRomData = allFunctions.Prepend(entryPointBody)
                 .SelectMany(GetAllMacroParameters)
                 .OfType<RomDataGlobalLabel>()
                 .Select(label =>
                 {
                     // @TODO - What do we do for 0 elements?
-                    var romData = ImmutableArray.ToImmutableArray(InvokeRomDataGenerator(userAssembly, label.GeneratorMethod));
+                    var romData = ImmutableArray.ToImmutableArray(userPair.Assembly.InvokeRomDataGenerator(label.GeneratorMethod));
                     var elementSize = Marshal.SizeOf(Enumerable.First(romData));
                     var byteBuffer = new byte[romData.Length * elementSize];
                     var byteIndex = 0;
@@ -197,7 +204,7 @@ namespace VCSCompiler.V2
             }
         }
 
-        private static (AssemblyDefinition, Assembly) CreateAssemblyDefinition(ImmutableArray<string> sourcePaths)
+        private static AssemblyPair CreateAssemblyPair(ImmutableArray<string> sourcePaths)
         {
             // First we compile without the generated template so we can find what type to use.
             // Then we compile with the generated template and return the AssemblyDefinition containing that and the user types.
@@ -234,7 +241,7 @@ namespace VCSCompiler.V2
             var finalCompilation = CompilationCreator.CreateFromFilePaths(sourcePaths.Append(generatedSourcePath), template.GeneratedTypeName);
             var definition = GetAssemblyDefinition(finalCompilation, out var finalAssemblyStream);
             var finalAssembly = new AssemblyLoadContext(null, false).LoadFromStream(finalAssemblyStream);
-            return (definition, finalAssembly);
+            return new AssemblyPair(finalAssembly, definition);
         }
 
         private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
@@ -258,38 +265,27 @@ namespace VCSCompiler.V2
             return definition;
         }
 
-        public Function CompileEntryPoint()
-        {
-            var entryPoint = UserAssembly.EntryPoint;
-            return MethodCompiler.Compile(entryPoint, UserAssembly, false, true, new CilInstructionCompiler.Options
-            {
-                InlineAllCalls = true
-            });
-            // @TODO - Control should never return from the entry point. For RawTemplate, this means ensuring the _user_'s entry point
-            // never returns. For StandardTemplate, _its_ entry point should never return.
-        }
-
-        private ImmutableArray<Function> RecursiveCompileAllFunctions(Function function)
+        private ImmutableArray<Function> RecursiveCompileAllFunctions(AssemblyPair userPair, Function function)
         {
             var set = new HashSet<Function>();
-            CompileAllFunctionsInternal(function, UserAssembly, set);
+            CompileAllFunctionsInternal(function, userPair, set);
             return set.ToImmutableArray();
 
-            static void CompileAllFunctionsInternal(Function function, AssemblyDefinition userAssembly, ISet<Function> set)
+            static void CompileAllFunctionsInternal(Function function, AssemblyPair userPair, ISet<Function> set)
             {
                 foreach (var entry in GetAllMacroParameters(function).OfType<FunctionLabel>())
                 {
                     if (!set.Any(f => (MethodDef)f.Definition == entry.Method))
                     {
-                        var compiledFunction = MethodCompiler.Compile(entry.Method, userAssembly, false);
+                        var compiledFunction = MethodCompiler.Compile(entry.Method, userPair, false);
                         set.Add(compiledFunction);
-                        CompileAllFunctionsInternal(compiledFunction, userAssembly, set);
+                        CompileAllFunctionsInternal(compiledFunction, userPair, set);
                     }
                 }
             }
         }
 
-        private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyDefinition userAssemblyDef, Assembly userAssembly)
+        private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyPair userPair)
         {
             // @TODO - Aliases
             var start = 0x80;
@@ -310,11 +306,11 @@ namespace VCSCompiler.V2
                 .ToImmutableArray();
             var allPairedTypes = allReferencedTypes.Select(t => (new LabelAssign(new TypeLabel(t), new Constant((byte)typeId++)), new LabelAssign(new PointerTypeLabel(t), new Constant((byte)typeId++))));
 
-            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userAssemblyDef).Size)));
+            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userPair.Definition).Size)));
 
             var allLabelAssignments = new List<LabelAssign>();
 
-            var aliasedFields = userAssemblyDef.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
+            var aliasedFields = userPair.Definition.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
             foreach (var field in aliasedFields)
             {
                 // @TODO - Support aliased RomData<>s.
@@ -332,12 +328,6 @@ namespace VCSCompiler.V2
                 }
             }
 
-            var romDataLengths = functions.SelectMany(GetAllMacroParameters)
-                .OfType<Constant>()
-                .Select(c => c.Value)
-                .OfType<RomDataLength>()
-                .Select(l => new LabelAssign(l, new Constant(Convert.ToByte(Enumerable.Count(InvokeRomDataGenerator(userAssembly, l.GeneratorMethod))))));
-
             allLabelAssignments.AddRange(reserved);
             allLabelAssignments.AddRange(otherGlobals);
             foreach (var pair in allPairedTypes)
@@ -347,7 +337,6 @@ namespace VCSCompiler.V2
             }
             allLabelAssignments.AddRange(allTypeSizes);
             allLabelAssignments.AddRange(new LabelAssign[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
-            allLabelAssignments.AddRange(romDataLengths);
             return allLabelAssignments.ToImmutableArray();
         }
 
@@ -368,11 +357,5 @@ namespace VCSCompiler.V2
 
         private static IEnumerable<IMacroCall> GetAllMacroCalls(Function function)
             => function.Body.OfType<IMacroCall>();
-
-        private static dynamic InvokeRomDataGenerator(Assembly userAssembly, MethodDefinition generator)
-        {
-            var compiledMethod = userAssembly.Modules.Single().ResolveMethod(generator.MetadataToken.ToInt32()) ?? throw new InvalidOperationException($"Failed to lookup RomData generator '{generator.FullName}' in user assembly '{userAssembly}'.");
-            return (dynamic)(compiledMethod.Invoke(null, null) ?? throw new InvalidOperationException($"Return value of RomData generator '{generator.FullName}' was NULL."));
-        }
     }
 }

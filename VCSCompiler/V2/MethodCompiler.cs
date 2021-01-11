@@ -1,6 +1,5 @@
 ﻿#nullable enable
 using Mono.Cecil;
-using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -16,16 +15,16 @@ namespace VCSCompiler.V2
         // @TODO - Probably just use an enum.
         private readonly bool Inline;
         private readonly bool Entrypoint;
-        private readonly AssemblyDefinition UserAssembly;
+        private readonly AssemblyPair UserPair;
         private readonly CilInstructionCompiler.Options? CilOptions;
 
-        public static Function Compile(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, bool entrypoint = false, CilInstructionCompiler.Options? cilOptions = null)
-            => new MethodCompiler(method, userAssembly, inline, entrypoint, cilOptions).Compile();
+        public static Function Compile(MethodDefinition method, AssemblyPair userPair, bool inline, bool entrypoint = false, CilInstructionCompiler.Options? cilOptions = null)
+            => new MethodCompiler(method, userPair, inline, entrypoint, cilOptions).Compile();
 
-        private MethodCompiler(MethodDefinition method, AssemblyDefinition userAssembly, bool inline, bool entrypoint, CilInstructionCompiler.Options? cilOptions)
+        private MethodCompiler(MethodDefinition method, AssemblyPair userPair, bool inline, bool entrypoint, CilInstructionCompiler.Options? cilOptions)
         {
             Method = method;
-            UserAssembly = userAssembly;
+            UserPair = userPair;
             Inline = inline;
             Entrypoint = entrypoint;
             CilOptions = cilOptions != null ? cilOptions with { LiftLocals = !method.IsRecursive() } : null;
@@ -33,7 +32,7 @@ namespace VCSCompiler.V2
 
         private Function Compile()
         {
-            var cilCompiler = new CilInstructionCompiler(Method, UserAssembly, CilOptions);
+            var cilCompiler = new CilInstructionCompiler(Method, UserPair, CilOptions);
             var body = cilCompiler.Compile()
                 .ToImmutableArray();
             if (Inline)
@@ -52,10 +51,10 @@ namespace VCSCompiler.V2
             else if (Entrypoint)
             {
                 // Prepend all cctors. The invocation order is completely undefined!
-                var cctors = UserAssembly.CompilableTypes().SelectMany(t => t.Methods).Where(m => m.Name == ".cctor");
+                var cctors = UserPair.Definition.CompilableTypes().SelectMany(t => t.Methods).Where(m => m.Name == ".cctor");
                 foreach (var cctor in cctors)
                 {
-                    var inlineCctor = MethodCompiler.Compile(cctor, UserAssembly, true);
+                    var inlineCctor = MethodCompiler.Compile(cctor, UserPair, true);
                     body = inlineCctor.Body.Append(new InlineFunction(null, cctor)).Concat(body).ToImmutableArray();
                 }
                 body = body.Prepend(new EntryPoint()).ToImmutableArray();
@@ -87,9 +86,9 @@ namespace VCSCompiler.V2
                 preOptimize = postOptimize;
                 if (!Compiler.Options.DisableOptimizations)
                 {
-                    postOptimize = OptionalOptimizations.Aggregate(preOptimize, Optimize);
+                    postOptimize = OptionalOptimizations.Aggregate(preOptimize, (entries, optimizer) => Optimize(entries, UserPair, optimizer));
                 }
-                postOptimize = MandatoryOptimizations.Aggregate(postOptimize, Optimize);
+                postOptimize = MandatoryOptimizations.Aggregate(postOptimize, (entries, optimizer) => Optimize(entries, UserPair, optimizer));
             } while (!preOptimize.SequenceEqual(postOptimize));
 
             var invalidEntries = postOptimize.Where(e => e.GetType() == typeof(LoadString) || e.GetType() == typeof(InlineAssemblyCall)).ToImmutableArray();
@@ -109,7 +108,7 @@ namespace VCSCompiler.V2
             /// </summary>
             /// <param name="entries">The <see cref="AssemblyEntry"/>s to optimize.</param>
             /// <returns>A new <see cref="ImmutableArray{AssemblyEntry}"/> that may or may not differ from what was passed in.</returns>
-            static ImmutableArray<IAssemblyEntry> Optimize(ImmutableArray<IAssemblyEntry> entries, Optimizer optimizer)
+            static ImmutableArray<IAssemblyEntry> Optimize(ImmutableArray<IAssemblyEntry> entries, AssemblyPair userPair, Optimizer optimizer)
             {
                 // Convert the array of elements into a linked list of LinkedEntry.
                 var lastNode = new LinkedEntry(entries.Last(), null);
@@ -130,7 +129,7 @@ namespace VCSCompiler.V2
                     {
                         break;
                     }
-                    node.Next = optimizer(pendingNext);
+                    node.Next = optimizer(userPair, pendingNext);
                 }
 
                 return LinkedToEntries(firstNode).ToImmutableArray();

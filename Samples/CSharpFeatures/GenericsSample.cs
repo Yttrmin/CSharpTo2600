@@ -9,7 +9,8 @@ namespace Samples.CSharpFeatures
         public static void Main()
         {
             SingleFieldGeneric<byte>.StaticField = 0x0C;
-            Static = new SingleFieldGeneric<UserStruct> { Field = new UserStruct { Byte = SingleFieldGeneric<byte>.StaticField } };
+            var byteInstance = new SingleFieldGeneric<byte> { Field = SingleFieldGeneric<byte>.StaticField };
+            Static = new SingleFieldGeneric<UserStruct> { Field = new UserStruct { Byte = byteInstance.Field } };
             var instance = Static;
             while (true)
             {

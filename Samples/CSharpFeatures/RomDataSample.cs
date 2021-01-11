@@ -8,7 +8,10 @@ namespace Samples.CSharpFeatures
     {
         [RomDataGenerator(nameof(GenerateByteData))]
         private static readonly RomData<byte> ByteRomData = default;
-        private static readonly RomData<UserStruct> CustomRomData;
+        [RomDataGenerator(nameof(GenerateUserByteData))]
+        private static readonly RomData<UserByte> UserByteRomData;
+        [RomDataGenerator(nameof(GenerateUserStructData))]
+        private static readonly RomData<UserStruct> UserStructRomData;
 
         private static byte ByteDataIndex = 0;
 
@@ -16,13 +19,20 @@ namespace Samples.CSharpFeatures
         {
             while (true)
             {
-                while (ByteDataIndex < ByteRomData.Length)
+                while (ByteDataIndex < UserByteRomData.Length)
                 {
-                    ColuBk = ByteRomData[ByteDataIndex];
+                    ColuBk = UserByteRomData[ByteDataIndex].Value;
                     ByteDataIndex++;
                 }
                 ByteDataIndex = 0;
             }
+        }
+
+        // For a type used as a RomData<> arg to be accessible to the compiler, it MUST be public.
+        // This is because the compiler uses instances with `dynamic` variables, which respects accessibility.
+        public struct UserByte
+        {
+            public byte Value;
         }
 
         private struct UserStruct
@@ -37,6 +47,25 @@ namespace Samples.CSharpFeatures
             for (var i = 0; i <= byte.MaxValue; i += 2)
             {
                 yield return (byte)i;
+            }
+        }
+
+        private static IEnumerable<UserByte> GenerateUserByteData()
+        {
+            for (var i = 0; i <= byte.MaxValue; i += 2)
+            {
+                yield return new UserByte { Value = (byte)i };
+            }
+        }
+
+        private static IEnumerable<UserStruct> GenerateUserStructData()
+        {
+            for (var i = 0; i <= byte.MaxValue; i += 2)
+            {
+                yield return new UserStruct
+                {
+                    B = (byte)i
+                };
             }
         }
     }

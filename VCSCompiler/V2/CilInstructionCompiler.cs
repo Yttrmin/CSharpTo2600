@@ -25,16 +25,16 @@ namespace VCSCompiler.V2
 		private static readonly TypeSizeLabel ByteSize = new(BuiltInDefinitions.Byte);
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
-		private readonly AssemblyDefinition UserAssembly;
+		private readonly AssemblyPair UserPair;
 		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
 		private readonly Options CompilationOptions;
 
-		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyDefinition userAssembly, Options? options = null)
+		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyPair userPair, Options? options = null)
         {
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
-			UserAssembly = userAssembly;
-			Assemblies = BuiltInDefinitions.Assemblies.Append(userAssembly).ToImmutableArray();
+			UserPair = userPair;
+			Assemblies = BuiltInDefinitions.Assemblies.Append(userPair.Definition).ToImmutableArray();
 			CompilationOptions = options ?? new Options();
         }
 
@@ -152,6 +152,8 @@ namespace VCSCompiler.V2
 					return LoadLocal(2);
 				case Code.Ldloc_3:
 					return LoadLocal(3);
+				case Code.Ldloc_S:
+					return LoadLocal(((VariableDefinition)instruction.Operand).Index);
             }
 			return LoadLocal((int)instruction.Operand);
 
@@ -281,7 +283,7 @@ namespace VCSCompiler.V2
 					throw new InvalidOperationException($"Inline methods must have 0 arity and void return type for now");
 				}
 				yield return new InlineFunction(instruction, method);
-				foreach (var entry in MethodCompiler.Compile(method, UserAssembly, true).Body)
+				foreach (var entry in MethodCompiler.Compile(method, UserPair, true).Body)
                 {
 					yield return entry;
                 }
@@ -370,6 +372,8 @@ namespace VCSCompiler.V2
         }
 
 		private IEnumerable<IAssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
+
+		private IEnumerable<IAssemblyEntry> Ldloc_S(Instruction instruction) => Ldloc(instruction);
 
 		private IEnumerable<IAssemblyEntry> Ldloca(Instruction instruction)
         {
@@ -519,6 +523,6 @@ namespace VCSCompiler.V2
 			=> SizeLabel(variable.VariableType);
 
 		private TypeData.FieldData GetFieldData(FieldReference field)
-			=> TypeData.Of(field.DeclaringType, UserAssembly).Fields.Single(f => f.Field.Name == field.Name);
+			=> TypeData.Of(field.DeclaringType, UserPair.Definition).Fields.Single(f => f.Field.Name == field.Name);
 	}
 }
