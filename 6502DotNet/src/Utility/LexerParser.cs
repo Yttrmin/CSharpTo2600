@@ -18,9 +18,16 @@ namespace Core6502DotNet
     /// </summary>
     public static class LexerParser
     {
+        #region constants
+
         const char EOF = char.MinValue;
         const char SingleQuote = '\'';
         const char NewLine = '\n';
+        const char DigitSeparator = '_';
+
+        #endregion
+
+        #region Members
 
         static public readonly Dictionary<string, string> Groups = new Dictionary<string, string>
         {
@@ -40,10 +47,14 @@ namespace Core6502DotNet
             "||", "&&", "<<", ">>", ">=", "<=", "==", "!=", "^^",
         };
 
-        static readonly HashSet<char> _nonCompoundOperators = new HashSet<char>
+        static readonly HashSet<char> s_nonCompoundOperators = new HashSet<char>
         {
             '(', ')', '[', ']', '{', '}', '%', '`', '~', '*', '-', '+', '/', ',', ':', '$'
         };
+
+        #endregion
+
+        #region Methods
 
         static bool IsHex(char c)
             => char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
@@ -74,12 +85,15 @@ namespace Core6502DotNet
                     c = iterator.GetNext();
                 }
             }
-
             return tokenNameBuilder.ToString();
         }
 
         static bool FirstNonHex(char prev, char current, char next)
-            => !IsHex(current);
+        {
+            if (current == DigitSeparator)
+                return !(IsHex(prev) && IsHex(next));
+            return !IsHex(current);
+        }
 
         static bool FirstNonNonBase10(char prev, char current, char next)
         {
@@ -94,7 +108,10 @@ namespace Core6502DotNet
                 return false;
             if ((prev == 'x' || prev == 'X' || IsHex(prev)) && IsHex(current))
                 return false;
-
+            if (prev == DigitSeparator)
+                return !(IsHex(current));
+            if (current == DigitSeparator)
+                return !(IsHex(prev) && IsHex(next));
             return true;
         }
 
@@ -102,35 +119,37 @@ namespace Core6502DotNet
         {
             if (!char.IsDigit(current))
             {
-                if (current == '.')
+                switch (current)
                 {
-                    if (char.IsDigit(prev) || char.IsDigit(next))
-                        return false;
+                    case '.': 
+                        return !(char.IsDigit(prev) || char.IsDigit(next));
+                    case '+':
+                    case '-':
+                        return !((prev == 'E' || prev == 'e') && char.IsDigit(next));
+                    case 'e':
+                    case 'E':
+                        return !(char.IsDigit(prev) && (next == '+' || next == '-' || char.IsDigit(next)));
+                    case DigitSeparator:
+                        return !(char.IsDigit(prev) && char.IsDigit(next));
+                    default:
+                        return true;
                 }
-                else if (current == '+' || current == '-')
-                {
-                    if ((prev == 'E' || prev == 'e') && char.IsDigit(next))
-                        return false;
-                }
-                else if (current == 'E' || current == 'e')
-                {
-                    if (char.IsDigit(prev) &&
-                         (next == '+' || next == '-' || char.IsDigit(next)))
-                        return false;
-                }
-                return true;
             }
-            else
-            {
-                return false;
-            }
+            return false;
         }
 
         static bool FirstNonAltBin(char prev, char current, char next)
-            => !(current == '.' || current == '#');
-
+        {
+            if (current == DigitSeparator)
+                return !((prev == '.' || prev == '#') && (next == '.' || next == '#'));
+            return !(current == '.' || current == '#');
+        }
+            
         static bool FirstNonSymbol(char prev, char current, char next) =>
-            !char.IsLetterOrDigit(current) && current != '_' && current != '.' && current != SingleQuote;
+            !char.IsLetterOrDigit(current) && 
+            current != '_' && 
+            current != '.' && 
+            (current != SingleQuote || (!char.IsWhiteSpace(next) && next != EOF));
 
         static bool FirstNonLetterOrDigit(char prev, char current, char next)
             => !char.IsLetterOrDigit(current);
@@ -140,7 +159,7 @@ namespace Core6502DotNet
 
         static bool FirstNonMatchingOperator(char prev, char current, char next)
         {
-            if (!current.IsOperator() || _nonCompoundOperators.Contains(current))
+            if (!current.IsOperator() || s_nonCompoundOperators.Contains(current))
                 return true;
 
             if (s_compoundOperators.Any(co => co[0] == current && co[1] == next))
@@ -153,8 +172,10 @@ namespace Core6502DotNet
 
         static Token ParseToken(char previousChar, 
                                 Token previousToken, 
-                                RandomAccessIterator<char> iterator)
+                                RandomAccessIterator<char> iterator,
+                                AssemblyServices services)
         {
+            var unparsedSb = new StringBuilder();
             char c = iterator.Current;
             while (char.IsWhiteSpace(c))
             {
@@ -163,6 +184,7 @@ namespace Core6502DotNet
                     iterator.Rewind(iterator.Index - 1);
                     return null;
                 }
+                unparsedSb.Append(c);
                 c = iterator.GetNext();
             }
             if (c == ';' || c == EOF)
@@ -202,6 +224,8 @@ namespace Core6502DotNet
                     {
                         source = ScanTo(previousChar, iterator, FirstNonNumeric);
                     }
+                    if (source.Contains(DigitSeparator))
+                        source = source.Replace("_", string.Empty);
                 }
                 else if (c == '\\') // for macro expansions
                 {
@@ -211,15 +235,16 @@ namespace Core6502DotNet
                 else if (c == '?') // for uninitialized operator
                 {
                     source = "?";
-                    return new Token(source, source, TokenType.Operand);
+                    unparsedSb.Append('?');
+                    return new Token(source, unparsedSb.ToString(), TokenType.Operand);
                 }
                 else
                 {
                     unparsedSource =
                     source = ScanTo(previousChar, iterator, FirstNonSymbol);
-                    if (!Assembler.Options.CaseSensitive)
+                    if (!services.Options.CaseSensitive)
                         source = source.ToLower();
-                    if (Assembler.InstructionLookupRules.Any(rule => rule(source)))
+                    if (services.InstructionLookupRules.Any(rule => rule(source)))
                     {
                         tokenType = TokenType.Instruction;
                     }
@@ -233,6 +258,12 @@ namespace Core6502DotNet
                     else
                     {
                         tokenType = TokenType.Operand;
+                        if (previousToken != null &&
+                            previousToken.Name.Equals("$") && 
+                            previousToken.OperatorType == OperatorType.Unary &&
+                            source.Length > 2 &&
+                            source.Contains(DigitSeparator))
+                            source = source.Replace("_", string.Empty);
                     }
                 }
             }
@@ -245,6 +276,8 @@ namespace Core6502DotNet
                 tokenType = TokenType.Operand;
                 source = ScanTo(previousChar, iterator, FirstNonAltBin).Replace('.', '0')
                                                                        .Replace('#', '1');
+                if (source.Contains(DigitSeparator))
+                    source = source.Replace("_", string.Empty);
             }
             else if (c == '"' || c == SingleQuote)
             {
@@ -260,14 +293,14 @@ namespace Core6502DotNet
                         quoteBuilder.Append(iterator.GetNext());
                     }
                     else if (c == '\n')
-                        throw new SyntaxException(iterator.Index, $"Newline reached before quote string is enclosed.");
+                        throw new Exception("Newline reached before quote string is enclosed.");
                 }
                 if (c == char.MinValue)
-                    throw new SyntaxException(iterator.Index, $"Quote string not enclosed.");
+                    throw new Exception("Quote string not enclosed.");
                 quoteBuilder.Append(c);
                 var unescaped = escaped ? Regex.Unescape(quoteBuilder.ToString()) : quoteBuilder.ToString();
                 if (c == '\'' && unescaped.Length > 3)
-                    throw new SyntaxException(iterator.Index, "Too many characters in character literal.");
+                    throw new Exception("Too many characters in character literal.");
                 source = unescaped;
                 tokenType = TokenType.Operand;
             }
@@ -319,10 +352,12 @@ namespace Core6502DotNet
                             source = c.ToString();
                         }
                     }
-                    else if (!IsNotOperand(nextChar) || nextChar == '(')
+                    else if (!IsNotOperand(nextChar) || 
+                             nextChar == '(' || 
+                             (nextChar.IsRadixOperator() && TokenAfterNextIsNonBase10()))
                     {
-                        // looking at the very next character in the input stream, if it's an operand or grouping 
-                        // then we know this is a unary
+                        // looking at the very next character in the input stream, if it's an operand or grouping,
+                        // or if it's a radix operator, then we know this is a unary
                         if (source.Length > 1)
                         {
                             // If the string is greater than one character,
@@ -426,8 +461,31 @@ namespace Core6502DotNet
                     unparsedSource = source;
                 if (iterator.Current != source[^1])
                     iterator.Rewind(iterator.Index - 1);
-            } 
-            return new Token(source, unparsedSource, tokenType, operatorType);
+            }
+            unparsedSb.Append(unparsedSource);
+            return new Token(source, unparsedSb.ToString(), tokenType, operatorType);
+
+            bool TokenAfterNextIsNonBase10()
+            {
+                if (nextChar == '$')
+                    return true;
+                var iterCopy = new RandomAccessIterator<char>(iterator, false);
+                iterCopy.SetIndex(iterCopy.Index + 2);
+                var nextTokName = string.Empty;
+                var binRegex = "^[0-1]+$";
+                if (iterCopy.Current == '.' || iterCopy.Current == '#')
+                {
+                    nextTokName = ScanTo(nextChar, iterCopy, FirstNonAltBin);
+                    binRegex = "^[#.]+$";
+                }
+                else
+                {
+                    nextTokName = ScanTo(nextChar, iterCopy, FirstNonNumeric);
+                }
+                if (nextTokName.Length > 2 && nextTokName.Contains(DigitSeparator))
+                    nextTokName = nextTokName.Replace("_", string.Empty);
+                return !string.IsNullOrEmpty(nextTokName) && Regex.IsMatch(nextTokName, binRegex);
+            }
         }
 
         /// <summary>
@@ -435,10 +493,15 @@ namespace Core6502DotNet
         /// </summary>
         /// <param name="fileName">The source file's path/name.</param>
         /// <param name="source">The source string.</param>
+        /// <param name="services">The shared <see cref="AssemblyServices"/> object.</param>
+        /// <param name="parseOneLine">Stop after first line is parsed.</param>
         /// <returns>A collection of <see cref="SourceLine"/>s whose components are
         /// properly tokenized for further evaluation and assembly.</returns>
         /// <exception cref="ExpressionException"/>
-        public static IEnumerable<SourceLine> Parse(string fileName, string source)
+        public static IEnumerable<SourceLine> Parse(string fileName, 
+                                                    string source, 
+                                                    AssemblyServices services,
+                                                    bool parseOneLine = false)
         {
             var iterator = new RandomAccessIterator<char>(source.ToCharArray());
             Token rootParent, currentParent;
@@ -464,8 +527,8 @@ namespace Core6502DotNet
                 {
                     try
                     {
-                        token = ParseToken(previousChar, token, iterator);
-                        if (token != null)
+                        token = ParseToken(previousChar, token, iterator, services);
+                        if (token != null && !token.Name.Equals(":"))
                         {
                             previousChar = iterator.Current;
                             token.Position = iterator.Index - lineIndex - token.Name.Length + 1;
@@ -499,6 +562,8 @@ namespace Core6502DotNet
                                 }
                                 else
                                 {
+                                    if (currentParent.Name.IsByteExtractor())
+                                        currentParent = currentParent.Parent;
                                     currentParent = currentParent.Parent;
                                     currentParent.AddChild(token);
                                     currentParent = token;
@@ -517,46 +582,62 @@ namespace Core6502DotNet
                                 currentParent.AddChild(token);
 
                                 if (token.OperatorType == OperatorType.Unary && token.Name.IsByteExtractor())
-                                    AddBlankSeparator();
+                                    currentParent = token;
                             }
                         }
                     }
-                    catch(ExpressionException ex)
+                    catch(Exception e)
                     {
-                        Assembler.Log.LogEntry(fileName, lineNumber, ex.Position, ex.Message);
+                        if (e is ExpressionException ex)
+                            services.Log.LogEntry(fileName, lineNumber, ex.Position, ex.Message);
+                        else
+                            services.Log.LogEntry(fileName, lineNumber, iterator.Index - sourceLineIndex, e.Message);
                     }
                     if (iterator.PeekNext() == NewLine)
                         iterator.MoveNext();
                 }
                 if (iterator.Current == ';')
-                    _ = iterator.FirstNotMatching(c => c != NewLine && (c != ':' || Assembler.Options.IgnoreColons) && c != EOF);
-
-
-                if (iterator.Current == NewLine || iterator.Current == ':' || iterator.Current == EOF)
+                {
+                    char c;
+                    while ((c = iterator.GetNext()) != NewLine &&
+                           (c != ':' || services.Options.IgnoreColons) &&
+                           c != EOF) { }
+                }
+                if (iterator.Current == NewLine || 
+                    iterator.Current == ':'     || 
+                    iterator.Current == EOF)
                 {
                     previousChar = iterator.Current;
                     /* A new source line is when:
                        1. A line termination character (New Line, colon, EOF) is encountered
                        2. And either there are no more characters left or the most recent token created
-                       3. Is not a binary operator nor it is a comma separator.
+                       3. The most recent token obeys the currently defined rules whether it can
+                          terminate a line.
                      */
                     var newLine = iterator.Current == EOF ||
-                                    (opens == 0 &&
-                                     (token == null ||
-                                      (token.OperatorType != OperatorType.Binary &&
-                                       token.OperatorType != OperatorType.Open &&
-                                       !token.Name.Equals(",")
-                                      )
-                                     )
-                                    );
+                                     (opens == 0 && TerminatesLine(token));
                     if (iterator.Current == NewLine)
                         currentLine++;
                     if (newLine)
                     {
-                        var newSourceLine = new SourceLine(fileName, lineNumber, GetSourceLineSource(), rootParent.Children[0]);
+                        var newSourceLine = new SourceLine(fileName, 
+                                                           lineNumber,
+                                                           sourceLineIndex + 1,
+                                                           GetSourceLineSource(), 
+                                                           rootParent.Children[0],
+                                                           services,
+                                                           parseOneLine);
                         lines.Add(newSourceLine);
-                        if (Assembler.Options.WarnLeft && newSourceLine.Label != null && newSourceLine.Label.Position != 1)
-                            Assembler.Log.LogEntry(newSourceLine, newSourceLine.Label, "Label is not at the beginning of the line.", false);
+                        if (parseOneLine && (newSourceLine.Label != null || newSourceLine.Instruction != null))
+                            return lines;
+
+                        if (services.Options.WarnLeft && 
+                            newSourceLine.Label != null && 
+                            newSourceLine.Label.Position != 1)
+                            services.Log.LogEntry(newSourceLine, 
+                                                  newSourceLine.Label, 
+                                                  "Label is not at the beginning of the line.", 
+                                                  false);
                         Reset();
                         lineNumber = currentLine;
                      }
@@ -565,16 +646,24 @@ namespace Core6502DotNet
                         token = null;
                     }
                     lineIndex = iterator.Index;
-                    if (newLine)
+                    if (lineIndex == -1)
+                        break; // this means we've reached the end of the source!
+                    if (newLine && sourceLineIndex < iterator.Index)
                         sourceLineIndex = iterator.Index;
                 }
             }
-           if (currentOpen != null && currentOpen.OperatorType == OperatorType.Open)
-             Assembler.Log.LogEntry(fileName, 1, currentOpen.LastChild.Position, $"End of source reached without finding closing \"{Groups[currentOpen.Name]}\".");
+            if (currentOpen != null && currentOpen.OperatorType == OperatorType.Open)
+             services.Log.LogEntry(fileName, 1, currentOpen.LastChild.Position, 
+                 $"End of source reached without finding closing \"{Groups[currentOpen.Name]}\".");
 
             if (token != null)
-                lines.Add(new SourceLine(fileName, lineNumber, GetSourceLineSource(), rootParent.Children[0]));
-
+                lines.Add(new SourceLine(fileName, 
+                                         lineNumber, 
+                                         sourceLineIndex + 1,
+                                         GetSourceLineSource(), 
+                                         rootParent.Children[0], 
+                                         services, 
+                                         parseOneLine));
             return lines;
 
             void AddBlankSeparator()
@@ -587,8 +676,10 @@ namespace Core6502DotNet
 
             string GetSourceLineSource()
             {
-                if (iterator.Index > sourceLineIndex + 1)
+                if (sourceLineIndex > -1)
                     return source.Substring(sourceLineIndex + 1, iterator.Index - sourceLineIndex - 1);
+                else if (iterator.Index > -1)
+                    return source.Substring(0, iterator.Index);
                 return string.Empty;
             }
 
@@ -601,5 +692,25 @@ namespace Core6502DotNet
                 token = null;
             }
         }
+
+        static bool TerminatesLine(Token token) =>
+            token == null ||
+            (LineTerminationFunc != null && LineTerminationFunc(token)) ||
+            (token.OperatorType != OperatorType.Binary &&
+               token.OperatorType != OperatorType.Open &&
+               !token.Name.Equals(","));
+
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// Gets or sets the function for the rule that determines whether
+        /// a given token can terminate a line when the parser is at a new line 
+        /// character.
+        /// </summary>
+        public static Func<Token, bool> LineTerminationFunc { get; set; }
+
+        #endregion
     }
 }

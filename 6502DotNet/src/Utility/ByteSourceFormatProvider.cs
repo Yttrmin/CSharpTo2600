@@ -6,21 +6,25 @@
 //-----------------------------------------------------------------------------
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Core6502DotNet
 {
+    /// <summary>
+    /// A class that represents assembly output as source of '.byte' pseudo-ops.
+    /// </summary>
     public class ByteSourceFormatProvider : IBinaryFormatProvider
     {
         const int BytesPerLine = 8;
 
-        public IEnumerable<byte> GetFormat()
+        public IEnumerable<byte> GetFormat(FormatInfo info)
         {
-            var output = Assembler.Output.GetCompilation();
+            var output = info.ObjectBytes.ToList();
             if (output.Count == 0)
                 return new List<byte>();
 
-            var byteSourceBuilder = new StringBuilder($"\t\t\t* = ${Assembler.Output.ProgramStart:x4}\n");
+            var byteSourceBuilder = new StringBuilder($"\t\t\t* = ${info.StartAddress:x4}\n");
             if (output.Count == 1)
             {
                 byteSourceBuilder.AppendLine($"\n\t\t\t.byte ${output[0]:x2}");

@@ -5,7 +5,6 @@
 // 
 //-----------------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -47,28 +46,15 @@ namespace Core6502DotNet
     public class SectionCollection
     {
         #region Subclasses
-        class Section
+        class Section 
         {
-            public Section(Token parameters)
+            public Section(string name, int starts, int ends)
             {
-                if (parameters.Children.Count == 0 || parameters.Children[0].Children.Count == 0)
-                    throw new SyntaxException(parameters.Position, "Section definition missing parameters.");
-                var parms = parameters.Children;
-                if (parms.Count < 3)
-                    throw new SyntaxException(parameters.Position, "Section definition missing one or more parameters.");
-                if (parms.Count > 3)
-                    throw new SyntaxException(parameters.LastChild.Position, 
-                        $"Unexpected parameter \"{parms[3]}\" in section definition.");
-
-                Name = parms[0].ToString();
-                if (!Name.EnclosedInDoubleQuotes())
-                    throw new SyntaxException(parameters.Position, "Section name must be a string.");
-                Starts = Convert.ToInt32(Evaluator.Evaluate(parms[1], short.MinValue, ushort.MaxValue));
-                Ends = Convert.ToInt32(Evaluator.Evaluate(parms[2], short.MinValue, ushort.MaxValue));
-                if (Starts >= Ends)
-                    throw new SyntaxException(parms[2].Position, 
-                        "Section definition invalid. Start address must be less than end address.");
+                Name = name;
+                Starts = starts;
+                Ends = ends;
                 Selected = false;
+                OutputCount = 0;
             }
 
             public bool AddressInBounds(int address) => address >= Starts && address < Ends;
@@ -80,6 +66,8 @@ namespace Core6502DotNet
             public int Ends { get; }
 
             public bool Selected { get; set; }
+
+            public int OutputCount { get; set; }
         }
 
         #endregion
@@ -106,13 +94,14 @@ namespace Core6502DotNet
         /// <summary>
         /// Add a section to the collection.
         /// </summary>
-        /// <param name="operands">The parsed operands for the section (name, start address, and end address).</param>
-        /// <param name="name">A string representing the parsed section name.</param>
+        /// <param name="name">The section name.</param>
+        /// <param name="starts">The section start address.</param>
+        /// <param name="ends">The section end address.</param>
         /// <returns>The <see cref="CollectionResult"/> of the attempt to add the section to the collection..</returns>
         /// <exception cref="ExpressionException"/>
-        public CollectionResult Add(Token operands, out string name) 
+        public CollectionResult Add(string name, int starts, int ends) 
         {
-            Section section = new Section(operands);
+            Section section = new Section(name, starts, ends);
             name = section.Name;
             
             if (_collection.Any(kvp =>
@@ -131,7 +120,23 @@ namespace Core6502DotNet
         public void Reset()
         {
             _current = null;
-            _collection.Values.ToList().ForEach(s => s.Selected = false);
+            _collection.Values.ToList().ForEach(s =>
+            {
+                s.OutputCount = 0;
+                s.Selected = false;
+            });
+        }
+
+        /// <summary>
+        /// Gets the start address for a given section.
+        /// </summary>
+        /// <param name="name">The section name.</param>
+        /// <returns>The start address for the section.</returns>
+        public int GetSectionStart(string name)
+        {
+            if (_collection.TryGetValue(name, out var section))
+                return section.Starts;
+            return int.MinValue;
         }
 
         /// <summary>
@@ -149,6 +154,34 @@ namespace Core6502DotNet
                 return CollectionResult.Success;
             }
             return CollectionResult.NotFound;
+        }
+
+        /// <summary>
+        /// Get the currently selected section's output count.
+        /// </summary>
+        /// <returns>The output count of the selected section.</returns>
+        public int GetSectionOutputCount()
+        {
+            if (_current != null)
+                return _current.OutputCount;
+            return -1;
+        }
+
+
+        /// <summary>
+        /// Sets the output byte count of the current section.
+        /// </summary>
+        /// <param name="count">The count.</param>
+        /// <returns><c>true</c> if the current section's output count was updated,
+        /// otherwise <c>false</c>.</returns>
+        public bool SetOutputCount(int count)
+        {
+            if (_current != null)
+            {
+                _current.OutputCount = count;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

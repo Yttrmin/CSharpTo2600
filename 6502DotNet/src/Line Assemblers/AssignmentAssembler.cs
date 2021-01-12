@@ -19,19 +19,21 @@ namespace Core6502DotNet
         /// <summary>
         /// Constructs a new instance of the assignment assembler class.
         /// </summary>
-        public AssignmentAssembler()
+        /// <param name="services">The shared <see cref="AssemblyServices"/> object.</param>
+        public AssignmentAssembler(AssemblyServices services)
+            :base(services)
         {
             Reserved.DefineType("Assignments", ".equ", ".global");
 
             Reserved.DefineType("Pseudo",
                 ".relocate", ".pseudopc", ".endrelocate", ".realpc");
 
+            Reserved.DefineType("Directives", ".let", ".org");
+
             ExcludedInstructionsForLabelDefines.Add(".org");
             ExcludedInstructionsForLabelDefines.Add(".equ");
             ExcludedInstructionsForLabelDefines.Add("=");
             ExcludedInstructionsForLabelDefines.Add(".global");
-
-            Reserved.DefineType("Directives", ".let", ".org");
         }
 
         #endregion
@@ -45,41 +47,42 @@ namespace Core6502DotNet
             {
                 if (string.IsNullOrEmpty(line.LabelName))
                 {
-                    Assembler.Log.LogEntry(line, line.Label, "Invalid assignment expression.", true);
+                    Services.Log.LogEntry(line, line.Label, "Invalid assignment expression.", true);
                 }
                 else
                 {
+                    var isGlobal = line.InstructionName.Equals(".global");
                     if (line.LabelName.Equals("*"))
                     {
-                        if (line.InstructionName.Equals(".global"))
-                            Assembler.Log.LogEntry(line, line.Instruction, "Invalid use of Program Counter in expression.", true);
+                        if (isGlobal)
+                            Services.Log.LogEntry(line, line.Instruction, "Invalid use of Program Counter in expression.", true);
                         else
-                            Assembler.Output.SetPC((int)Evaluator.Evaluate(line.Operand, short.MinValue, ushort.MaxValue));
+                            Services.Output.SetPC((int)Services.Evaluator.Evaluate(line.Operand, short.MinValue, ushort.MaxValue));
                     }
                     else if (line.LabelName.Equals("+") || line.LabelName.Equals("-"))
                     {
-                        if (line.InstructionName.Equals(".global"))
+                        if (isGlobal)
                         {
-                            Assembler.Log.LogEntry(line, line.Instruction, "Invalid use of reference label in expression.", true);
+                            Services.Log.LogEntry(line, line.Instruction, "Invalid use of reference label in expression.", true);
                         }
                         else
                         {
-                            var value = Evaluator.Evaluate(line.Operand, short.MinValue, ushort.MaxValue);
-                            Assembler.SymbolManager.DefineLineReference(line.LabelName, value);
+                            var value = Services.Evaluator.Evaluate(line.Operand, short.MinValue, ushort.MaxValue);
+                            Services.SymbolManager.DefineLineReference(line.LabelName, value);
                         }
                     }
                     else
                     {
-                        if (line.InstructionName.Equals(".global"))
+                        if (isGlobal)
                         {
                             if (line.OperandHasToken)
-                                Assembler.SymbolManager.DefineGlobal(line.Label, line.Operand, false);
+                                Services.SymbolManager.DefineGlobal(line.Label, line.Operand, false);
                             else
-                                Assembler.SymbolManager.DefineGlobal(line.LabelName, Assembler.Output.LogicalPC);
+                                Services.SymbolManager.DefineGlobal(line.LabelName, Services.Output.LogicalPC);
                         }
                         else
                         {
-                            Assembler.SymbolManager.Define(line);
+                            Services.SymbolManager.Define(line);
                         }
                     }
                 }
@@ -90,58 +93,65 @@ namespace Core6502DotNet
                 {
                     case ".let":
                         if (!line.OperandHasToken || line.Operand.Children[0].Children.Count < 3)
-                            Assembler.Log.LogEntry(line, line.Instruction, $"Directive \".let\" expects an assignment expression.");
+                            Services.Log.LogEntry(line, line.Instruction, $"Directive \".let\" expects an assignment expression.");
                         else if (line.Operand.Children.Count > 1)
-                            Assembler.Log.LogEntry(line, line.Operand.LastChild, "Extra expression not valid.");
+                            Services.Log.LogEntry(line, line.Operand.LastChild, "Extra expression not valid.");
                         else
-                            Assembler.SymbolManager.Define(line.Operand.Children[0].Children, true);
+                            Services.SymbolManager.Define(line.Operand.Children[0].Children, true);
                         break;
                     case ".org":
                         if (line.LabelName.Equals("*"))
-                            Assembler.Log.LogEntry(line, line.Label, "Program Counter symbol is redundant for \".org\" directive.", false);
-                        Assembler.Output.SetPC((int)Evaluator.Evaluate(line.Operand, short.MinValue, ushort.MaxValue));
+                            Services.Log.LogEntry(line, line.Label, "Program Counter symbol is redundant for \".org\" directive.", false);
+                        Services.Output.SetPC((int)Services.Evaluator.Evaluate(line.Operand, short.MinValue, ushort.MaxValue));
                         SetLabel(line);
                         break;
                     case ".pseudopc":
                     case ".relocate":
-                        Assembler.Output.SetLogicalPC((int)Evaluator.Evaluate(line.Operand.Children, short.MinValue, ushort.MaxValue));
+                        Services.Output.SetLogicalPC((int)Services.Evaluator.Evaluate(line.Operand.Children, short.MinValue, ushort.MaxValue));
                         SetLabel(line);
                         break;
                     case ".endrelocate":
                     case ".realpc":
-                        Assembler.Output.SynchPC();
+                        Services.Output.SynchPC();
                         break;
                 }
             }
             if (Reserved.IsOneOf("Pseudo", line.InstructionName))
-                return $".{Assembler.Output.LogicalPC,-8:x4}";
-            if (!line.LabelName.Equals("*") && !Assembler.PassNeeded)
+                return $".{Services.Output.LogicalPC,-8:x4}";
+            var unparsedSource = Services.Options.NoSource ? string.Empty : line.UnparsedSource;
+            if (!line.LabelName.Equals("*") && !Services.PassNeeded)
             {
+                if (line.InstructionName.Equals(".org"))
+                {
+                    return string.Format(".{0}{1}",
+                        Services.Output.LogicalPC.ToString("x4").PadRight(41),
+                        unparsedSource);
+                }
                 string symbol;
                 if (line.InstructionName.Equals(".let"))
                     symbol = line.Operand.Children[0].Children[0].Name;
                 else
                     symbol = line.LabelName;
-                if (Assembler.SymbolManager.SymbolIsScalar(symbol))
+                if (Services.SymbolManager.SymbolIsScalar(symbol))
                 {
-                    if (Assembler.SymbolManager.SymbolIsNumeric(symbol))
+                    if (Services.SymbolManager.SymbolIsNumeric(symbol))
                     {
-                        var numValue = (int)Assembler.SymbolManager.GetNumericValue(symbol);
+                        var numValue = (long)Services.SymbolManager.GetNumericValue(symbol) & 0xFFFF_FFFF;
                         bool condition;
                         if (line.InstructionName.Equals(".let"))
-                            condition = Evaluator.ExpressionIsCondition(line.Operand.Children[0].Children.Skip(2));
+                            condition = Services.Evaluator.ExpressionIsCondition(line.Operand.Children[0].Children.Skip(2));
                         else
-                            condition = Evaluator.ExpressionIsCondition(line.Operand.Children);
+                            condition = Services.Evaluator.ExpressionIsCondition(line.Operand.Children);
                         if (condition)
                             return string.Format("={0}{1}",
-                                (numValue == 0 ? "false" : "true").PadRight(42), line.UnparsedSource);
+                                (numValue == 0 ? "false" : "true").PadRight(42), unparsedSource);
                         return string.Format("=${0}{1}",
                               numValue.ToString("x").PadRight(41),
-                              line.UnparsedSource);
+                              unparsedSource);
                         
                     }
-                    var elliptical = $"\"{Assembler.SymbolManager.GetStringValue(symbol).Elliptical(38)}\"";
-                    return string.Format("={0}{1}", elliptical.PadRight(42), line.UnparsedSource);
+                    var elliptical = $"\"{Services.SymbolManager.GetStringValue(symbol).Elliptical(38)}\"";
+                    return string.Format("={0}{1}", elliptical.PadRight(42), unparsedSource);
                 }
             }
             return string.Empty;
@@ -153,9 +163,9 @@ namespace Core6502DotNet
             if (!string.IsNullOrEmpty(labelName) && !labelName.Equals("*"))
             {
                 if (labelName.Equals("+") || labelName.Equals("-"))
-                    Assembler.SymbolManager.DefineLineReference(labelName, Assembler.Output.LogicalPC);
+                    Services.SymbolManager.DefineLineReference(labelName, Services.Output.LogicalPC);
                 else
-                    Assembler.SymbolManager.DefineSymbolicAddress(labelName);
+                    Services.SymbolManager.DefineSymbolicAddress(labelName);
             }
         }
 

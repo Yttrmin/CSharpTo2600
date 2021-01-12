@@ -5,37 +5,26 @@
 // 
 //-----------------------------------------------------------------------------
 
-using System.Runtime.CompilerServices;
-
 namespace Core6502DotNet
 {
     /// <summary>
     /// A class responsible for processing .block/.endblock blocks.
     /// </summary>
-    public class ScopeBlock : BlockProcessorBase
+    public sealed class ScopeBlock : BlockProcessorBase
     {
         #region Constructors
 
         /// <summary>
         /// Creates a new instance of a scoped block processor.
         /// </summary>
-        /// <param name="line">The <see cref="SourceLine"/> containing the instruction
-        /// and operands invoking or creating the block.</param>
-        /// <param name="type">The <see cref="BlockType"/>.</param>
-        public ScopeBlock(SourceLine line, BlockType type)
-            : base(line, type, false)
-        {
-        }
-
-        /// <summary>
-        /// Creates a new instance of a scoped block processor.
-        /// </summary>
+        /// <param name="services">The shared <see cref="AssemblyServices"/> object.</param>
         /// <param name="iterator">The <see cref="SourceLine"/> containing the instruction
         /// and operands invoking or creating the block.</param>
         /// <param name="type">The <see cref="BlockType"/>.</param>
-        public ScopeBlock(RandomAccessIterator<SourceLine> iterator,
+        public ScopeBlock(AssemblyServices services,
+                          RandomAccessIterator<SourceLine> iterator,
                           BlockType type)
-            : base(iterator, type, false)
+            : base(services, iterator, type, false)
         {
         }
 
@@ -46,22 +35,34 @@ namespace Core6502DotNet
         public override bool ExecuteDirective()
         {
             var line = LineIterator.Current;
-            var scopeName = line.LabelName;
-            if (line.InstructionName.Equals(".block"))
+            string scopeName;
+            if (line.InstructionName.Equals(".block") || 
+                line.InstructionName.Equals(".namespace"))
             {
+                var isBlock = line.InstructionName[1] == 'b';
+                scopeName = isBlock ? line.LabelName : line.OperandExpression.Trim();
+
                 if (string.IsNullOrEmpty(scopeName))
                     scopeName = LineIterator.Index.ToString();
-                else if (!char.IsLetter(scopeName[0]))
+                else if (!char.IsLetter(scopeName[0]) || (!char.IsLetterOrDigit(scopeName[^1]) && scopeName[^1] != '_'))
                 {
+                    var type = isBlock ? "scope block" : "namespace";
                     throw new SyntaxException(line.Label.Position,
-                        $"Invalid name \"{scopeName}\" for scope block.");
+                        $"Invalid name \"{scopeName}\" for {type}.");
                 }
-                Assembler.SymbolManager.PushScope(scopeName);
+                else if (!isBlock && Services.SymbolManager.SymbolExists(scopeName)) //&& Services.CurrentPass == 0)
+                {
+                    Services.Log.LogEntry(line, line.Operand, 
+                        $"Namespace name \"{scopeName}\" clashes with existing symbol name.");
+                    return true;
+                }
+                Services.SymbolManager.PushScope(scopeName);
                 return true;
             }
-            else if (line.InstructionName.Equals(".endblock"))
+            else if (line.InstructionName.Equals(".endblock") || 
+                     line.InstructionName.Equals(".endnamespace"))
             {
-                Assembler.SymbolManager.PopScope();
+                Services.SymbolManager.PopScope();
                 return true;
             }
             return false;
@@ -79,5 +80,4 @@ namespace Core6502DotNet
 
         #endregion
     }
-
 }

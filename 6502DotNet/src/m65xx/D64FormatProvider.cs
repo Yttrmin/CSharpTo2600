@@ -9,7 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Core6502DotNet.m6502
+namespace Core6502DotNet.m65xx
 {
     /// <summary>
     /// A class that encapsulates assembly output into a .D64 formatted disk.
@@ -106,27 +106,27 @@ namespace Core6502DotNet.m6502
         const int BAMSize = 139;
         const int DiskSize = 683 * 256;
 
-        public IEnumerable<byte> GetFormat()
+        public IEnumerable<byte> GetFormat(FormatInfo info)
         {
             var diskImage = new byte[DiskSize];
             var availTrackSectors = s_trackSectorTable.ToDictionary(k => k.Key, k => ToBitMap(k.Value));
 
-            var fileName = Assembler.Options.OutputFile.ToUpper();
+            var fileName = info.FileName.ToUpper();
 
             if (fileName.Length > 16)
                 fileName = fileName.Substring(0, 16);
             else if (fileName.Length > 4 && fileName.EndsWith(".D64"))
                 fileName = fileName[0..^4];
 
-            var fileBytes = new List<byte>(Assembler.Output.GetCompilation().Count + 2)
+            var fileBytes = new List<byte>(info.ObjectBytes.Count() + 2)
             {
                 // write load address
-                Convert.ToByte(Assembler.Output.ProgramStart % 256),
-                Convert.ToByte(Assembler.Output.ProgramStart / 256)
+                Convert.ToByte(info.StartAddress % 256),
+                Convert.ToByte(info.StartAddress / 256)
             };
 
             // write file data
-            fileBytes.AddRange(Assembler.Output.GetCompilation());
+            fileBytes.AddRange(info.ObjectBytes);
 
             // write directory header
             var dirOffs = 0x16500;

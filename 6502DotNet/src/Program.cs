@@ -5,28 +5,20 @@
 // 
 //-----------------------------------------------------------------------------
 
-using Core6502DotNet.m6502;
+using Core6502DotNet.m65xx;
+using Core6502DotNet.m680x;
 using Core6502DotNet.z80;
 using System;
 
 namespace Core6502DotNet
 {
-    public static class Core6502DotNet
+    static class Core6502DotNet
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
             try
             {
-                var controller = new AssemblyController(args);
-                AssemblerBase cpuAssembler;
-                Assembler.FormatSelector = Select8BitFormat;
-
-                if (Assembler.Options.CPU.Equals("z80"))
-                    cpuAssembler = new Z80Asm();
-                else
-                    cpuAssembler = new Asm6502();
-
-                controller.AddAssembler(cpuAssembler);
+                var controller = new AssemblyController(args, SetCpu, SelectFormatProvider);
                 controller.Assemble();
             }
             catch (Exception ex)
@@ -35,22 +27,40 @@ namespace Core6502DotNet
             }
         }
 
-        static IBinaryFormatProvider Select8BitFormat(string format)
+        static AssemblerBase SetCpu(string cpu, AssemblyServices services)
         {
-            if (format.Equals("srec", Assembler.StringComparison) || 
-                format.Equals("srecmos", Assembler.StringComparison))
+            return cpu switch
+            {
+                "m6800" => new M6809Asm(services),
+                "m6809" => new M6809Asm(services),
+                "z80"   => new Z80Asm(services),
+                _       => new Asm6502(services)
+            };
+        }
+
+        static IBinaryFormatProvider SelectFormatProvider(string cpu, string format)
+        {
+            if (format.Equals("srec") || format.Equals("srecmos"))
                 return new SRecordFormatProvider();
 
-            if (format.Equals("bytesource", Assembler.StringComparison))
+            if (format.Equals("hex"))
+                return new HexFormatProvider();
+
+            if (format.Equals("bytesource"))
                 return new ByteSourceFormatProvider();
             
-            if (Assembler.Options.CPU.Equals("z80"))
+            if (cpu.Equals("z80"))
                 return new Z80FormatProvider();
 
-            return format.ToLower() switch
+            if (cpu.StartsWith('m'))
+                return new MotorolaFormatProvider();
+
+            return format switch
             {
-                "d64" => new D64FormatProvider(),
-                _     => new M6502FormatProvider(),
+                "cart" => new C64CartFormatProvider(),
+                "d64"  => new D64FormatProvider(),
+                "t64"  => new T64FormatProvider(),
+                _      => new M6502FormatProvider(),
             };
         }
     }

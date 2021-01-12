@@ -160,18 +160,7 @@ namespace Core6502DotNet
             if (string.IsNullOrEmpty(Name) && Children.Count == 0)
                 Position = token.Position;
 
-            /*Children = */Children.Add(token);
-        }
-
-        /// <summary>
-        /// Clone's the token and all its children. 
-        /// </summary>
-        /// <returns>Returns a deep copy of the token, including deep copies of its children.</returns>
-        public Token Clone()
-        {
-            var copy = new Token(new string(Name), new string(Name), Type, OperatorType, Position);
-            Children.ForEach(child => copy.Children.Add(child.Clone()));
-            return copy;
+            Children.Add(token);
         }
 
         public override string ToString()

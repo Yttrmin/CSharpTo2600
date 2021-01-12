@@ -44,7 +44,6 @@ namespace Core6502DotNet
         public ProgramOverflowException(string message)
             :base(message)
         {
-
         }
     }
 
@@ -52,7 +51,7 @@ namespace Core6502DotNet
     /// A class that manages the internal state of a compiled assembly, including
     /// Program Counters and binary data.
     /// </summary>
-    public sealed class BinaryOutput : IFunctionEvaluator
+    public sealed class BinaryOutput
     {
         #region Constants
 
@@ -88,8 +87,6 @@ namespace Core6502DotNet
             _bytes = new byte[BufferSize];
             _sectionCollection = new SectionCollection();
             IsLittleEndian = isLittleEndian;
-            Assembler.PassChanged += AssemblerPassesChanged;
-            Evaluator.AddFunctionEvaluator(this);
             Reset();
         }
 
@@ -127,7 +124,7 @@ namespace Core6502DotNet
         /// </summary>
         /// <param name="value"></param>
         /// <returns>The byte string converted.</returns>
-        public static IEnumerable<byte> ConvertToBytes(double value)
+        public IEnumerable<byte> ConvertToBytes(double value)
         {
             var bytes = BitConverter.GetBytes(Convert.ToInt64(value)).ToList();
             int nonZero;
@@ -137,8 +134,10 @@ namespace Core6502DotNet
                 nonZero = bytes.FindLastIndex(b => b != 0);
             if (nonZero < 0)
                 nonZero++;
-
-            return bytes.Take(nonZero + 1);
+            var bytesTaken = bytes.Take(nonZero + 1);
+            if (BitConverter.IsLittleEndian != IsLittleEndian)
+                bytesTaken = bytesTaken.Reverse();
+            return bytesTaken;
         }
 
         #endregion
@@ -153,6 +152,7 @@ namespace Core6502DotNet
         public void Reset()
         {
             Array.Clear(_bytes, 0, BufferSize);
+            Transform = null;
             _compilingStarted = _started = false;
             _sectionCollection.Reset();
             CurrentBank = 0;
@@ -194,9 +194,10 @@ namespace Core6502DotNet
         /// <param name="value">The logical program counter value</param>
         public void SetLogicalPC(int value)
         {
-            if (!AddressIsValid(value))
+            if (value < -(MaxAddress / 2) || value > MaxAddress)
                 throw new InvalidPCAssignmentException(value);
-            LogicalPC = value;
+            _started = true;
+            _logicalPc = value & 0xFFFF;
         }
 
         /// <summary>
@@ -302,12 +303,9 @@ namespace Core6502DotNet
         public void Fill(int amount, long value)
         {
             var size = value.Size();
-            byte[] fillbytes;
-
+            byte[] fillbytes = BitConverter.GetBytes(value).Take(size).ToArray();
             if (BitConverter.IsLittleEndian != IsLittleEndian)
-                fillbytes = BitConverter.GetBytes(value).Reverse().Take(size).ToArray();
-            else
-                fillbytes = BitConverter.GetBytes(value).Take(size).ToArray();
+                fillbytes = fillbytes.Reverse().ToArray();
 
             var repeated = new List<byte>(amount);
             for (var i = 0; i < amount; i++)
@@ -362,13 +360,13 @@ namespace Core6502DotNet
             }
             _logicalPc += size;
 
-            if (ignoreEndian == false && BitConverter.IsLittleEndian != IsLittleEndian)
-                bytes = bytes.Reverse();
-
             if (Transform != null)
                 bytes = bytes.Select(b => Transform(b));
 
             var bytesAdded = bytes.ToList().GetRange(0, size);
+            if (!ignoreEndian && BitConverter.IsLittleEndian != IsLittleEndian)
+                bytesAdded.Reverse();
+
             foreach (var b in bytesAdded)
             {
                 if (_pc > MaxAddress)
@@ -379,6 +377,8 @@ namespace Core6502DotNet
             }
             if (ProgramEnd < ProgramCounter)
                 ProgramEnd = ProgramCounter;
+            if (_sectionCollection.SectionSelected)
+                _sectionCollection.SetOutputCount(_pc - _sectionCollection.SelectedStartAddress);
         }
 
         /// <summary>
@@ -404,11 +404,31 @@ namespace Core6502DotNet
         /// <summary>
         /// Get the compilation bytes.
         /// </summary>
+        /// <returns>The object bytes.</returns>
         public ReadOnlyCollection<byte> GetCompilation()
             => new ReadOnlyCollection<byte>(_bytes.Skip(ProgramStart).Take(ProgramEnd - ProgramStart).ToArray());
 
         /// <summary>
-        /// Get the relative offset between an address and the Program Counter. Useful for calculating short jumps.
+        /// Gets the compilation bytes.
+        /// </summary>
+        /// <param name="section">Gets the bytes of the defined section only.</param>
+        /// <returns>The object bytes.</returns>
+        public ReadOnlyCollection<byte> GetCompilation(string section)
+        {
+            if (string.IsNullOrEmpty(section))
+                return GetCompilation();
+
+            int count;
+            if (_sectionCollection.SetCurrentSection(section) == CollectionResult.NotFound ||
+                (count = _sectionCollection.GetSectionOutputCount()) == -1)
+                throw new Exception($"Could not get object for section {section}");
+            var start = _sectionCollection.SelectedStartAddress;
+            return new ReadOnlyCollection<byte>(_bytes.Skip(start).Take(count).ToArray());
+        }
+
+        /// <summary>
+        /// Get the relative offset between an address and the Program Counter. Useful for calculating
+        /// branchess.
         /// </summary>
         /// <param name="address1">An address to offset from.</param>
         /// <param name="offsetfromPc">Additional offset from the Program Counter.</param>
@@ -434,6 +454,7 @@ namespace Core6502DotNet
         /// address to the Program End address. 
         /// </summary>
         /// <param name="start">The start address.</param>
+        /// <returns>The set of bytes from the specified start address to Program End.</returns>
         public ReadOnlyCollection<byte> GetBytesFrom(int start)
         {
             if (!_compilingStarted || ProgramCounter < ProgramStart)
@@ -443,7 +464,7 @@ namespace Core6502DotNet
                 var diff = _logicalPc - start;
                 start = ProgramCounter - diff;
             }
-            if (start < ProgramStart)
+            if (start < ProgramStart || start >= ProgramEnd)
                 return new List<byte>().AsReadOnly();
             int range;
             if (!_sectionCollection.SectionSelected || 
@@ -458,6 +479,20 @@ namespace Core6502DotNet
         }
 
         /// <summary>
+        /// Gets a range of bytes from the output assembly.
+        /// </summary>
+        /// <param name="start">The start address.</param>
+        /// <param name="amount">The length.</param>
+        /// <returns>The set of bytes from the specified start
+        /// address to the specified amount.</returns>
+        public ReadOnlyCollection<byte> GetRange(int start, int amount)
+        {
+            if (!_compilingStarted || start + amount > MaxAddress)
+                return new List<byte>(amount).AsReadOnly();
+            return _bytes.Skip(start).Take(amount).ToList().AsReadOnly();
+        }
+
+        /// <summary>
         /// Initialize memory from Program Start to the specified value.
         /// </summary>
         /// <param name="value">The value to initialize memory.</param>
@@ -468,85 +503,112 @@ namespace Core6502DotNet
                 _bytes[i++] = value;
         }
 
-        public bool EvaluatesFunction(Token function) =>
-            function.Name.Equals("peek") || function.Name.Equals("poke");
-
-        public double EvaluateFunction(Token function, Token parameters)
+        /// <summary>
+        /// Read an arbitrary byte from the output.
+        /// </summary>
+        /// <param name="address">The address of assembled output.</param>
+        /// <returns>The byte value at the address.</returns>
+        /// <exception cref="ProgramOverflowException"></exception>
+        public byte Peek(int address)
         {
-            if (parameters.Children.Count > 0)
-            {
-                var address = (int)Evaluator.Evaluate(parameters.Children[0], ushort.MinValue, ushort.MaxValue);
-                var index = address - ProgramStart;
-
-                if (function.Name.Equals("peek"))
-                {
-                    if (parameters.Children.Count != 1)
-                        throw new SyntaxException(parameters.Position, 
-                            "Too many arguments passed for function \"peek\".");
-
-                    if (address < ProgramStart || address >= ProgramCounter)
-                        throw new ExpressionException(parameters.Position, 
-                            $"Cannot read address ${address:x4}.");
-                    return _bytes[address];
-                }
-                else
-                {
-                    if (!AddressIsValid(address))
-                        throw new ExpressionException(parameters.Position,
-                            $"Address ${address:x4} is not within the bounds of program or section space.");
-                    if (parameters.Children.Count != 2)
-                        throw new SyntaxException(parameters.Position, 
-                            "Too many arguments passed for function \"poke\".");
-                    var value = (byte)Evaluator.Evaluate(parameters.Children[1], sbyte.MinValue, byte.MaxValue);
-
-                    _started = _compilingStarted = true;
-                    _bytes[address] = value;
-                    if (address < ProgramStart)
-                        ProgramStart = address;
-                    else if (address > ProgramCounter)
-                        ProgramEnd = address;
-                    else
-                        _bytes[index] = value;
-                    return value;
-                }
-            }
-            throw new SyntaxException(parameters.Position, $"Too few arguments passed for function \"{function.Name}\".");
+            if (address < ProgramStart || address >= ProgramCounter)
+                throw new ProgramOverflowException($"Cannot read address ${address:x4}.");
+            return _bytes[address];
         }
 
-        public void InvokeFunction(Token function, Token parameters)
-            => _ = EvaluateFunction(function, parameters);
-
-        public bool IsFunctionName(string symbol) => symbol.Equals("peek") || symbol.Equals("poke");
-
         /// <summary>
-        /// Gets the MD5 hash of the binary output.
+        /// Write a byte to an address.
         /// </summary>
-        /// <returns>The calculated checksum of the binary output.</returns>
-        public string GetOutputHash()
+        /// <param name="address">The address to write.</param>
+        /// <param name="value">The value.</param>
+        /// <exception cref="ProgramOverflowException"></exception>
+        public void Poke(int address, byte value)
+        {
+            if (!AddressIsValid(address))
+                throw new ProgramOverflowException(
+                    $"Address ${address:x4} is not within the bounds of program or section space.");
+            
+            _started = _compilingStarted = true;
+            var index = address - ProgramStart;
+            if (address < ProgramStart)
+                ProgramStart = address;
+            else if (address > ProgramCounter)
+                ProgramEnd = address;
+            else
+                _bytes[index] = value;
+        }
+
+        string GetHashForOutput(int start, int count)
         {
             using var md5 = MD5.Create();
-            using var stream = new MemoryStream(_bytes, ProgramStart, ProgramEnd - ProgramStart);
+            using var stream = new MemoryStream(_bytes, start, count);
             var hash = BitConverter.ToString(md5.ComputeHash(stream));
             return hash.Replace("-", string.Empty).ToLower();
         }
 
         /// <summary>
+        /// Gets the MD5 hash of the binary output.
+        /// </summary>
+        /// <returns>The calculated checksum of the binary output.</returns>
+        public string GetOutputHash() => GetHashForOutput(ProgramStart, ProgramEnd - ProgramStart);
+
+        /// <summary>
+        /// Gets the MD5 hash of the binary output.
+        /// </summary>
+        /// <param name="section">The specified section's hash.</param>
+        /// <returns>The calculated checksum of the binary output.</returns>
+        public string GetOutputHash(string section)
+        {
+            if (string.IsNullOrEmpty(section))
+                return GetOutputHash();
+            int count;
+            if (_sectionCollection.SetCurrentSection(section) == CollectionResult.NotFound ||
+                (count = _sectionCollection.GetSectionOutputCount()) == -1)
+                throw new Exception($"Could not get object bytes for section {section}.");
+            return GetHashForOutput(_sectionCollection.SelectedStartAddress, count);
+        }
+
+        /// <summary>
+        /// Get the start address of a defined section.
+        /// </summary>
+        /// <param name="name">The section name.</param>
+        /// <returns>The section start address, if it is defined.</returns>
+        /// <exception cref="Exception"></exception>
+        public int GetSectionStart(string name)
+        {
+            var start = _sectionCollection.GetSectionStart(name);
+            if (start > int.MinValue)
+                return start;
+            throw new Exception($"Section {name} is not defined.");
+        }
+
+        /// <summary>
         /// Defines a named section for the binary output.
         /// </summary>
-        /// <param name="operands">The section definition as tokenized parameters, 
-        /// including name, start address, and end address.</param>
-        /// <exception cref="ExpressionException"/>
-        public void DefineSection(Token operands)
+        /// <param name="name">The section name.</param>
+        /// <param name="starts">The section start address.</param>
+        /// <param name="ends">The section end address..</param>
+        /// <exception cref="SectionException"/>
+        public void DefineSection(string name, int starts, int ends)
         {
             if (_started)
-                throw new SectionException(operands.Position, 
+                throw new SectionException(1, 
                     "Cannot define a section after assembly has started.");
-            switch( _sectionCollection.Add(operands, out var name))
+            if (starts < 0)
+                throw new SectionException(1, 
+                    $"Section {name} start address {starts} is not valid.");
+            if (starts >= ends)
+                throw new SectionException(1,
+                    $"Section {name} start address cannot be equal or greater than end address.");
+            if (ends > MaxAddress + 1)
+                throw new SectionException(1, 
+                    $"Section {name} end address {ends} is not valid.");
+            switch( _sectionCollection.Add(name, starts, ends))
             {
                 case CollectionResult.Duplicate:
-                    throw new SectionException(operands.Position, $"Section {name} already defined.");
+                    throw new SectionException(1, $"Section {name} already defined.");
                 case CollectionResult.RangeOverlap:
-                    throw new SectionException(operands.Position, 
+                    throw new SectionException(1, 
                         $"Section {name} start and end address intersect existing section's.");
                 default:
                     break;
@@ -556,22 +618,16 @@ namespace Core6502DotNet
         /// <summary>
         /// Sets the current defined section.
         /// </summary>
-        /// <param name="section">The section as a parsed token.</param>
+        /// <param name="section">The section name.</param>
         /// <returns><c>true</c> if the section was able to be selected, otherwise <c>false</c>.</returns>
-        /// <exception cref="SectionException">Thrown if the section was already selected in
-        /// the current pass.</exception>
-        public bool SetSection(Token section)
+        /// <exception cref="SectionException"></exception>
+        public bool SetSection(string section)
         {
-            var result = _sectionCollection.SetCurrentSection(section.ToString());
-            switch (result)
-            {
-                case CollectionResult.NotFound:
-                    return false;
-                case CollectionResult.PreviouslySelected:
-                    throw new SectionException(section.Position, $"Section {section} was previously selected.");
-            }
+            var result = _sectionCollection.SetCurrentSection(section);
+            if (result == CollectionResult.NotFound)
+                return false;
             _pc =
-            _logicalPc = _sectionCollection.SelectedStartAddress;
+            _logicalPc = _sectionCollection.SelectedStartAddress + _sectionCollection.GetSectionOutputCount();
             return true;
         }
 
@@ -675,6 +731,11 @@ namespace Core6502DotNet
         /// as they are written to the output.
         /// </summary>
         public Func<byte, byte> Transform { private get; set; }
+
+        /// <summary>
+        /// Gets a flag that indicates that output exists.
+        /// </summary>
+        public bool HasOutput => _compilingStarted;
 
         #endregion
     }

@@ -12,9 +12,17 @@ using System.Text;
 
 namespace Core6502DotNet.z80
 {
+    /// <summary>
+    /// A class responsible for assembling Z80 source.
+    /// </summary>
     public sealed partial class Z80Asm : AssemblerBase
     {
-        public Z80Asm()
+        /// <summary>
+        /// Creates a new instance of the Z80 assembler.
+        /// </summary>
+        /// <param name="services">The shared <see cref="AssemblyServices"/> object.</param>
+        public Z80Asm(AssemblyServices services)
+            :base(services)
         {
             Reserved.DefineType("Mnemonics",
                     "adc", "add", "ccf", "cpd", "cpdr", "cpi", "cpir", "cpl",
@@ -51,13 +59,14 @@ namespace Core6502DotNet.z80
                     "djnz", "jr"
                 );
 
-            Assembler.SymbolManager.AddValidSymbolNameCriterion(s => !s_namedModes.ContainsKey(s));
+            Services.SymbolManager.AddValidSymbolNameCriterion(s => !s_namedModes.ContainsKey(s));
+            _evals = new double[3];
         }
 
         Z80Mode GetValueMode(IEnumerable<Token> tokens, int i)
         {
-            var value = Evaluator.Evaluate(tokens, short.MinValue, ushort.MaxValue);
-            s_evals[i] = value;
+            var value = Services.Evaluator.Evaluate(tokens, short.MinValue, ushort.MaxValue);
+            _evals[i] = value;
             if (value < sbyte.MinValue || value > byte.MaxValue)
                 return Z80Mode.Extended;
             return Z80Mode.PageZero;
@@ -65,8 +74,8 @@ namespace Core6502DotNet.z80
 
         Z80Mode GetValueMode(Token token, int i)
         {
-            var value = Evaluator.Evaluate(token, short.MinValue, ushort.MaxValue);
-            s_evals[i] = value;
+            var value = Services.Evaluator.Evaluate(token, short.MinValue, ushort.MaxValue);
+            _evals[i] = value;
             if (value < sbyte.MinValue || value > byte.MaxValue)
                 return Z80Mode.Extended;
             return Z80Mode.PageZero;
@@ -74,7 +83,7 @@ namespace Core6502DotNet.z80
 
         Z80Mode[] ParseExpressionToModes(SourceLine line)
         {
-            s_evals[0] = s_evals[1] = s_evals[2] = double.NaN;
+            _evals[0] = _evals[1] = _evals[2] = double.NaN;
             var modes = new Z80Mode[3];
             if (line.OperandHasToken)
             {
@@ -103,12 +112,12 @@ namespace Core6502DotNet.z80
                                                 var nextInParen = firstExInParen.Children[1];
                                                 if (!nextInParen.Name.Equals("+") && !nextInParen.Name.Equals("-"))
                                                 {
-                                                    Assembler.Log.LogEntry(line, nextInParen.Position,
+                                                    Services.Log.LogEntry(line, nextInParen.Position,
                                                         $"Unexpected operation \"{nextInParen.Name}\" found in index expression.");
                                                 }
                                                 else if (firstExInParen.Children.Count < 3)
                                                 {
-                                                    Assembler.Log.LogEntry(line, nextInParen.Position,
+                                                    Services.Log.LogEntry(line, nextInParen.Position,
                                                         "Index expression is incomplete.");
                                                 }
                                                 else
@@ -129,7 +138,7 @@ namespace Core6502DotNet.z80
                                     }
                                     else
                                     {
-                                        Assembler.Log.LogEntry(line, child.Children[0].Position,
+                                        Services.Log.LogEntry(line, child.Children[0].Position,
                                             "Expected expression not given.");
                                     }
                                 }
@@ -143,14 +152,18 @@ namespace Core6502DotNet.z80
                             }
                             else if (s_namedModes.ContainsKey(child.Children[0].Name))
                             {
-                                mode |= s_namedModes[child.Children[0].Name];
+                                if (child.Children.Count > 1)
+                                    Services.Log.LogEntry(line, child.Children[1].Parent,
+                                        $"Unexpected expression \"{child.Children[1].ToString().Trim()}\".");
+                                else
+                                    mode |= s_namedModes[child.Children[0].Name];
                             }
                             else if (line.InstructionName.Equals("rst"))
                             {
-                                var value = Evaluator.Evaluate(child, 0, 0x38);
+                                var value = Services.Evaluator.Evaluate(child, 0, 0x38);
                                 if ((value % 8) != 0)
                                 {
-                                    Assembler.Log.LogEntry(line, $"Expression \"{child}\" not valid for instruction \"rst\".");
+                                    Services.Log.LogEntry(line, $"Expression \"{child.ToString().Trim()}\" not valid for instruction \"rst\".");
                                 }
                                 else
                                 {
@@ -160,7 +173,7 @@ namespace Core6502DotNet.z80
                             else if (Reserved.IsOneOf("Bits", line.InstructionName) ||
                                 (line.InstructionName.Equals("out") && i == 1))
                             {
-                                mode = (Z80Mode)Evaluator.Evaluate(child, 0, 7) | Z80Mode.BitOp;
+                                mode = (Z80Mode)Services.Evaluator.Evaluate(child, 0, 7) | Z80Mode.BitOp;
                             }
                             else
                             {
@@ -171,7 +184,7 @@ namespace Core6502DotNet.z80
                         }
                         else
                         {
-                            Assembler.Log.LogEntry(line, child.Position, "Expected expression not given.");
+                            Services.Log.LogEntry(line, child.Position, "Expected expression not given.");
                         }
                     }
                     modes[i] = mode;
@@ -212,54 +225,54 @@ namespace Core6502DotNet.z80
                 var instruction = mnemMode.instruction;
                 var isCb00 = (instruction.Opcode & 0xFF00) == 0xCB00;
                 if ((instruction.Opcode & 0xFF) == 0xCB || isCb00)
-                    Assembler.Output.Add(instruction.Opcode, 2);
+                    Services.Output.Add(instruction.Opcode, 2);
                 else
-                    Assembler.Output.Add((double)instruction.Opcode);
+                    Services.Output.Add(instruction.Opcode, instruction.Opcode.Size());
 
                 var displayEvals = new int[3];
                 for (var i = 0; i < 3; i++)
                 {
-                    if (!double.IsNaN(s_evals[i]))
+                    if (!double.IsNaN(_evals[i]))
                     {
                         var modeSize = modes[i] & Z80Mode.SizeMask;
                         if (modeSize == Z80Mode.Extended)
-                            displayEvals[i] = (int)s_evals[i] & 0xFFFF;
+                            displayEvals[i] = (int)_evals[i] & 0xFFFF;
                         else if (modeSize == Z80Mode.PageZero)
-                            displayEvals[i] = (int)s_evals[i] & 0xFF;
+                            displayEvals[i] = (int)_evals[i] & 0xFF;
                         if (Reserved.IsOneOf("Relatives", line.InstructionName))
                         {
-                            s_evals[i] = Convert.ToSByte(Assembler.Output.GetRelativeOffset((int)s_evals[i], 0));
-                            Assembler.Output.Add(s_evals[i], 1);
+                            _evals[i] = Convert.ToSByte(Services.Output.GetRelativeOffset((int)_evals[i], 1));
+                            Services.Output.Add(_evals[i], 1);
                         }
                         else
                         {
-                            Assembler.Output.Add(s_evals[i], modeSize == Z80Mode.PageZero ? 1 : 2);
+                            Services.Output.Add(_evals[i], modeSize == Z80Mode.PageZero ? 1 : 2);
                         }
                     }
                 }
                 if (isCb00)
-                    Assembler.Output.Add(instruction.Opcode >> 16, 1);
-                if (Assembler.Output.LogicalPC - PCOnAssemble != instruction.Size && !Assembler.PassNeeded)
+                    Services.Output.Add(instruction.Opcode >> 16, 1);
+                if (Services.Output.LogicalPC - PCOnAssemble != instruction.Size && !Services.PassNeeded)
                 {
-                    Assembler.Log.LogEntry(line, 
+                    Services.Log.LogEntry(line, 
                                            line.Instruction, 
                                            $"Mode not supported for instruction \"{line.InstructionName}\".");
                 }
                 else
                 {
-                    if (Assembler.PassNeeded || string.IsNullOrEmpty(Assembler.Options.ListingFile))
+                    if (Services.PassNeeded || string.IsNullOrEmpty(Services.Options.ListingFile))
                         return string.Empty;
                     var disasmBuilder = new StringBuilder();
-                    if (!Assembler.Options.NoAssembly)
+                    if (!Services.Options.NoAssembly)
                     {
-                        var byteString = Assembler.Output.GetBytesFrom(PCOnAssemble).ToString(PCOnAssemble, '.', true);
+                        var byteString = Services.Output.GetBytesFrom(PCOnAssemble).ToString(PCOnAssemble, '.', true);
                         disasmBuilder.Append(byteString.PadRight(25));
                     }
                     else
                     {
                         disasmBuilder.Append($".{PCOnAssemble:x4}                        ");
                     }
-                    if (!Assembler.Options.NoDisassembly)
+                    if (!Services.Options.NoDisassembly)
                     {
                         var asmBuilder = new StringBuilder($"{line.InstructionName} ");
                         for (var i = 0; i < 3; i++)
@@ -291,14 +304,14 @@ namespace Core6502DotNet.z80
                     {
                         disasmBuilder.Append("                  ");
                     }
-                    if (!Assembler.Options.NoSource)
+                    if (!Services.Options.NoSource)
                         disasmBuilder.Append(line.UnparsedSource);
                     return disasmBuilder.ToString();
                 }
             }
-            else if (!Assembler.PassNeeded)
+            else if (!Services.PassNeeded)
             {
-                Assembler.Log.LogEntry(line, line.Instruction,
+                Services.Log.LogEntry(line, line.Instruction,
                     $"Mode not supported for instruction \"{line.InstructionName}\".");
             }
             return string.Empty;
