@@ -2,7 +2,7 @@
 using System;
 using System.Linq;
 using System.Text;
-using VCSCompiler.V2;
+using VCSCompiler;
 
 namespace VCSCompilerCLI
 {

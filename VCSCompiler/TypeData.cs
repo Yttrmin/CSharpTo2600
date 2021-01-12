@@ -1,13 +1,12 @@
 ﻿#nullable enable
 using Mono.Cecil;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     // @TODO - Unless we find a need for other data this can probably
     // just be a util that returns size.

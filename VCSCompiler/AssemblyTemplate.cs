@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     internal static class AssemblyTemplate
     {

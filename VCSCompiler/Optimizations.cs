@@ -5,7 +5,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     internal partial class MethodCompiler
     {

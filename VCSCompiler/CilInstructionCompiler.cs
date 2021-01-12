@@ -10,7 +10,7 @@ using VCSFramework;
 using VCSFramework.V2;
 using Instruction = Mono.Cecil.Cil.Instruction;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     internal class CilInstructionCompiler
     {

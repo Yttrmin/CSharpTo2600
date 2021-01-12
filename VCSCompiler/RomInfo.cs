@@ -1,6 +1,6 @@
 ﻿#nullable enable
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     public sealed record RomInfo
     {

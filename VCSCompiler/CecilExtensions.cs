@@ -10,7 +10,7 @@ using System.Reflection;
 using VCSFramework;
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     internal static class CecilExtensions
     {

@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     public sealed class StackTracker : IStackTracker
     {

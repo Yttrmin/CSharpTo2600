@@ -14,7 +14,7 @@ using System.Runtime.Loader;
 using VCSFramework.V2;
 using VCSFramework.V2.Templates;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     internal sealed record AssemblyPair(Assembly Assembly, AssemblyDefinition Definition);
 

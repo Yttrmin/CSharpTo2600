@@ -2,7 +2,7 @@
 
 using VCSFramework.V2;
 
-namespace VCSCompiler.V2
+namespace VCSCompiler
 {
     public sealed class CompilerOptions
     {
