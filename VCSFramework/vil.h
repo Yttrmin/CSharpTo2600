@@ -327,7 +327,7 @@ getSizeFromBuiltInType .function typeExpression
 	// @TODO - When we accidentally fed a SIZE_foo value of size 1 here, the result was a bool for some reason. Some sort of assembler issue.
 	.if typeExpression == TYPE_System_Byte
 		.return SIZE_System_Byte
-	.else if typeExpression == TYPE_System_Boolean
+	.elseif typeExpression == TYPE_System_Boolean
 		.return SIZE_System_Boolean
 	.else
 		.error "Unknown builtin type"
@@ -606,14 +606,13 @@ branchIfGreaterThanFromGlobalAndConstant .macro address, constant, branchTarget
 		LDA \address
 		BEQ +
 		JMP \branchTarget
-	+
 	.else
 		LDA \address
 		CMP \constant
 		BEQ +
 		JMP \branchTarget
-	+
 	.endif
++
 .endmacro
 
 // @GENERATE @POP=2 @RESERVED=1
@@ -693,8 +692,8 @@ branchTrueFromLocal .macro local, branchTarget
 pushConstant .macro constant, type, size
 	.errorif \size > 2, "REPORTME: Bitshifting constants that are >16-bit produces unexpected results."
 	.for i = 0, i < \size, i = i + 1
-		.let byte = (\constant >> (i * 8)) & $FF
-		LDA #byte
+		.let itrByte = (\constant >> (i * 8)) & $FF
+		LDA #itrByte
 		PHA
 	.next
 .endmacro

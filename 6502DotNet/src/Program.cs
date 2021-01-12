@@ -12,9 +12,9 @@ using System;
 
 namespace Core6502DotNet
 {
-    static class Core6502DotNet
+    public static class Core6502DotNet
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             try
             {

@@ -7,6 +7,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Core6502DotNet
 {
@@ -122,7 +123,17 @@ namespace Core6502DotNet
                         }
                         var unparsedName = token.UnparsedName.Trim();
                         replacement = unparsedName.Replace(reference, substitution, Services.StringComparison);
-                        expandedSource = expandedSource.Replace(unparsedName, replacement);
+                        /*
+                         * The current 6502.Net code has an issue where param expansion is done for _any_ occurrence, not just whole words.
+                         * So what was happening was something like `.let start = \global + \globalSize` was getting expanded to
+                         * `.let start = foo + fooSize`, so \globalSize never properly got expanded.
+                         * To workaround it we're just using this regex that looks for the param name followed by a non-alphanumeric char.
+                         * So things like `\global + \globalSize` or `\global+\globalSize` will work fine. Any char before it also doesn't affect it.
+                         * Alternatively you could probably just expand params in descending order of length, since an n length string
+                         * can't be a substring of an n-1 string.
+                         */
+                        var regex = new Regex($@"(\{token.Name})(?![a-zA-z\d])");
+                        expandedSource = regex.Replace(expandedSource, replacement);
                     }
                     var expandedList = LexerParser.Parse(source.Line.Filename, expandedSource, Services, true)
                         .Select(l => l.WithLineNumber(source.Line.LineNumber));

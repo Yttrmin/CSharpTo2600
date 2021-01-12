@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\6502DotNet\6502DotNet.csproj" />
+    <ProjectReference Include="..\6502DotNet\Core6502DotNet.csproj" />
     <ProjectReference Include="..\VCSFramework\VCSFramework.csproj" />
   </ItemGroup>
 
