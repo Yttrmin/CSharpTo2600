@@ -1,5 +1,5 @@
-﻿using VCSFramework.V2;
-using static VCSFramework.V2.AssemblyUtilities;
+﻿using VCSFramework;
+using static VCSFramework.AssemblyUtilities;
 
 namespace Samples
 {

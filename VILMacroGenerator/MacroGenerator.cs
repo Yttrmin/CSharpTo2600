@@ -120,9 +120,8 @@ using Mono.Cecil.Cil;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using VCSFramework.V2;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {{
     public sealed partial record {csharpName}({constructorParamText}) : IFunctionCall
     {{
@@ -177,9 +176,8 @@ using Mono.Cecil.Cil;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using VCSFramework.V2;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {{
 {annotationsBuilder}
     public sealed record {csharpName}({constructorParamText}) : IMacroCall

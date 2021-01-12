@@ -1,4 +1,4 @@
-﻿namespace VCSFramework.V2
+﻿namespace VCSFramework
 {
     public enum Region
     {

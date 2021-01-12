@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {
     /// <summary>
     /// Collection of advanced utilities that directly interact with the asembler or assembly code.

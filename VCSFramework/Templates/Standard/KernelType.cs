@@ -1,4 +1,4 @@
-﻿namespace VCSFramework.V2.Templates.Standard
+﻿namespace VCSFramework.Templates.Standard
 {
     public enum KernelType
     {

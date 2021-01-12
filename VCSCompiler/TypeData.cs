@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using VCSFramework.V2;
+using VCSFramework;
 
 namespace VCSCompiler
 {

@@ -11,8 +11,8 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using VCSFramework.V2;
-using VCSFramework.V2.Templates;
+using VCSFramework;
+using VCSFramework.Templates;
 
 namespace VCSCompiler
 {

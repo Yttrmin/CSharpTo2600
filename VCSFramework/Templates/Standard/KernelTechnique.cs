@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace VCSFramework.V2.Templates.Standard
+namespace VCSFramework.Templates.Standard
 {
     internal sealed class KernelManager
     {

@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {
     internal static class BuiltInDefinitions
     {

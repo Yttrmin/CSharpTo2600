@@ -8,7 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using VCSFramework;
-using VCSFramework.V2;
+using VCSFramework;
 
 namespace VCSCompiler
 {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace VCSFramework.V2.Templates
+namespace VCSFramework.Templates
 {
     public sealed class RawTemplate : ProgramTemplate
     {

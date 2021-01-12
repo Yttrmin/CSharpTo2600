@@ -1,7 +1,28 @@
 ﻿using System;
 
-namespace VCSFramework.V2.Templates.Standard
+namespace VCSFramework.Templates.Standard
 {
+    /// <summary>
+    /// Marks a method that is also by marked by one of: <see cref="VBlankAttribute"/>, <see cref="KernelAttribute"/>, or <see cref="OverscanAttribute"/> as only
+    /// executing for a specific set of "screen"s. The current screens can be set by using <see cref="Utilities.SetScreen(ulong)"/>.
+    /// 
+    /// Screens can be used to separate code based on logical states of your program. You may want a "Title Screen", an "Inventory Screen", and a "Combat Screen".
+    /// All these screens would likely use different kernels, and it would be prohibitively slow to do this by checking the state of your program in your kernel.
+    /// 
+    /// Multiple screens can be active at once, but the rules of <see cref="KernelScanlineRangeAttribute"/> still apply. For exmaple you can have "Combat | Status" 
+    /// or "Combat | Inventory" as your active screen, where "Combat" has a kernel for the first 182 scanlines, and "Status" and "Inventory" have kernels for the last 10 scanlines.
+    /// 
+    /// Screens are an optional, opt-in feature. If no method is marked with this attribute, they are all treated as executing for "Screen 1" (e.g. 0b1).
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class ScreenAttribute : Attribute
+    {
+        public ulong ScreenBits;
+
+        /// <param name="screenBits">A bit mask representing which screens this method executes for.</param>
+        public ScreenAttribute(ulong screenBits) => ScreenBits = screenBits;
+    }
+
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class VBlankAttribute : Attribute { }
 

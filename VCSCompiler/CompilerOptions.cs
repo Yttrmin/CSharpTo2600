@@ -1,6 +1,5 @@
 ﻿#nullable enable
-
-using VCSFramework.V2;
+using VCSFramework;
 
 namespace VCSCompiler
 {

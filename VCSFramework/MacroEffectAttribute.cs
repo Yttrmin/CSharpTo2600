@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {
     public abstract class MacroEffectAttribute : Attribute
     {

@@ -1,7 +1,7 @@
 ﻿#nullable enable
 using System;
 
-namespace VCSFramework.V2.Templates
+namespace VCSFramework.Templates
 {
     public abstract class ProgramTemplate
     {

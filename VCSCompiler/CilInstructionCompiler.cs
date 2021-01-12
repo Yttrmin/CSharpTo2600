@@ -7,7 +7,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 using VCSFramework;
-using VCSFramework.V2;
+using VCSFramework;
 using Instruction = Mono.Cecil.Cil.Instruction;
 
 namespace VCSCompiler

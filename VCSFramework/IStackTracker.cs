@@ -1,8 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {
     public interface IStackTracker
     {

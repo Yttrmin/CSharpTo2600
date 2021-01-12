@@ -17,7 +17,7 @@ namespace VCSCompiler
 		private static readonly MetadataReference RuntimeReference = MetadataReference.CreateFromFile(Assembly.Load(new AssemblyName("System.Runtime, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")).Location);
 		private static readonly MetadataReference CoreLibReference = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
 		private static readonly MetadataReference MsCorLibReference = MetadataReference.CreateFromFile(Assembly.Load(new AssemblyName("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e")).Location);
-		private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(VCSFramework.V2.IAssemblyEntry).GetTypeInfo().Assembly.Location);
+		private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(VCSFramework.IAssemblyEntry).GetTypeInfo().Assembly.Location);
 		private static readonly MetadataReference[] MetadataReferences = new[] { RuntimeReference, CoreLibReference, MsCorLibReference, FrameworkReference };
 
 		public static CSharpCompilation CreateFromFilePaths(IEnumerable<string> filePaths, string? mainTypeName)

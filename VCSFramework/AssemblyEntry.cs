@@ -5,7 +5,7 @@ using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {
     /**
      * This file is all about using and heavily abusing the type system to squeeze

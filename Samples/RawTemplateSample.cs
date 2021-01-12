@@ -1,5 +1,5 @@
-﻿using VCSFramework.V2;
-using VCSFramework.V2.Templates;
+﻿using VCSFramework;
+using VCSFramework.Templates;
 using static VCSFramework.Registers;
 
 namespace Samples

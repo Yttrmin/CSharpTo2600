@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using VCSFramework.V2;
+using VCSFramework;
 using static VCSFramework.Registers;
 
 namespace Samples.CSharpFeatures

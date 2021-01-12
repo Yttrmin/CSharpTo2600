@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VCSFramework.V2
+namespace VCSFramework
 {
     // @TODO - RomDataSingle? For one element.
     // @TODO - 16-bit length/index type.
