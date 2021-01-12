@@ -52,6 +52,12 @@ namespace VCSCompiler.V2
 			return @this.SelectMany(it => it.CompilableMethods());
 		}
 
+		public static IEnumerable<FieldDefinition> InstanceFields(this TypeDefinition @this)
+			=> @this.Fields.Where(field => !field.IsStatic);
+
+		public static IEnumerable<FieldDefinition> StaticFields(this TypeDefinition @this)
+			=> @this.Fields.Where(field => field.IsStatic);
+
 		public static bool TryGetFrameworkAttribute<T>(
 			this MethodDefinition @this,
 			[NotNullWhen(true)] out T? result) where T : Attribute
