@@ -2,6 +2,7 @@
 
 namespace Samples
 {
+    // @TODO - Delete me, but preserve notes below about incrementing.
     // Not a proper VCS program.
     static class SimpleCycleBackgroundColor
     {

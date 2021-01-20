@@ -4,7 +4,8 @@ using static VCSFramework.Registers;
 
 namespace Samples
 {
-    [TemplatedProgram(typeof(RawTemplate))]
+    // @TODO - Should copy old NtscBackgroundColorsSample.
+    [TemplatedProgram(typeof(RawTemplate))] // Attribute is optional, RawTemplate is implied if it's absent.
     public static class RawTemplateSample
     {
         public static void Main()
