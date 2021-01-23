@@ -7,6 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		LICENSE.txt = LICENSE.txt
 		README.md = README.md
+		sample.png = sample.png
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCSCompiler", "VCSCompiler\VCSCompiler.csproj", "{8BC6DDD7-A2FC-4E29-A012-79F9E99B7711}"
@@ -19,9 +20,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Samples", "Samples\Samples.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCSTests", "VCSTests\VCSTests.csproj", "{5D793797-8E44-484C-A869-43C106664A23}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "6502DotNet", "6502DotNet\Core6502DotNet.csproj", "{75407913-3CAF-4719-9799-010A09131C7E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core6502DotNet", "6502DotNet\Core6502DotNet.csproj", "{75407913-3CAF-4719-9799-010A09131C7E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VILMacroGenerator", "VILMacroGenerator\VILMacroGenerator.csproj", "{4C17F70C-5A47-411F-9CA7-7A245534949B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VILMacroGenerator", "VILMacroGenerator\VILMacroGenerator.csproj", "{4C17F70C-5A47-411F-9CA7-7A245534949B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

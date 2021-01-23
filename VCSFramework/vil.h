@@ -49,7 +49,7 @@ pushGlobal .macro global, type, size
 // @GENERATE @PUSH=pointerType;pointerSize
 pushAddressOfGlobal .macro global, pointerType, pointerSize
 	.invoke assertIsPointer(\pointerType)
-	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfGlobal"
+	.errorif \pointerSize != 1, "Only zero-page pointers are supported for pushAddressOfGlobal"
 	LDA #\global
 	PHA
 .endmacro
@@ -170,7 +170,7 @@ pushFieldFromStack .macro offsetConstant, fieldType, fieldSize, stackType, stack
 // @GENERATE @POP=2
 popToFieldFromStack .macro offsetConstant, fieldType, fieldSize, pointerStackType, pointerStackSize
 	.invoke assertIsPointer(\pointerStackType)
-	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for popToFieldFromStack"
+	.errorif \pointerStackSize != 1, "Only zero-page pointers are allowed for popToFieldFromStack"
 	// Value is popped first, then address
 	.if \fieldSize == 1 && \pointerStackSize == 1
 		PLA
@@ -200,7 +200,7 @@ popStack .macro stackSize
 
 // @GENERATE @POP=1
 initializeObject .macro size, pointerStackSize
-	.errorif \pointerStackSize != 1, "Currently, only zero-page pointers are allowed for initializeObject"
+	.errorif \pointerStackSize != 1, "Only zero-page pointers are allowed for initializeObject"
 	PLA
 	TAX
 	LDA #0

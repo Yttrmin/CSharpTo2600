@@ -7,154 +7,176 @@ A compiler and framework for creating Atari 2600 games using C#. It uses the .NE
 ### Current Status
 The first iteration of this project compiled C# directly to 6502 assembly.\
 The second iteration of this project compiled CIL directly to 6502 assembly.\
-The third (and current) iteration of this project instead compiles CIL to custom macros for the 6502 assembler. This sounds like a small change, but it offers a higher level of abstraction to compile to, and makes it easier to optimize the results. We're also now using [6502.Net](https://github.com/informedcitizenry/6502.Net) as the assembler instead of DASM, so every part of the compiler is now running on .NET.
+The third (and current) iteration of this project instead compiles CIL to custom macros for the 6502 assembler. This offers a higher level of abstraction to compile to, and makes it easier to optimize the results. We're also now using [6502.Net](https://github.com/informedcitizenry/6502.Net) as the assembler instead of DASM, so every part of the compiler is running on .NET.
 
 ### Current Goal
-The current goal is to add all the features needed for me to port my [attempt at a 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#. Progress will likely be slow since I have other personal projects I'm also working on.
+The ultimate goal is to add all the features needed for me to port my [attempt at a 2600 game](https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1) to C#. Along the way, I'd like to support as many useful C# features as possible.
+
+Performance won't be as good as programs written in 6502 assembly. But my hope is that the convenience of being able to use C# will be a worthwhile tradeoff for simpler games.
+
+Progress will likely be slow since I have other personal projects I'm also working on.
 
 ### Example
-There's no collection of samples yet since they may quickly become obsolete. 
-Below is an example of how you could, at the time of writing, write a [program to cycle through the NTSC background colors](./Samples/NtscBackgroundColorsSample.cs). 
-See the [Features](#features) section below for a more complete list of features.
+
+The samples that currently exist are largely just for developing and testing specific features. The compiler's feature set is not stable yet, so any major samples would likely become obsolete.
+Below is an example of how you could, at the time of writing, write a [program using the `StandardTemplate` to draw ascending then descending color values](./Samples/StandardTemplateSample.cs).
 
 ```csharp
+using VCSFramework;
+using VCSFramework.Templates.Standard;
 using static VCSFramework.Registers;
 
 namespace Samples
 {
-    public static class NtscBackgroundColorsSample
+    [TemplatedProgram(typeof(StandardTemplate))]
+    public static class StandardTemplateSample
     {
-        private static byte BackgroundColor; // Support for static fields.
+        private static byte BackgroundColor;
 
-        public static void Main()
+        [VBlank]
+        public static void ResetBackgroundColor() => BackgroundColor = 0;
+
+        [Kernel(KernelType.EveryScanline)]
+        [KernelScanlineRange(192, 96)]
+        public static void KernelAscend()
         {
-            // Processor and memory initialization code is automatically injected by the compiler into
-            // the program's entry point, so there's no need to manually do it.
-        MainLoop:
-            // Perform vertical sync.
-            // This is the same logic that would be used in 6502 assembly as well.
-            VSync = 0b10; // TIA write-only registers implemented as setter-only properties.
-            WSync(); // TIA strobe registers implemented as methods.
-            WSync();
-            WSync();
-            Tim64T = 43;
-            VSync = 0;
-
-            // Actual logic to increment and set the background color every frame.
-            // The least significant bit is unused, so incrementing by 1 instead of 2 slows the flashing down.
-            BackgroundColor++;
             ColuBk = BackgroundColor;
+            BackgroundColor++;
+        }
 
-            // Kill time until the vertical blank period is over.
-            while (InTim != 0) ; // PIA read-only registers implemented as getter-only properties.
-
-            WSync();
-            VBlank = 0;
-
-            // Visible image
-            byte lines = 191; // Local variable support.
-            while (lines != 0) // Support for while loops and some comparisons.
-            {
-                lines--;
-                WSync();
-            }
-            
-            WSync();
-            VBlank = 0b10;
-
-            // Overscan
-            lines = 30;
-            while (lines != 0)
-            {
-                lines--;
-                WSync();
-            }
-
-            goto MainLoop; // goto support!
+        [Kernel(KernelType.EveryScanline)]
+        [KernelScanlineRange(96, 0)]
+        public static void KernelDescend()
+        {
+            ColuBk = BackgroundColor;
+            BackgroundColor--;
         }
     }
 }
 ```
 
-### Features
-An incomplete list of supported features in no particular order. 
+This produces the following output:
+![](./sample.png)
 
->:warning: This list is out of date due to starting work on the third iteration of the compiler. The goal is achieve as much feature parity as we can with the second iteration, so the list remains here. It will be updated prior to being merged into `master`.
+### Features
+An incomplete list of supported features in no particular order. Instructions may have various limitations, which I'll try to note.
 
 * :o: Primitive Types
-  * :x: `bool`
+  * :heavy_check_mark: `bool`
   * :heavy_check_mark: `byte`
   * :x: `sbyte`
+  * :x: `ushort`
+  * :x: `short`
 * :x: Array types
-* :x: Pointer Types
-* :x: Custom Types
-  * :x: Value Types
-    * :x: Single-byte types
-	* :x: Multi-byte types
-	* :x: Composite types (struct-in-struct)
+* :heavy_check_mark: Pointer Types
+* :o: Custom Types
+  * :heavy_check_mark: Value Types
+    * :heavy_check_mark: Single-byte types
+	  * :o: Multi-byte types (Not supported by all instructions yet)
+	  * :heavy_check_mark: Composite types (struct-in-struct)
+    * :heavy_check_mark: Generic type
   * :o: Reference Types
-    * :heavy_check_mark: Static reference types
-    * :x: Instance reference types
+    * :heavy_check_mark: Static types
+    * :x: Instance types (Probably never)
 * :o: Static Members
   * :heavy_check_mark: Fields
   * :x: Properties
-  * :x: Methods
-	* :x: 0-parameter
-	* :x: >0-parameter
-	* :x: `void` return
-	* :x: Non-`void` return
-* :o: Inline Assembly `TODO`
-  * :x: Implied address mode inline assembly (`TXS`, `SEI`, etc)
-  * :heavy_check_mark: Write-only `A`/`X`/`Y` registers
-* :o: Optimizations `TODO`
-  * :x: Reuse memory addresses
-* :o: C# `TODO`
-  * :heavy_check_mark: `goto`
-  * :heavy_check_mark: `unsafe`
-  * :heavy_check_mark: `default`
-* :o: CIL OpCodes `TODO`
+  * :o: Methods (Pending function rework)
+    * :x: 0-parameter
+    * :x: >0-parameter
+    * :x: `void` return
+    * :x: Non-`void` return
+* :o: Ease of Development
+  * :o: Inline Assembly
+    * :heavy_check_mark: Static field aliasing
+  * :o: ROM Data Access
+    * :o: `RomData<>` struct
+      * :heavy_check_mark: Constant indexing of types >8-bit in size
+      * :x: Non-constant indexing of types >8-bit in size
+      * :x: `foreach` support
+  * :o: Program Templates
+    * :heavy_check_mark: `RawTemplate`
+    * :o: `StandardTemplate`
+      * :heavy_check_mark: VBlank callback
+      * :heavy_check_mark: Overscan callback
+      * :o: Kernel callback
+        * :heavy_check_mark: `Manual`
+        * :heavy_check_mark: `EveryScanline`
+        * :o: `EveryEvenNumberScanline` / `EveryOddNumberScanline`
+      * :heavy_check_mark: Kernel scanline range
+      * :x: Screen switching support
+* :o: CIL OpCodes
   * :o: Arithmetic
-    * :heavy_check_mark: Addition (`add`, no overflow check)
-	* :heavy_check_mark: Subtraction (`sub`, no overflow check)
-	* :x: Division
-	* :x: Multiplication
+    * :o: Addition (`add`, 8-bit only)
+	  * :o: Subtraction (`sub`, 8-bit only)
+	  * :x: Division
+	  * :x: Multiplication
+  * :o: Bitwise
+    * :o: Or (`or`) (Operands must be same type and 8-bit)
   * :o: Branching
-    * :x: Branch if true (`brtrue`, `brtrue.s`)
-	* :x: Branch if false
-	* :heavy_check_mark: Unconditional branch (`br`, `br.s`)
-  * :x: Comparison
-    * :x: Equal
+    * :heavy_check_mark: Branch if true (`brtrue`, `brtrue.s`)
+	  * :heavy_check_mark: Branch if false (`brfalse`, `brfalse.s`)
+	  * :heavy_check_mark: Unconditional branch (`br`, `br.s`)
+    * :heavy_check_mark: Branch if less than (`blt`, `blt.s`)
+  * :o: Comparison
+    * :o: Equal (`ceq`) (8-bit only)
     * :x: Greater than (`cgt.un`)
-	* :x: Less than
   * :o: Load
-    * :heavy_check_mark: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
-	* :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`)
-	* :x: Element
-	* :heavy_check_mark: Field (static) (`ldsfld`)
-	  * :heavy_check_mark: Address (`ldsflda`)
-	* :heavy_check_mark: Field (instance) (`ldfld`)
-	  * :heavy_check_mark: Address (`ldflda`)
-	* :x: Indirect (`ldind.i`, `ldind.i1`)
-	* :heavy_check_mark: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`)
+    * :x: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
+	  * :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`) (up to 16-bit)
+	  * :x: Element
+	  * :heavy_check_mark: Field (static) (`ldsfld`)
+	    * :heavy_check_mark: Address (`ldsflda`)
+	  * :o: Field (instance) (`ldfld`) (8-bit only)
+	    * :o: Address (`ldflda`) (Zero-page pointers only)
+    * :o: Indirect (`ldind.u1`)
+    * :o: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`) (Pending function rework)
+      * :o: Address (`ldloca`) (Pending function rework)
   * :o: Store
-    * :heavy_check_mark: Argument (`starg`, `starg.s`)
-	* :x: Element
-	* :heavy_check_mark: Field (static) (`stsfld`)
-	* :heavy_check_mark: Field (instance) (`stfld`)
-	* :x: Indirect (`stind.i`, `stind.i1`)
-	* :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
+    * :x: Argument (`starg`, `starg.s`)
+	  * :x: Element
+	  * :heavy_check_mark: Field (static) (`stsfld`)
+	  * :heavy_check_mark: Field (instance) (`stfld`)
+	  * :o: Indirect (`stind.u1`)
+	  * :o: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`) (Pending function rework)
   * :o: Miscellaneous
+    * :o: Call Method (`call`) (Various restrictions, pending function rework)
+    * :o: Convert (`conv.i`, `conv.u`, `conv.u1`) (treated as NOPs, no extension to `int32`)
+    * :o: Duplicate (`dup`) (8-bit only)
     * :heavy_check_mark: Initialize value type (`initobj`)
-    * :heavy_check_mark: Duplicate (`dup`)
+    * :o: Load String (`ldstr`) (Only supported for very specific scenarios, not general usage)
+    * :heavy_check_mark: NOP (`nop`) (Nothing emitted)
+    * :heavy_check_mark: Pop Stack (`pop`)
+    * :o: Return (`ret`) (Pending function rework)
 
 ### Building
 Load the solution into [Visual Studio Community 2019](https://www.visualstudio.com/) and it should build and run fine.
 
->:warning: This project is using .NET 5. At the time of writing, .NET 5 is in preview and scheduled to be released in November 2020. You will need to download the preview SDK to build prior to its release.
-
 ### Usage
 
-TODO
+Invoke `VCSCompiler.exe --help` for current usage documentation. Documentation at the time of writing:
+
+```
+VCSCompilerCLI:
+  A compiler that compiles C# source code into a VCS (Atari 2600) binary.
+
+Usage:
+  VCSCompilerCLI [options] [<arguments>...]
+
+Arguments:
+  <arguments>    A list of C# source files to compile.
+
+Options:
+  --output-path <output-path>                    The path to save the compiled binary to. The same path with a different extension will be used for related files. If a path is not provided, temp files will be used. [default: ]
+  --emulator-path <emulator-path>                Path of the emulator executable. If provided, it will be launched with the path to the output binary passed as an argument. [default: ]
+  --text-editor-path <text-editor-path>          Path of the text editor executable. If provided, it will be launched with the path to the output ASM file passed as an argument. [default: ]
+  --disable-optimizations                        True to disable optimizations. Main use is to observe output of primitive VIL macros and stack operations. Unoptimized code generally will not run correctly due to excessive cycles consumed. [default: False]
+  --source-annotations <Both|CIL|CSharp|None>    Whether to include C#, CIL, neither, or both source lines as comments above the VIL macros that they were compiled to. [default: CSharp]
+  --version                                      Show version information
+  -?, -h, --help                                 Show help and usage information
+```
+
+For running the binary, I recommend using [Stella](https://stella-emu.github.io/).
 
 ### License
 This project is licensed under the [MIT License](./LICENSE.txt).
