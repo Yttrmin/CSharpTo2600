@@ -71,10 +71,10 @@ namespace Samples
 			WSync();
 			// ~22 Machine cycles of horizontal blank.
 			// First we do P0's paddle.
-			Timing.ConsumeCycles(21);
+			//Timing.ConsumeCycles(21);
 			ResP0();
 			// Now for P1's paddle...
-			Timing.ConsumeCycles(42);
+			//Timing.ConsumeCycles(42);
 			ResP1();
 			// Now for more fine-tuned adjustments...
 			HMP1 = 0b0111_0000;
@@ -95,7 +95,7 @@ namespace Samples
 		public static void ResetBall()
 		{
 			WSync();
-			Timing.ConsumeCycles(45);
+			//Timing.ConsumeCycles(45);
 			ResBl();
 			XPosBall = BallStartX;
 			YPosBall = BallStartY;

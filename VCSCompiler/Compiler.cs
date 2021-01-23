@@ -1,320 +1,361 @@
-﻿using Microsoft.CodeAnalysis.CSharp;
+﻿#nullable enable
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 using System.Linq;
 using System.Reflection;
-using System.Collections.Immutable;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using VCSFramework;
-using Mono.Cecil.Cil;
-using VCSFramework.Assembly;
-using static VCSFramework.Assembly.AssemblyFactory;
+using VCSFramework.Templates;
 
 namespace VCSCompiler
 {
+    internal sealed record AssemblyPair(Assembly Assembly, AssemblyDefinition Definition);
+
     public sealed class Compiler
     {
-		private readonly TypeMap Types;
-		private readonly Assembly FrameworkAssembly;
-		private readonly AssemblyDefinition UserAssemblyDefinition;
-		private readonly IEnumerable<Type> FrameworkAttributes;
-
-		private Compiler(Assembly frameworkAssembly, AssemblyDefinition userAssemblyDefinition, IEnumerable<Type> frameworkAttributes)
-		{
-			Types = new TypeMap();
-			FrameworkAssembly = frameworkAssembly;
-			UserAssemblyDefinition = userAssemblyDefinition;
-			FrameworkAttributes = frameworkAttributes;
-		}
-
-		public static async Task<RomInfo> CompileFromText(string source, string frameworkPath, string dasmPath)
-		{
-			// TODO - How does Roslyn react to an empty source file?
-			if (source == null)
-			{
-				throw new ArgumentNullException(nameof(source));
-			}
-
-			var tempFileName = Path.GetTempFileName();
-			File.WriteAllText(tempFileName, source);
-			return await CompileFromFiles(new[] { tempFileName }, frameworkPath, dasmPath);
-		}
-
-		public static Task<RomInfo> CompileFromFiles(IEnumerable<string> filePaths, string frameworkPath, string dasmPath)
-		{
-			if (filePaths == null)
-			{
-				throw new ArgumentNullException(nameof(filePaths));
-			}
-			else if (!filePaths.Any())
-			{
-				throw new ArgumentException("No source files specified.", nameof(filePaths));
-			}
-
-			if (frameworkPath == null)
-			{
-				throw new ArgumentNullException(nameof(frameworkPath));
-			}
-			else if (string.IsNullOrWhiteSpace(frameworkPath))
-			{
-				throw new ArgumentException("VCS framework DLL path must be specified.", nameof(frameworkPath));
-			}
-
-			// TODO - No DASM path should mean the caller just wants the assembly output, not a compiled binary.
-
-			var compilation = CompilationCreator.CreateFromFilePaths(filePaths);
-			var assemblyDefinition = GetAssemblyDefinition(compilation, out var assemblyStream);
-			var frameworkAssembly = System.Reflection.Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(frameworkPath)));
-			var frameworkAttributes = frameworkAssembly.ExportedTypes.Where(t => t.GetTypeInfo().BaseType == typeof(Attribute));
-			var compiler = new Compiler(frameworkAssembly, assemblyDefinition, frameworkAttributes.ToArray());
-            try
+        private readonly AssemblyPair UserPair;
+        private static CompilerOptions? _Options;
+        internal static CompilerOptions Options
+        {
+            get
             {
-                var frameworkCompiledAssembly = CompileAssembly(compiler, AssemblyDefinition.ReadAssembly(frameworkPath, new ReaderParameters { ReadSymbols = true }));
-                var userCompiledAssembly = CompileAssembly(compiler, assemblyDefinition);
-                var callGraph = CallGraph.CreateFromEntryMethod(userCompiledAssembly.EntryPoint);
-                var program = new CompiledProgram(new[] { frameworkCompiledAssembly, userCompiledAssembly }, callGraph);
-                var romInfo = RomCreator.CreateRom(program, dasmPath);
-                return Task.FromResult(romInfo);
-            }
-            finally
-            {
-                AuditorManager.Instance.WriteLog(Path.Combine(Directory.GetCurrentDirectory(), "outlog.html"));
-            }
-		}
-
-		private static CompiledAssembly CompileAssembly(Compiler compiler, AssemblyDefinition assemblyDefinition)
-		{
-			// Compilation steps (WIP):
-			// 1. Iterate over every type and collect basic information (Processsed*).
-			var types = assemblyDefinition.MainModule.Types
-				.Where(t => t.BaseType != null)
-				.Where(t => t.CustomAttributes.All(a => a.AttributeType.Name != "DoNotCompileAttribute"));
-			// TODO - Pass immutable copies of Types around instead of all mutating the field?
-			compiler.ProcessTypes(types);
-			// TODO - Do the above so we don't have to ToArray() to get around the fact we modify Types.
-			// TODO - Come up with determinate order to compile types in, they could have dependencies between each other.
-			var compiledTypes = compiler.CompileTypes(compiler.Types.ProcessedTypes).ToArray();
-			foreach(var compiledType in compiledTypes.Select(t => (FullName: t.FullName, Type: t)))
-			{
-				compiler.Types[compiledType.Type] = compiledType.Type;
-			}
-			var entryPoint = GetEntryPoint() as CompiledSubroutine;
-			return new CompiledAssembly(compiledTypes, entryPoint);
-
-            ProcessedSubroutine GetEntryPoint()
-            {
-                var cilEntryPoint = assemblyDefinition.MainModule.EntryPoint;
-                var cilEntryType = cilEntryPoint?.DeclaringType;
-                return cilEntryPoint != null ? compiler.Types[cilEntryType].Subroutines.Single(sub => sub.MethodDefinition == cilEntryPoint) : null;
+                if (_Options == null)
+                    throw new InvalidOperationException($"Attempted to fetch {nameof(Options)} but it's null, this should never happen.");
+                return _Options;
             }
         }
 
-		private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
-		{
-			assemblyStream = new MemoryStream();
-			
-			// TODO - Emit debug symbols so Cecil can use them.
-			var result = compilation.Emit(assemblyStream);
-			if (!result.Success)
-			{
-				foreach (var diagnostic in result.Diagnostics)
-				{
-					Console.WriteLine(diagnostic.ToString());
-				}
-				throw new FatalCompilationException("Failed to emit compiled assembly.");
-			}
-			assemblyStream.Position = 0;
+        private Compiler(AssemblyPair userPair, CompilerOptions options)
+        {
+            UserPair = userPair;
+            _Options = options;
+        }
 
-			return AssemblyDefinition.ReadAssembly(assemblyStream);
-		}
+        public static RomInfo CompileFromFile(string sourcePath, CompilerOptions options)
+        {
+            /**
+             * Assumptions:
+             * 1) This program is single threaded, there will never be a justification to multi-thread it.
+             * 2) CIL will be processed instead of C#, since it's much easier to translate to 6502 ASM than a syntax tree.
+             * 
+             * Problems:
+             * 1) To push a local, we need to know its size, because that's gonna change the number of LDA/PHA performed.
+             * 2) Popping a local has a similar problem.
+             * 3) Knowing when to emit a label. Normally only know when an instruction (often later than the label is declared) branches to it.
+             * 
+             * Approach Option #1:
+             * 1) All we really is for the entry point to get compiled, so let's cut to the chase. No processing a list of types,
+             *  or building up call trees. Just start compiling the entry point.
+             * 2) Any unknown methods encountered have a label generated and a JSR emitted to that label.
+             *  a) Inlined methods - TODO
+             * 3) Any unknown locals encountered have macros emitted to push/pop X number of bytes. X is a label representing
+             *  the byte size of the type.
+             * 4) We now have a CIL-compiled (though probably macro-filled) entry point, and a bunch of labels that need values.
+             *  a) For every method label, compile the corresponding method just as the entry point was. This may result in more labels
+             *     being generated, which is fine.
+             *  b) Every method (excluding those never called) is now compiled and has an associated label. For every variable 
+             *     size label, "compile" the associated type (determine size, base type, field/method members). Update size labels
+             *     with value for actual size. Base type and member data is more for organization and information than code generation.
+             *  c) Now we probably have an opportunity to optimize label values. E.g., see if memory locations can be reused depending on
+             *     callers. Probably fine to save that for later though.
+             * 5) Write the .asm file in a reasonable order. Entry point first, group types together, etc.
+             * 6) In the end, the generated .asm may look like an intermediate representation, with lots of parameterized macro
+             *  calls defining common tasks, rather than forcing the compiler to implement them and introduce more ASM-rewriting.
+             */
+            var userPair = CreateAssemblyPair(new[] { sourcePath }.ToImmutableArray());
 
-		/// <summary>
-		/// Gives the compiler a complete list of types to compile.
-		/// If a type relies on another type not in this list, this method will throw.
-		/// </summary>
-		private void ProcessTypes(IEnumerable<TypeDefinition> cecilTypes)
-		{
-			foreach (var type in cecilTypes)
-			{
-				if (!TypeChecker.IsValidType(type, Types.ToImmutableTypeMap(), out var typeError))
-				{
-					throw new FatalCompilationException(typeError);
-				}
-				var processedType = ProcessType(type);
-				Types[type] = processedType;
-			}
-		}
+            var compiler = new Compiler(userPair, options);
+            var entryPointBody = MethodCompiler.Compile(userPair.Definition.EntryPoint, userPair, false, true, new CilInstructionCompiler.Options
+            {
+                InlineAllCalls = true
+            });
+            // @TODO - Control should never return from the entry point. For RawTemplate, this means ensuring the _user_'s entry point
+            // never returns. For StandardTemplate, _its_ entry point should never return.
 
-		private ProcessedType ProcessType(TypeDefinition typeDefinition)
-		{
-            var auditor = AuditorManager.Instance.GetAuditor(typeDefinition.Name, AuditTag.TypeProcessing);
-			var processedFields = typeDefinition.Fields.Select(ProcessField).ToArray();
-			var fieldOffsets = ProcessFieldOffsets(processedFields);
+            var allFunctions = compiler.RecursiveCompileAllFunctions(userPair, entryPointBody);
+            var allLabelAssignments = CreateLabelAssignments(allFunctions.Prepend(entryPointBody).ToImmutableArray(), userPair);
+            var allRomData = allFunctions.Prepend(entryPointBody)
+                .SelectMany(GetAllMacroParameters)
+                .OfType<RomDataGlobalLabel>()
+                .Select(label =>
+                {
+                    // @TODO - What do we do for 0 elements?
+                    var romData = ImmutableArray.ToImmutableArray(userPair.Assembly.InvokeRomDataGenerator(label.GeneratorMethod));
+                    var elementSize = Marshal.SizeOf(Enumerable.First(romData));
+                    var byteBuffer = new byte[romData.Length * elementSize];
+                    var byteIndex = 0;
+                    foreach (var element in romData)
+                    {
+                        var ptr = Marshal.AllocHGlobal(elementSize);
+                        Marshal.StructureToPtr(element, ptr, false);
+                        Marshal.Copy(ptr, byteBuffer, byteIndex, elementSize);
+                        byteIndex += elementSize;
+                        Marshal.FreeHGlobal(ptr);
+                    }
+                    return (label, byteBuffer.ToImmutableArray());
+                })
+                .ToImmutableArray();
+            var fullProgram = AssemblyTemplate.GenerateProgram(entryPointBody, allFunctions, allLabelAssignments, allRomData);
 
-			var methods = typeDefinition.CompilableMethods();
-			var processedSubroutines = methods.Select(ProcessMethod);
+            //var assemblyWriter = new AssemblyWriter(labelMap.FunctionToBody.Add(userAssemblyDefinition.MainModule.EntryPoint, entryPointBody), labelMap, options.SourceAnnotations);
 
-			var baseType = Types[typeDefinition.BaseType];
-            
-			return new ProcessedType(typeDefinition, baseType, processedFields, fieldOffsets, processedSubroutines.ToImmutableList());
+            var qq = AssemblyTemplate.ProgramToString(fullProgram, SourceAnnotation.Both);
+            var romInfo = Assemble(qq, options.OutputPath);
 
-			ProcessedField ProcessField(FieldDefinition field)
-			{
-                auditor.RecordEntry($"Processing field {field.FieldType.Name} {field.Name}...");
-				return new ProcessedField(field, Types[field.FieldType]);
-			}
+            if (options.TextEditorPath != null && romInfo.AssemblyPath != null)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = options.TextEditorPath,
+                        Arguments = romInfo.AssemblyPath
+                    });
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to open text editor at {options.TextEditorPath} with ASM file {romInfo.AssemblyPath} because: {e.Message}");
+                }
+            }
 
-			IImmutableDictionary<ProcessedField, byte> ProcessFieldOffsets(IEnumerable<ProcessedField> fields)
-			{
-				var instanceFields = fields.Where(pf => !pf.FieldDefinition.IsStatic);
-				var offsets = new Dictionary<ProcessedField, byte>();
+            if (options.EmulatorPath != null && romInfo.RomPath != null)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = options.EmulatorPath,
+                        Arguments = romInfo.RomPath
+                    });
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to open emulator at {options.EmulatorPath} with BIN file {romInfo.RomPath} because: {e.Message}");
+                }
+            }
 
-				var nextOffset = 0;
-				foreach(var field in instanceFields)
-				{
-					offsets.Add(field, (byte)nextOffset);
-                    auditor.RecordEntry($"Recorded field offset of {nextOffset} bytes for '{field.Name}'.");
-                    nextOffset += field.FieldType.TotalSize;
-				}
+            var final = romInfo.IsSuccessful ? "Compilation succeeded." : "Compilation failed";
+            Console.WriteLine(final);
+            _Options = null;
+            return romInfo;
 
-				return offsets.ToImmutableDictionary();
-			}
+            static RomInfo Assemble(string assembly, string? outputPath)
+            {
+                // @TODO - Should probably delete these?? If there's 65K temp files it'll fail.
+                var binPath = outputPath ?? Path.GetTempFileName();
+                var asmPath = outputPath != null ? Path.ChangeExtension(outputPath, "asm") : Path.GetTempFileName();
+                var listPath = outputPath != null ? Path.ChangeExtension(outputPath, "lst") : Path.GetTempFileName();
 
-			ProcessedSubroutine ProcessMethod(MethodDefinition method)
-			{
-				var parameters = method.Parameters.Select(p => Types[p.ParameterType]).ToList();
-				var locals = method.Body.Variables.Select(l => Types[l.VariableType]).ToList();
-                var methodAuditor = AuditorManager.Instance.GetAuditor(method.FullName, AuditTag.MethodProcessing);
-                var graphAuditor = AuditorManager.Instance.GetAuditor($"{nameof(ControlFlowGraph)} Generation", AuditTag.MethodProcessing);
-				var controlFlowGraph = ControlFlowGraphBuilder.Build(method, graphAuditor);
-                methodAuditor.RecordAuditor(graphAuditor);
-                methodAuditor.RecordEntry("Finished processing.");
-                auditor.RecordAuditor(methodAuditor);
-                
-				return new ProcessedSubroutine(
-					method,
-					controlFlowGraph,
-					method == UserAssemblyDefinition.EntryPoint,
-					Types[method.ReturnType], 
-					parameters,
-					locals,
-					method.CustomAttributes.Where(a => FrameworkAttributes.Any(fa => fa.FullName == a.AttributeType.FullName)).Select(CreateFrameworkAttribute).ToArray());
-			}
-		}
+                File.WriteAllText(asmPath, assembly);
 
-		private Attribute CreateFrameworkAttribute(CustomAttribute attribute)
-		{
-			var type = FrameworkAttributes.Single(t => t.FullName == attribute.AttributeType.FullName);
-			var parameters = attribute.ConstructorArguments.Select(a => a.Value).ToArray();
-			var instance = (Attribute)Activator.CreateInstance(type, parameters);
-			return instance;
-		}
+                var assemblerArgs = new[]
+                {
+                    //"-l",
+                    //Path.Combine(Path.GetDirectoryName(asmPath)!, "labeltest.asm"),
+                    asmPath,
+                    "-o",
+                    binPath,
+                    "-L",
+                    listPath,
+                    "--format=flat"
+                };
 
-		private IEnumerable<CompiledType> CompileTypes(IEnumerable<ProcessedType> processedTypes)
-		{
-			// ToArray because we're going to be modifying the underlying Types dictionary.
-			foreach(var type in processedTypes.ToArray())
-			{
-				yield return CompileType(type);
-			}
-		}
+                using var stdoutStream = new MemoryStream();
+                using var writer = new StreamWriter(stdoutStream) { AutoFlush = true };
+                Console.SetOut(writer);
+                Console.SetError(writer);
 
-		private CompiledType CompileType(ProcessedType processedType)
-		{
-            var auditor = AuditorManager.Instance.GetAuditor(processedType.FullName, AuditTag.TypeCompiling);
-			var compiledSubroutines = new List<CompiledSubroutine>();
-			var callGraph = CreateCallGraph(processedType);
-			var compilationOrder = callGraph.TopologicalSort();
-			foreach(var subroutine in compilationOrder)
-			{
-                var subroutineAuditor = AuditorManager.Instance.GetAuditor(subroutine.FullName, AuditTag.MethodCompiling);
-				if (subroutine.TryGetFrameworkAttribute<UseProvidedImplementationAttribute>(out var providedImplementation))
-				{
-					var implementationDefinition = processedType.TypeDefinition.Methods.Single(m => m.Name == providedImplementation.ImplementationName);
-					var implementation = FrameworkAssembly.GetType(processedType.FullName, true).GetTypeInfo().GetMethod(implementationDefinition.Name, BindingFlags.Static | BindingFlags.NonPublic);
-					var compiledBody = (IEnumerable<AssemblyLine>)implementation.Invoke(null, null);
-					compiledSubroutines.Add(new CompiledSubroutine(subroutine, compiledBody));
-					auditor.RecordEntry($"Implementation provided by '{implementationDefinition.FullName}':{Environment.NewLine}{string.Join(Environment.NewLine, compiledBody)}");
-					continue;
-				}
-                
-				IEnumerable<AssemblyLine> body;
-				if (subroutine.TryGetFrameworkAttribute<IgnoreImplementationAttribute>(out _))
-				{
-					body = Enumerable.Empty<AssemblyLine>();
-                    auditor.RecordEntry($"Skipping CIL compilation of {subroutine.FullName} due to {nameof(IgnoreImplementationAttribute)}, assuming an empty subroutine body.");
-				}
-				else
-				{
-                    var lineAuditor = AuditorManager.Instance.GetAuditor($"CIL", AuditTag.MethodCompiling);
-                    lineAuditor.RecordEntry(string.Join(Environment.NewLine, subroutine.MethodDefinition.Body.Instructions), false);
-                    subroutineAuditor.RecordAuditor(lineAuditor);
+                Core6502DotNet.Core6502DotNet.Main(assemblerArgs);
 
-                    var assemblyAuditor = AuditorManager.Instance.GetAuditor($"6502 Assembly", AuditTag.MethodCompiling);
-					body = CilCompiler.CompileMethod(subroutine.MethodDefinition, Types.ToImmutableTypeMap(), FrameworkAssembly, assemblyAuditor);
-                    subroutineAuditor.RecordAuditor(assemblyAuditor);
-				}
+                Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+                Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+                stdoutStream.Position = 0;
+                using var reader = new StreamReader(stdoutStream);
+                var stdoutText = reader.ReadToEnd();
+                Console.WriteLine("Assembler output:");
+                Console.WriteLine(stdoutText);
 
-				if (subroutine.IsEntryPoint)
-				{
-                    subroutineAuditor.RecordEntry("Injecting entry point code.");
-					body = GetEntryPointPrependedCode().Concat(body);
-				}
+                if (!stdoutText.Contains("Assembly completed successfully."))
+                {
+                    Console.WriteLine("Assembly failed, there is probably an internal problem with the code that the compiler is generating.");
+                    return new RomInfo
+                    {
+                        IsSuccessful = false,
+                        AssemblyPath = asmPath
+                    };
+                }
 
-				var compiledSubroutine = new CompiledSubroutine(subroutine, body);
-				compiledSubroutines.Add(compiledSubroutine);
-				Types[processedType] = Types[processedType].ReplaceSubroutine(subroutine, compiledSubroutine);
-                auditor.RecordAuditor(subroutineAuditor);
-			}
-			return new CompiledType(processedType, compiledSubroutines.ToImmutableList());
-		}
+                Console.WriteLine("Assembly was successful.");
+                return new RomInfo
+                {
+                    IsSuccessful = true,
+                    // @TODO - Don't emit if we used temp files?
+                    AssemblyPath = asmPath,
+                    RomPath = binPath,
+                    ListPath = listPath
+                };
+            }
+        }
 
-		private ImmutableGraph<ProcessedSubroutine> CreateCallGraph(ProcessedType processedType)
-		{
-			var graph = ImmutableGraph<ProcessedSubroutine>.Empty;
+        private static AssemblyPair CreateAssemblyPair(ImmutableArray<string> sourcePaths)
+        {
+            // First we compile without the generated template so we can find what type to use.
+            // Then we compile with the generated template and return the AssemblyDefinition containing that and the user types.
+            var firstCompilation = CompilationCreator.CreateFromFilePaths(sourcePaths, null);
+            GetAssemblyDefinition(firstCompilation, out var firstAssemblyStream);
+            var loadContext = new AssemblyLoadContext(null, true);
+            var firstAssembly = loadContext.LoadFromStream(firstAssemblyStream!);
+            firstAssemblyStream.Dispose();
 
-			foreach (var subroutine in processedType.Subroutines)
-			{
-				graph = graph.AddNode(subroutine);
-			}
+            ProgramTemplate template;
+            var userProgramType = firstAssembly.GetTypes().SingleOrDefault(t => t.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(TemplatedProgramAttribute).FullName));
+            if (userProgramType == null)
+            {
+                // If no types are marked with [TemplatedProgram], assume they want a RawTemplate.
+                userProgramType = firstAssembly.GetEntryPoint()?.DeclaringType ?? throw new InvalidOperationException($"Could not find a type marked with [TemplatedProgram] nor an entry point.");
+                template = new RawTemplate(userProgramType);
+            }
+            else
+            {
+                var templateAttribute = userProgramType.CustomAttributes.Single(a => a.AttributeType.FullName == typeof(TemplatedProgramAttribute).FullName);
+                var templateType = (Type)templateAttribute.ConstructorArguments[0].Value!;
+                var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                template = (ProgramTemplate?)Activator.CreateInstance(templateType, flags, null, new[] { userProgramType }, null) 
+                    ?? throw new InvalidOperationException($"Failed to create instance of type '{templateType}'");
+            }
 
-			foreach (var subroutine in processedType.Subroutines)
-			{
-				var calls = subroutine.MethodDefinition.Body.Instructions
-								.Where(i => i.OpCode == OpCodes.Call)
-								.Select(i => i.Operand)
-								.OfType<MethodDefinition>()
-								.Where(md => processedType.Subroutines.Any(s => s.MethodDefinition == md))
-								.Select(md => processedType.Subroutines.Single(s => s.MethodDefinition == md));
+            // Don't dispose MemoryStream or it breaks Cecil.
+            loadContext.Unload();
 
-				foreach (var call in calls)
-				{
-					graph = graph.AddEdge(subroutine, call);
-				}
-			}
+            var generatedSourceText = template.GenerateSourceText();
+            var generatedSourcePath = Path.Combine(Path.GetTempPath(), $"{template.GeneratedTypeName}.generated.cs");
+            File.WriteAllText(generatedSourcePath, generatedSourceText);
 
-			return graph;
-		}
+            var finalCompilation = CompilationCreator.CreateFromFilePaths(sourcePaths.Append(generatedSourcePath), template.GeneratedTypeName);
+            var definition = GetAssemblyDefinition(finalCompilation, out var finalAssemblyStream);
+            var finalAssembly = new AssemblyLoadContext(null, false).LoadFromStream(finalAssemblyStream);
+            return new AssemblyPair(finalAssembly, definition);
+        }
 
-		private IEnumerable<AssemblyLine> GetEntryPointPrependedCode()
-		{
-			yield return Comment("Begin injected entry point code.");
+        private static AssemblyDefinition GetAssemblyDefinition(CSharpCompilation compilation, out MemoryStream assemblyStream)
+        {
+            assemblyStream = new MemoryStream();
+            var emitOptions = new EmitOptions(debugInformationFormat: DebugInformationFormat.Embedded);
+            var result = compilation.Emit(assemblyStream, options: emitOptions);
+            if (!result.Success)
+            {
+                foreach (var diagnostic in result.Diagnostics)
+                {
+                    Console.WriteLine(diagnostic.ToString());
+                }
+                throw new FatalCompilationException("Failed to emit compiled assembly.");
+            }
 
-			// Clear processor flags, intialize stack pointer to 0xFF.
-			yield return SEI();
-			yield return CLD();
-			yield return LDX(0xFF);
-			yield return TXS();
+            assemblyStream.Position = 0;
+            var parameters = new ReaderParameters { ReadSymbols = true };
+            var definition = AssemblyDefinition.ReadAssembly(assemblyStream, parameters);
+            assemblyStream.Position = 0;
+            return definition;
+        }
 
-			// Initialize all memory to 0s (and skip RTS).
-			var clearMemoryLines = Memory.ClearMemoryInternal().ToArray();
-			foreach (var line in clearMemoryLines.Take(clearMemoryLines.Length - 1))
-			{
-				yield return line;
-			}
-			yield return Comment("End injected entry point code.");
-		}
-	}
+        private ImmutableArray<Function> RecursiveCompileAllFunctions(AssemblyPair userPair, Function function)
+        {
+            var set = new HashSet<Function>();
+            CompileAllFunctionsInternal(function, userPair, set);
+            return set.ToImmutableArray();
+
+            static void CompileAllFunctionsInternal(Function function, AssemblyPair userPair, ISet<Function> set)
+            {
+                foreach (var entry in GetAllMacroParameters(function).OfType<FunctionLabel>())
+                {
+                    if (!set.Any(f => (MethodDef)f.Definition == entry.Method))
+                    {
+                        var compiledFunction = MethodCompiler.Compile(entry.Method, userPair, false);
+                        set.Add(compiledFunction);
+                        CompileAllFunctionsInternal(compiledFunction, userPair, set);
+                    }
+                }
+            }
+        }
+
+        private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyPair userPair)
+        {
+            // @TODO - Aliases
+            var start = 0x80;
+            var reserved = Enumerable.Range(0, GetReservedBytes(functions))
+                .Select(i => new LabelAssign(new ReservedGlobalLabel(i), new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            var otherGlobals = functions.SelectMany(GetAllMacroParameters)
+                .OfType<IGlobalLabel>()
+                .Where(l => l is not PredefinedGlobalLabel && l is not RomDataGlobalLabel)
+                .Distinct()
+                .Select(l => new LabelAssign(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+            // @TODO - Check if we overflowed into stack.
+
+            var typeId = 100;
+            var allReferencedTypes = functions.SelectMany(GetAllMacroParameters).OfType<TypeLabel>().Select(l => l.Type)
+                .Concat(functions.SelectMany(GetAllMacroParameters).OfType<PointerTypeLabel>().Select(l => l.ReferentType))
+                .Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte)
+                .Distinct()
+                .ToImmutableArray();
+            var allPairedTypes = allReferencedTypes.Select(t => (new LabelAssign(new TypeLabel(t), new Constant((byte)typeId++)), new LabelAssign(new PointerTypeLabel(t), new Constant((byte)typeId++))));
+
+            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userPair.Definition).Size)));
+
+            var allLabelAssignments = new List<LabelAssign>();
+
+            var aliasedFields = userPair.Definition.CompilableTypes().SelectMany(t => t.Fields).Where(f => f.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName));
+            foreach (var field in aliasedFields)
+            {
+                // @TODO - Support aliased RomData<>s.
+                if (!field.IsStatic)
+                    throw new InvalidOperationException($"[{nameof(InlineAssemblyAliasAttribute)}] can only be used on static fields. '{field.FullName}' is not static.");
+                var aliases = field.CustomAttributes.Where(a => a.AttributeType.FullName == typeof(InlineAssemblyAliasAttribute).FullName).Select(a => (string)a.ConstructorArguments[0].Value);
+                foreach (var alias in aliases)
+                {
+                    if (!alias.StartsWith(AssemblyUtilities.AliasPrefix))
+                        throw new InvalidOperationException($"Alias '{alias}' must begin with '{AssemblyUtilities.AliasPrefix}'");
+                    var existingAlias = allLabelAssignments.Where(a => a.Label is PredefinedGlobalLabel p && p.Name == alias).SingleOrDefault();
+                    if (existingAlias != null)
+                        throw new InvalidOperationException($"Alias '{alias}' is already being aliased to '{existingAlias.Value}', can't alias to '{field.FullName}' too.");
+                    allLabelAssignments.Add(new(new PredefinedGlobalLabel(alias), new GlobalFieldLabel(field)));
+                }
+            }
+
+            allLabelAssignments.AddRange(reserved);
+            allLabelAssignments.AddRange(otherGlobals);
+            foreach (var pair in allPairedTypes)
+            {
+                allLabelAssignments.Add(pair.Item1);
+                allLabelAssignments.Add(pair.Item2);
+            }
+            allLabelAssignments.AddRange(allTypeSizes);
+            allLabelAssignments.AddRange(new LabelAssign[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
+            return allLabelAssignments.ToImmutableArray();
+        }
+
+        private static int GetReservedBytes(IEnumerable<Function> functions) 
+            => functions.SelectMany(GetAllMacroCalls)
+            .Select(m => m switch
+            {
+                StackMutatingMacroCall sm => sm.MacroCall,
+                _ => m
+            })
+            .Select(m => m.GetType()).Max(t => t.GetCustomAttribute<ReservedBytesAttribute>()!.Count);
+
+        private IEnumerable<FieldReference> GetAllFieldRefs(Function function)
+            => GetAllMacroParameters(function).OfType<GlobalFieldLabel>().Select(l => l.Field).Distinct().Select(f => f.Field);
+
+        private static IEnumerable<IExpression> GetAllMacroParameters(Function function)
+            => function.Body.OfType<IMacroCall>().SelectMany(m => m.Parameters).Distinct();
+
+        private static IEnumerable<IMacroCall> GetAllMacroCalls(Function function)
+            => function.Body.OfType<IMacroCall>();
+    }
 }

@@ -1,44 +1,74 @@
-﻿using Mono.Cecil.Cil;
+﻿#nullable enable
+using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Text;
-using System.Reflection;
 using System.Linq;
-using VCSFramework.Assembly;
-using static VCSFramework.Assembly.AssemblyFactory;
-using Mono.Cecil;
+using System.Reflection;
 using VCSFramework;
+using VCSFramework;
+using Instruction = Mono.Cecil.Cil.Instruction;
 
 namespace VCSCompiler
 {
-	/// <summary>
-	/// Contains the logic for compiling individual CIL instructions to 6502 instructions.
-	/// </summary>
     internal class CilInstructionCompiler
     {
-		private readonly IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> MethodMap;
-		private readonly ImmutableTypeMap Types;
-	    private readonly MethodDefinition MethodDefinition;
-	    private int CgtCount;
+		public record Options
+        {
+			public bool InlineAllCalls { get; init; }
+			public bool MustNotReturn { get; init; }
+			public bool LiftLocals { get; init; }
+        }
 
-		public CilInstructionCompiler(MethodDefinition methodDefinition, ImmutableTypeMap types)
-		{
+		private static readonly TypeLabel ByteType = new(BuiltInDefinitions.Byte);
+		private static readonly TypeSizeLabel ByteSize = new(BuiltInDefinitions.Byte);
+		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> MethodMap;
+		private readonly MethodDefinition MethodDefinition;
+		private readonly AssemblyPair UserPair;
+		private readonly ImmutableArray<AssemblyDefinition> Assemblies;
+		private readonly Options CompilationOptions;
+
+		public CilInstructionCompiler(MethodDefinition methodDefinition, AssemblyPair userPair, Options? options = null)
+        {
 			MethodMap = CreateMethodMap();
 			MethodDefinition = methodDefinition;
-			Types = types;
-		}
+			UserPair = userPair;
+			Assemblies = BuiltInDefinitions.Assemblies.Append(userPair.Definition).ToImmutableArray();
+			CompilationOptions = options ?? new Options();
+        }
 
-		public IEnumerable<AssemblyLine> CompileInstruction(Instruction instruction) => MethodMap[instruction.OpCode.Code](instruction);
+		public IEnumerable<IAssemblyEntry> Compile()
+        {
+			var labeledInstructions = MethodDefinition.Body.Instructions
+				.Where(IsBranchInstruction)
+				.Select(it => (Instruction)it.Operand)
+				.ToImmutableArray();
 
-		private IImmutableDictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>> CreateMethodMap()
+			foreach (var instruction in MethodDefinition.Body.Instructions)
+            {
+				if (labeledInstructions.Contains(instruction))
+                {
+					yield return new InstructionLabel(instruction);
+                }
+				foreach (var entry in CompileInstruction(instruction))
+                {
+					yield return entry;
+                }
+            }
+        }
+
+        public IEnumerable<IAssemblyEntry> CompileInstruction(Instruction instruction)
+			=> MethodMap[instruction.OpCode.Code](instruction);
+
+		private ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> CreateMethodMap()
 		{
-			var dictionary = new Dictionary<Code, Func<Instruction, IEnumerable<AssemblyLine>>>();
+			var dictionary = new Dictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>>();
 			var typeInfo = typeof(CilInstructionCompiler).GetTypeInfo();
 			var opCodes = Enum.GetValues(typeof(Code)).Cast<Code>();
 			foreach (var opCode in opCodes)
 			{
-				var name = Enum.GetName(typeof(Code), opCode);
+				var name = Enum.GetName(typeof(Code), opCode) ?? throw new Exception();
 				if (opCode >= Code.Ldc_I4_0 && opCode <= Code.Ldc_I4_8)
 				{
 					name = "Ldc_I4";
@@ -57,47 +87,20 @@ namespace VCSCompiler
 				}
 				var method = typeInfo.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 				dictionary[opCode]
-					= (Func<Instruction, IEnumerable<AssemblyLine>>)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<AssemblyLine>>), this)
+					= (Func<Instruction, IEnumerable<IAssemblyEntry>>?)method?.CreateDelegate(typeof(Func<Instruction, IEnumerable<IAssemblyEntry>>), this)
 					?? Unsupported;
 			}
 			return dictionary.ToImmutableDictionary();
 		}
 
-	    private IEnumerable<AssemblyLine> LoadArgument(Instruction instruction)
-	    {
-		    if (instruction.Operand != null)
-		    {
-			    return LoadArgument(((ParameterReference) instruction.Operand).Index);
-		    }
-		    switch (instruction.OpCode.Code)
-		    {
-				case Code.Ldarg_0:
-					return LoadArgument(0);
-				case Code.Ldarg_1:
-					return LoadArgument(1);
-				case Code.Ldarg_2:
-					return LoadArgument(2);
-				case Code.Ldarg_3:
-					return LoadArgument(3);
-				default:
-					throw new NotImplementedException();
-		    }
-	    }
-
-	    private IEnumerable<AssemblyLine> LoadArgument(int index)
-	    {
-		    var parameter = MethodDefinition.Parameters[index];
-		    yield return LDA(LabelGenerator.GetFromParameter(parameter));
-		    yield return PHA();
-	    }
-
-		private IEnumerable<AssemblyLine> LoadConstant(Instruction instruction)
+		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction)
 		{
 			byte value = 0;
 			if (instruction.Operand != null)
 			{
 				try
 				{
+					// @TODO - Don't limit to byte, also don't be this verbose.
 					value = Convert.ToByte(instruction.Operand);
 				}
 				catch (OverflowException)
@@ -107,84 +110,64 @@ namespace VCSCompiler
 			}
 			else
 			{
-				switch(instruction.OpCode.Code)
+				switch (instruction.OpCode.Code)
 				{
 					case Code.Ldc_I4_0:
-						return LoadConstant(0);
+						return LoadConstant(instruction, 0);
 					case Code.Ldc_I4_1:
-						return LoadConstant(1);
+						return LoadConstant(instruction, 1);
 					case Code.Ldc_I4_2:
-						return LoadConstant(2);
+						return LoadConstant(instruction, 2);
 					case Code.Ldc_I4_3:
-						return LoadConstant(3);
+						return LoadConstant(instruction, 3);
 					case Code.Ldc_I4_4:
-						return LoadConstant(4);
+						return LoadConstant(instruction, 4);
 					case Code.Ldc_I4_5:
-						return LoadConstant(5);
+						return LoadConstant(instruction, 5);
 					case Code.Ldc_I4_6:
-						return LoadConstant(6);
+						return LoadConstant(instruction, 6);
 					case Code.Ldc_I4_7:
-						return LoadConstant(7);
+						return LoadConstant(instruction, 7);
 					case Code.Ldc_I4_8:
-						return LoadConstant(8);
+						return LoadConstant(instruction, 8);
 				}
 			}
-			return LoadConstant(value);
+			return LoadConstant(instruction, value);
 		}
 
-		private IEnumerable<AssemblyLine> LoadConstant(byte value)
+		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction, byte value)
 		{
-			yield return LDA(value);
-			yield return PHA();
+			yield return new PushConstant(instruction, new Constant(value), ByteType, ByteSize);
 		}
 
-	    private IEnumerable<AssemblyLine> LoadLocal(Instruction instruction)
-	    {
-		    if (instruction.Operand != null)
-		    {
-			    return LoadLocal(((VariableReference) instruction.Operand).Index);
-		    }
-		    else
-		    {
-			    switch (instruction.OpCode.Code)
-			    {
-					case Code.Ldloc_0:
-						return LoadLocal(0);
-					case Code.Ldloc_1:
-						return LoadLocal(1);
-					case Code.Ldloc_2:
-						return LoadLocal(2);
-					case Code.Ldloc_3:
-						return LoadLocal(3);
-					default:
-						throw new NotImplementedException();
-			    }
-		    }
-	    }
+		private IEnumerable<IAssemblyEntry> LoadLocal(Instruction instruction)
+        {
+			switch (instruction.OpCode.Code)
+            {
+				case Code.Ldloc_0:
+					return LoadLocal(0);
+				case Code.Ldloc_1:
+					return LoadLocal(1);
+				case Code.Ldloc_2:
+					return LoadLocal(2);
+				case Code.Ldloc_3:
+					return LoadLocal(3);
+				case Code.Ldloc_S:
+					return LoadLocal(((VariableDefinition)instruction.Operand).Index);
+            }
+			return LoadLocal((int)instruction.Operand);
 
-	    private IEnumerable<AssemblyLine> LoadLocal(int index)
-	    {
-		    var local = MethodDefinition.Body.Variables[index];
-		    yield return LDA(LabelGenerator.GetFromVariable(MethodDefinition, local));
-		    yield return PHA();
-	    }
+			IEnumerable<IAssemblyEntry> LoadLocal(int index)
+            {
+				var variable = MethodDefinition.Body.Variables[index];
+				yield return new PushLocal(instruction, new(MethodDefinition, index), TypeLabel(variable.VariableType), LocalSize(variable));
+            }
+        }
 
-	    private IEnumerable<AssemblyLine> StoreArgument(Instruction instruction)
-	    {
-		    // Either Starg or Starg_S.
-		    var parameter = (ParameterDefinition)instruction.Operand;
-			yield return PLA();
-		    yield return STA(LabelGenerator.GetFromParameter(parameter));
-		}
-
-	    private IEnumerable<AssemblyLine> StoreLocal(Instruction instruction)
-	    {
-		    if (instruction.Operand != null)
-		    {
-			    return StoreLocal(((VariableReference) instruction.Operand).Index);
-		    }
-		    switch (instruction.OpCode.Code)
-		    {
+		private IEnumerable<IAssemblyEntry> StoreLocal(Instruction instruction)
+        {
+			switch (instruction.OpCode.Code)
+            {
 				case Code.Stloc_0:
 					return StoreLocal(0);
 				case Code.Stloc_1:
@@ -193,363 +176,353 @@ namespace VCSCompiler
 					return StoreLocal(2);
 				case Code.Stloc_3:
 					return StoreLocal(3);
-				default:
-					throw new NotImplementedException();
-		    }
-	    }
+            }
+			return StoreLocal((int)instruction.Operand);
 
-	    private IEnumerable<AssemblyLine> StoreLocal(int index)
-	    {
-		    var local = MethodDefinition.Body.Variables[index];
-		    yield return PLA();
-		    yield return STA(LabelGenerator.GetFromVariable(MethodDefinition, local));
-	    }
+			IEnumerable<IAssemblyEntry> StoreLocal(int index)
+            {
+				var variable = MethodDefinition.Body.Variables[index];
+				yield return new PopToLocal(instruction, new(MethodDefinition, index), TypeLabel(variable.VariableType), LocalSize(variable), new(0), new(0));
+            }
+        }
 
-		private IEnumerable<AssemblyLine> Add(Instruction instruction)
-		{
-			// TODO - Should probably just allocate a couple address locations instead of trying to use the stack operations.
-			yield return PLA();
-			yield return STA(LabelGenerator.TemporaryRegister1);
-			yield return PLA();
-			yield return CLC();
-			yield return ADC(LabelGenerator.TemporaryRegister1);
-			yield return PHA();
-		}
+		private IEnumerable<IAssemblyEntry> Add(Instruction instruction)
+        {
+			yield return new AddFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
 
-	    private IEnumerable<AssemblyLine> Br(Instruction instruction)
-	    {
-			yield return JMP(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
-		}
+		private IEnumerable<IAssemblyEntry> Blt(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new BranchIfLessThanFromStack(instruction, new InstructionLabel(targetInstruction));
+        }
 
-	    private IEnumerable<AssemblyLine> Br_S(Instruction instruction) => Br(instruction);
+		private IEnumerable<IAssemblyEntry> Blt_S(Instruction instruction) => Blt(instruction);
 
-	    private IEnumerable<AssemblyLine> Brtrue(Instruction instruction)
-	    {
-			yield return PLA();
-		    yield return BNE(LabelGenerator.GetFromInstruction((Instruction)instruction.Operand));
-		}
+		private IEnumerable<IAssemblyEntry> Br(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new Branch(instruction, new InstructionLabel(targetInstruction));
+        }
 
-	    private IEnumerable<AssemblyLine> Brtrue_S(Instruction instruction) => Brtrue(instruction);
+		private IEnumerable<IAssemblyEntry> Br_S(Instruction instruction) => Br(instruction);
 
-		private IEnumerable<AssemblyLine> Call(Instruction instruction)
-		{
-			// Could be either a MethodDefinition or MethodReference.
-			MethodReference method = (MethodReference)instruction.Operand;
+		private IEnumerable<IAssemblyEntry> Brtrue(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new BranchTrueFromStack(instruction, new InstructionLabel(targetInstruction));
+        }
 
-			var methodDeclaringType = method.DeclaringType;
-			var processedSubroutine = Types[methodDeclaringType].Subroutines.Single(s => s.FullName == method.FullName);
+		private IEnumerable<IAssemblyEntry> Brtrue_S(Instruction instruction) => Brtrue(instruction);
 
-			// Check if this method should be replaced with a direct store to a symbol (generally a TIA register).
-			// Don't directly compare types since we may have received a different Framework assembly than what this library was built against.
-			if (processedSubroutine.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
-			{
-				if (!overrideStore.Strobe)
-				{
-					//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
-					if (method.Parameters.Count != 1)
-					{
-						throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithStoreToSymbolAttribute)}, must take 1 parameter for now.");
-					}
-					yield return PLA();
+		private IEnumerable<IAssemblyEntry> Brfalse(Instruction instruction)
+        {
+			var targetInstruction = (Instruction)instruction.Operand;
+			yield return new BranchFalseFromStack(instruction, new InstructionLabel(targetInstruction));
+        }
+
+		private IEnumerable<IAssemblyEntry> Brfalse_S(Instruction instruction) => Brfalse(instruction);
+
+		private IEnumerable<IAssemblyEntry> Call(Instruction instruction)
+        {
+			var methodReference = (MethodReference)instruction.Operand;
+
+			// If it's not a MethodDefintion, it's not in the assembly we're compiling. Search for it in others.
+			var method = methodReference as MethodDefinition
+				?? Assemblies.CompilableTypes().CompilableMethods().SingleOrDefault(it => methodReference.FullName == it.FullName)
+				?? methodReference.Resolve()
+				?? throw new MissingMethodException($"Could not find '{methodReference.FullName}' in any assemblies.");
+			var arity = method.Parameters.Count;
+
+			var mustInline = CompilationOptions.InlineAllCalls || method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _);
+			if (method.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
+            {
+				if (overrideStore.Strobe)
+                {
+					if (arity != 0)
+                    {
+						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', methods to be replaced with a strobe must take 0 parameters");
+                    }
+					yield return new StoreTo(instruction, new PredefinedGlobalLabel(overrideStore.Symbol));
+                }
+				else
+                {
+					if (arity != 1)
+                    {
+						throw new InvalidOperationException($"Couldn't call {nameof(OverrideWithStoreToSymbolAttribute)}-marked '{method.Name}', a non-strobe replacement should take 1 parameter.");
+                    }
+					yield return new PopToGlobal(instruction, new PredefinedGlobalLabel(overrideStore.Symbol), ByteType, ByteSize, new(0), new(0));
 				}
-				yield return STA(overrideStore.Symbol);
-				yield break;
-			}
-
-			if (processedSubroutine.TryGetFrameworkAttribute<OverrideWithLoadToRegisterAttribute>(out var overrideRegisterLoad))
-			{
-				//TODO - We assume this is a 1-arg void method. Actually enforce this at the processing stage.
-				if (method.Parameters.Count != 1)
+            }
+			else if (method.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
+            {
+				var type = method.ReturnType;
+				yield return new PushGlobal(instruction, new PredefinedGlobalLabel(overrideLoad.Symbol), new TypeLabel(type), new TypeSizeLabel(type));
+            }
+			else if (method.TryGetFrameworkAttribute<OverrideWithLoadToRegisterAttribute>(out var overrideLoadToRegister))
+            {
+				// @TODO - When we delete V1, should just switch to an enum.
+				byte register = overrideLoadToRegister.Register switch
+                {
+					"A" => 0,
+					"X" => 1,
+					"Y" => 2,
+					_ => throw new InvalidOperationException($"Unknown register '{overrideLoadToRegister.Register}'")
+                };
+				yield return new PopToRegister(instruction, new(register), new(0));
+            }
+			else if (method.TryGetFrameworkAttribute<ReplaceWithEntryAttribute>(out var replaceWithMacro))
+            {
+				yield return (IAssemblyEntry)(Activator.CreateInstance(replaceWithMacro.Type, instruction) 
+					?? throw new InvalidOperationException($"Failed to replace call to [{nameof(ReplaceWithEntryAttribute)}]-attributed method '{method}' with {nameof(IMacroCall)} type {replaceWithMacro.Type}"));
+            }
+			else if (mustInline)
+            {
+				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
 				{
-					throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithLoadToRegisterAttribute)} must take 1 parameter.");
+					throw new InvalidOperationException($"Inline methods must have 0 arity and void return type for now");
 				}
-				yield return PLA();
-				switch (overrideRegisterLoad.Register)
-				{
-					case "A":
-						break;
-					case "X":
-						yield return TAX();
-						break;
-					case "Y":
-						yield return TAY();
-						break;
-					default:
-						throw new FatalCompilationException($"Attempted load to unknown register: {overrideRegisterLoad.Register}");
-				}
-				yield break;
-			}
+				yield return new InlineFunction(instruction, method);
+				foreach (var entry in MethodCompiler.Compile(method, UserPair, true).Body)
+                {
+					yield return entry;
+                }
+            }
+			else
+            {
+				if (arity != 0)
+                {
+					throw new InvalidOperationException($"Methods must have 0 arity for now");
+                }
+				if (method.ReturnType.Name == typeof(void).Name)
+                {
+					yield return new CallVoid(instruction, new(method));
+                }
+				else
+                {
+					// @TODO - Probably doesn't work for returning ptr/ref.
+					// @TODO - We could maybe do a special case if the return type is 1-byte in size. Enregister
+					// the value or something instead of having to jump over the return address.
+					yield return new CallNonVoid(instruction, new(method), TypeLabel(method.ReturnType), ReturnSize(method));
+                }
+            }
+        }
 
-			if (processedSubroutine.TryGetFrameworkAttribute<OverrideWithLoadFromSymbolAttribute>(out var overrideLoad))
-			{
-				if (method.Parameters.Count != 0)
-				{
-					throw new NotImplementedException($"{method.Name}, marked with {nameof(OverrideWithLoadFromSymbolAttribute)}, must take 0 parameters.");
-				}
-				yield return LDA(overrideLoad.Symbol);
-				yield return PHA();
-				yield break;
-			}
+		private IEnumerable<IAssemblyEntry> Ceq(Instruction instruction)
+        {
+			yield return new CompareEqualToFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
 
-			var parameters = ((MethodReference) method).Parameters.ToImmutableArray();
-			if (parameters.Any())
-			{
-				// PLA arguments in reverse off stack and assign to parameters.
-				foreach (var parameter in parameters.Reverse())
-				{
-					yield return PLA();
-					yield return STA(LabelGenerator.GetFromParameter(parameter));
-				}
-			}
+		private IEnumerable<IAssemblyEntry> Conv_I(Instruction instruction)
+        {
+			// @TODO - Do we need to support this?
+			yield break;
+        }
 
-			if (processedSubroutine.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out _))
-			{
-				var compiledSubroutine = Types[method.DeclaringType].Subroutines.Single(s => s.FullName == method.FullName) as CompiledSubroutine;
-				if (compiledSubroutine == null)
-				{
-					throw new FatalCompilationException($"Attempted to inline method '{processedSubroutine.Name}' that hasn't been compiled yet. This suggests a bug in determining method compilation order.");
-				}
-
-				foreach (var assemblyLine in compiledSubroutine.Body)
-				{
-					//TODO - If the subroutine contains labels you can end up emitting duplicates if the inline subroutine is called more than once. Make them unique.
-					//TODO - Once we have branching and multiple return statements this will explode.
-					// In reality we probably want to replace RTS with JMP to a label inserted after this method body.
-					if (!assemblyLine.Text.Contains("RTS"))
-					{
-						yield return assemblyLine;
-					}
-				}
-				yield break;
-			}
-
-			yield return JSR(LabelGenerator.GetFromMethod(method));
+		private IEnumerable<IAssemblyEntry> Conv_U(Instruction instruction)
+		{
+			// @TODO - Do we need to support this?
+			yield break;
 		}
 
-	    private IEnumerable<AssemblyLine> Cgt_Un(Instruction instruction)
-	    {
-			// CLI says to push a 1 if true, 0 if false.
-		    var endLabel = Label($"__CGT_UN_END_{CgtCount}");
-		    var trueLabel = Label($"__CGT_UN_TRUE_{CgtCount}");
-		    var falseLabel = Label($"__CGT_UN_FALSE_{CgtCount}");
-		    CgtCount++;
-			yield return PLA();
-		    yield return STA(LabelGenerator.TemporaryRegister1);
-		    yield return PLA();
-		    yield return CMP(LabelGenerator.TemporaryRegister1);
-		    yield return BEQ(falseLabel.Name);
-		    yield return BCS(trueLabel.Name);
+		private IEnumerable<IAssemblyEntry> Conv_U1(Instruction instruction)
+        {
+			// @TODO - Do we have to support this? We obviously can't expand byte+byte addition
+			// to int+int addition.
+			yield break;
+        }
 
-			// == and < fall to here.
-		    yield return falseLabel;
-		    yield return LDA(0);
-		    yield return BEQ(endLabel.Name); // Always branches
+		private IEnumerable<IAssemblyEntry> Dup(Instruction instruction)
+        {
+			yield return new Duplicate(instruction, new(0), new(0));
+        }
 
-			yield return trueLabel;
-		    yield return LDA(1);
+		private IEnumerable<IAssemblyEntry> Initobj(Instruction instruction)
+        {
+			var type = (TypeReference)instruction.Operand;
+			yield return new InitializeObject(instruction, new TypeSizeLabel(type), new(0));
+        }
 
-		    yield return endLabel;
-			yield return PHA();
-	    }
+		private IEnumerable<IAssemblyEntry> Ldc_I4(Instruction instruction)
+			=> LoadConstant(instruction);
 
-		/// <summary>
-		/// Convert value on stack to int8, which it already should be.
-		/// </summary>
-		private IEnumerable<AssemblyLine> Conv_U1(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
+		private IEnumerable<IAssemblyEntry> Ldc_I4_S(Instruction instruction)
+			=> LoadConstant(instruction);
 
-		private IEnumerable<AssemblyLine> Initobj(Instruction instruction)
-		{
-			var typeDefinition = (TypeDefinition)instruction.Operand;
-			var processedType = Types[typeDefinition];
+		private IEnumerable<IAssemblyEntry> Ldfld(Instruction instruction)
+        {
+			var field = (FieldReference)instruction.Operand;
+			var fieldType = FieldType(field);
+			var fieldSize = FieldSize(field);
 
-			yield return PLA();
-			yield return TAX();
-
-			yield return LDA(0);
-			for(byte i = 0; i < processedType.TotalSize; i++)
-			{
-				yield return STA(i, Index.X);
-			}
+			yield return new PushFieldFromStack(instruction, FieldOffset(field), fieldType, fieldSize, new(0), new(0));
 		}
 
-	    private IEnumerable<AssemblyLine> Ldarg(Instruction instruction) => LoadArgument(instruction);
+		private IEnumerable<IAssemblyEntry> Ldflda(Instruction instruction)
+        {
+			var field = (FieldDefinition)instruction.Operand;
 
-	    private IEnumerable<AssemblyLine> Ldarg_S(Instruction instruction) => LoadArgument(instruction);
-
-	    private IEnumerable<AssemblyLine> Ldloc(Instruction instruction) => LoadLocal(instruction);
-
-	    private IEnumerable<AssemblyLine> Ldloc_S(Instruction instruction) => LoadLocal(instruction);
-
-		/// <summary>
-		/// Pushes a constant uint8 onto the stack.
-		/// </summary>
-		/// <remarks>The spec says to push an int32, but that's impractical.</remarks>
-		private IEnumerable<AssemblyLine> Ldc_I4(Instruction instruction) => LoadConstant(instruction);
-
-		/// <summary>
-		/// Pushes a constant uint8 onto the stack.
-		/// </summary>
-		/// <remarks>The spec says to push an int32, but that's impractical.</remarks>
-		private IEnumerable<AssemblyLine> Ldc_I4_S(Instruction instruction) => Ldc_I4(instruction);
-
-		private IEnumerable<AssemblyLine> Ldfld(Instruction instruction)
-		{
-			var fieldDefinition = (FieldDefinition)instruction.Operand;
-
-			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
-
-			// Put address of instance in X.
-			yield return PLA();
-			yield return TAX();
-
-			for (var i = 0; i < processedField.FieldType.TotalSize; i++)
-			{
-				var byteOffset = (byte)(containingType.FieldOffsets[processedField] + i);
-				yield return LDA(byteOffset, Index.X);
-				yield return PHA();
-			}
+			// Pops address of object off stack, adds offset to it, pushes it.
+			yield return new PushAddressOfField(instruction, FieldOffset(field), new(field.FieldType), new(0));
 		}
 
-		private IEnumerable<AssemblyLine> Ldflda(Instruction instruction)
-		{
-			var fieldDefinition = (FieldDefinition)instruction.Operand;
+		private IEnumerable<IAssemblyEntry> Ldind_U1(Instruction instruction)
+        {
+			yield return new PushDereferenceFromStack(instruction, new StackSizeArrayAccess(0), ByteType, ByteSize);
+        }
 
-			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
-			var fieldOffset = containingType.FieldOffsets[processedField];
+		private IEnumerable<IAssemblyEntry> Ldloc(Instruction instruction) => LoadLocal(instruction);
 
-			yield return PLA();
-			if (fieldOffset != 0)
-			{
-				yield return CLC();
-				yield return ADC(fieldOffset);
-			}
-			yield return PHA();
+		private IEnumerable<IAssemblyEntry> Ldloc_S(Instruction instruction) => Ldloc(instruction);
+
+		private IEnumerable<IAssemblyEntry> Ldloca(Instruction instruction)
+        {
+			var local = (VariableDefinition)instruction.Operand;
+			yield return new PushAddressOfLocal(instruction, new LiftedLocalLabel(MethodDefinition, local.Index), new PointerTypeLabel(local.VariableType), new PointerSizeLabel(true));
+        }
+
+		private IEnumerable<IAssemblyEntry> Ldloca_S(Instruction instruction) => Ldloca(instruction);
+
+		private IEnumerable<IAssemblyEntry> Ldsfld(Instruction instruction)
+        {
+			var field = (FieldReference)instruction.Operand;
+			var fieldLabel = new GlobalFieldLabel(field);
+			var fieldTypeLabel = FieldType(field);
+			var fieldSizeLabel = FieldSize(field);
+
+			yield return new PushGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel);
 		}
 
-		private IEnumerable<AssemblyLine> Ldsfld(Instruction instruction)
-		{
-			var fieldDefinition = (FieldDefinition)instruction.Operand;
+		private IEnumerable<IAssemblyEntry> Ldsflda(Instruction instruction)
+        {
+			var field = (FieldDefinition)instruction.Operand;
+			var fieldLabel = new GlobalFieldLabel(field);
 
-			var (_, processedField) = GetProcessedInfo(fieldDefinition);
-
-			if (processedField.FieldType.TotalSize == 1)
-			{
-				yield return LDA(LabelGenerator.GetFromField(fieldDefinition));
-				yield return PHA();
-				yield break;
-			}
-			
-			for (var i = 0; i < processedField.FieldType.TotalSize; i++)
-			{
-				yield return LDA(LabelGenerator.GetFromField(fieldDefinition), i);
-				yield return PHA();
-			}
+			yield return new PushAddressOfGlobal(instruction, fieldLabel, new(field.FieldType), new(true));
 		}
 
-		private IEnumerable<AssemblyLine> Ldsflda(Instruction instruction)
-		{
-			var fieldDefinition = (FieldDefinition)instruction.Operand;
-			yield return LDA($"#{LabelGenerator.GetFromField(fieldDefinition)}");
-			yield return PHA();
-		}
+		private IEnumerable<IAssemblyEntry> Ldstr(Instruction instruction)
+        {
+			// NOTE: This can only be used for compile-time purposes and MUST be optimized out.
+			// If it is found after optimizing, an exception will be thrown.
+			yield return new LoadString(instruction);
+        }
 
-		private IEnumerable<AssemblyLine> Nop(Instruction instruction) => Enumerable.Empty<AssemblyLine>();
+		private IEnumerable<IAssemblyEntry> Nop(Instruction instruction)
+        {
+			yield break;
+        }
 
-		private IEnumerable<AssemblyLine> Ret(Instruction instruction)
-		{
-			yield return RTS();
-		}
+		private IEnumerable<IAssemblyEntry> Pop(Instruction instruction)
+        {
+			yield return new PopStack(instruction, new(0));
+        }
 
-	    private IEnumerable<AssemblyLine> Starg(Instruction instruction) => StoreArgument(instruction);
+		private IEnumerable<IAssemblyEntry> Or(Instruction instruction)
+        {
+			yield return new OrFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
 
-		private IEnumerable<AssemblyLine> Starg_S(Instruction instruction) => StoreArgument(instruction);
-
-	    private IEnumerable<AssemblyLine> Stloc(Instruction instruction) => StoreLocal(instruction);
-
-	    private IEnumerable<AssemblyLine> Stloc_S(Instruction instruction) => StoreLocal(instruction);
-
-		private IEnumerable<AssemblyLine> Stfld(Instruction instruction)
-		{
-			var fieldDefinition = (FieldDefinition)instruction.Operand;
-
-			var (containingType, processedField) = GetProcessedInfo(fieldDefinition);
-
-			var byteOffset = containingType.FieldOffsets[processedField];
-			var fieldSize = processedField.FieldType.TotalSize;
-
-			if (fieldSize == 1)
-			{
-				// Put value to store in X.
-				yield return PLA();
-				yield return TAX();
-
-				// Put address of containing object in Y.
-				yield return PLA();
-				yield return TAY();
-				
-				yield return STX(byteOffset, Index.Y);
+		private IEnumerable<IAssemblyEntry> Ret(Instruction instruction)
+        {
+			if (MethodDefinition.ReturnType.FullName == typeof(void).FullName)
+            {
+				yield return new ReturnVoid(instruction);
 			}
 			else
-			{
-				// Unfortunately the value comes before the target address, and there isn't any stack-relative addressing on the 6502.
-				// So we'll have to get to the address with some stack pointer arithmetic.
-				yield return TSX();
-				// Offsets are purely additive, so we'll use unchecked to give us a byte that, when added, wraps around to what we want.
-				// The stack pointer points to the location where the next byte will be pushed, so we need to subtract 1 to get to the value.
-				// Then we just subtract the size of the value to get to the address.
-				byte offsetToAddress = unchecked((byte)-(fieldSize + 1));
-				yield return LDY(offsetToAddress, Index.X);
-				// TODO - Depending on size of value might be more time-efficient to just use absolute addressing with the Y register?
-				yield return TYA();
-				yield return TAX();
+            {
+				// @TODO - Probably doesn't work for returning ptr/ref.
+				var typeLabel = TypeLabel(MethodDefinition.ReturnType);
+				var sizeLabel = ReturnSize(MethodDefinition);
+				yield return new ReturnNonVoid(instruction, typeLabel, sizeLabel);
+            }
+        }
 
-				for (var offset = fieldSize - 1; offset >= 0; offset--)
-				{
-					yield return PLA();
-					yield return STA((byte)offset, Index.X);
-				}
-			}
+		private IEnumerable<IAssemblyEntry> Stfld(Instruction instruction)
+        {
+			var field = (FieldReference)instruction.Operand;
+
+			// Value is at stack[0], pointer at stack[1]
+			yield return new PopToFieldFromStack(instruction, FieldOffset(field), FieldType(field), FieldSize(field), new(1), new(1));
+        }
+
+		private IEnumerable<IAssemblyEntry> Stind_I1(Instruction instruction)
+        {
+			// Stind.i1 is also used to store to bytes.
+			yield return new PopToAddressFromStack(instruction, ByteType, ByteSize);
+        }
+
+		private IEnumerable<IAssemblyEntry> Stloc(Instruction instruction) => StoreLocal(instruction);
+
+		private IEnumerable<IAssemblyEntry> Stsfld(Instruction instruction)
+        {
+			var field = (FieldReference)instruction.Operand;
+			var fieldLabel = new GlobalFieldLabel(field);
+			var fieldTypeLabel = FieldType(field);
+			var fieldSizeLabel = FieldSize(field);
+
+			yield return new PopToGlobal(instruction, fieldLabel, fieldTypeLabel, fieldSizeLabel, new(0), new(0));
+        }
+
+		private IEnumerable<IAssemblyEntry> Sub(Instruction instruction)
+        {
+			yield return new SubFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
+
+		private IEnumerable<IAssemblyEntry> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
+
+		private bool IsBranchInstruction(Instruction instruction)
+        {
+			var branchInstructions = new[]
+			{
+				OpCodes.Blt,
+				OpCodes.Blt_S,
+				OpCodes.Br,
+				OpCodes.Br_S,
+				OpCodes.Brtrue,
+				OpCodes.Brtrue_S,
+				OpCodes.Brfalse,
+				OpCodes.Brfalse_S,
+			};
+
+			return branchInstructions.Contains(instruction.OpCode);
+        }
+
+		private static ITypeLabel TypeLabel(TypeReference type)
+        {
+			if (type.IsPointer || type.IsPinned || type.IsByReference)
+				return new PointerTypeLabel(type.Resolve());
+			return new TypeLabel(type);
 		}
 
-		private IEnumerable<AssemblyLine> Stsfld(Instruction instruction)
-		{
-			var fieldDefinition = (FieldDefinition)instruction.Operand;
-
-			var (_, processedField) = GetProcessedInfo(fieldDefinition);
-
-			if (processedField.FieldType.TotalSize == 1)
+		private static ISizeLabel SizeLabel(TypeReference type)
+        {
+			if (type.IsPointer || type.IsPinned || type.IsByReference)
 			{
-				yield return PLA();
-				yield return STA(LabelGenerator.GetFromField(fieldDefinition));
-				yield break;
+				// @TODO - Pointers to ROM are probably gonna need special support here. Pointers _TO_ RAM will always
+				// be short (barring different cartridge types), but don't know if a field/local is holding a pointer
+				// to ROM or expanded RAM (for other cartridges).
+				return new PointerSizeLabel(true);
 			}
-			
-			for (var i = processedField.FieldType.TotalSize - 1; i >= 0; i--)
-			{
-				yield return PLA();
-				yield return STA(LabelGenerator.GetFromField(fieldDefinition), i);
-			}
+			return new TypeSizeLabel(type);
 		}
 
-	    private IEnumerable<AssemblyLine> Sub(Instruction instruction)
-	    {
-		    yield return PLA();
-		    yield return STA(LabelGenerator.TemporaryRegister1);
-		    yield return PLA();
-		    yield return SEC();
-		    yield return SBC(LabelGenerator.TemporaryRegister1);
-		    yield return PHA();
-	    }
+		private static ISizeLabel ReturnSize(MethodDefinition method)
+			=> SizeLabel(method.ReturnType);
 
-		private IEnumerable<AssemblyLine> Unsupported(Instruction instruction) => throw new UnsupportedOpCodeException(instruction.OpCode);
+		private ITypeLabel FieldType(FieldReference field)
+			=> TypeLabel(GetFieldData(field).FieldType);
 
-		private (ProcessedType ContainingType, ProcessedField ProcessedField) GetProcessedInfo(FieldDefinition fieldDefinition)
-		{
-			var containingType = fieldDefinition.DeclaringType;
-			var processedType = Types[containingType];
-			var processedField = processedType.Fields.Single(pf => pf.FieldDefinition == fieldDefinition);
+		private ISizeLabel FieldSize(FieldReference field)
+			=> SizeLabel(GetFieldData(field).FieldType);
 
-			return (processedType, processedField);
-		}
+		private Constant FieldOffset(FieldReference field)
+			=> new Constant(GetFieldData(field).Offset);
+
+		private static ISizeLabel LocalSize(VariableDefinition variable)
+			=> SizeLabel(variable.VariableType);
+
+		private TypeData.FieldData GetFieldData(FieldReference field)
+			=> TypeData.Of(field.DeclaringType, UserPair.Definition).Fields.Single(f => f.Field.Name == field.Name);
 	}
 }

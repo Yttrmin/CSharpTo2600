@@ -16,16 +16,6 @@ namespace VCSCompiler
         private readonly IList<Auditor> Auditors = new List<Auditor>();
         private readonly DateTimeOffset StartTime = DateTimeOffset.Now;
 
-        public Auditor GetTypeMapAuditor()
-        {
-            if (Auditors.SingleOrDefault(a => a.Tag == AuditTag.TypeMap) is Auditor auditor)
-            {
-                return auditor;
-            }
-
-            return GetAuditor(nameof(TypeMap), AuditTag.TypeMap);
-        }
-
         public Auditor GetAuditor(string name, AuditTag tag)
         {
             var auditor = new Auditor(name, tag, GetTicks);
