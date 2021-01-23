@@ -72,8 +72,8 @@ An incomplete list of supported features in no particular order. Instructions ma
 * :o: Custom Types
   * :heavy_check_mark: Value Types
     * :heavy_check_mark: Single-byte types
-	  * :o: Multi-byte types (Not supported by all instructions yet)
-	  * :heavy_check_mark: Composite types (struct-in-struct)
+    * :o: Multi-byte types (Not supported by all instructions yet)
+    * :heavy_check_mark: Composite types (struct-in-struct)
     * :heavy_check_mark: Generic type
   * :o: Reference Types
     * :heavy_check_mark: Static types
@@ -108,37 +108,37 @@ An incomplete list of supported features in no particular order. Instructions ma
 * :o: CIL OpCodes
   * :o: Arithmetic
     * :o: Addition (`add`, 8-bit only)
-	  * :o: Subtraction (`sub`, 8-bit only)
-	  * :x: Division
-	  * :x: Multiplication
+    * :o: Subtraction (`sub`, 8-bit only)
+    * :x: Division
+    * :x: Multiplication
   * :o: Bitwise
     * :o: Or (`or`) (Operands must be same type and 8-bit)
   * :o: Branching
     * :heavy_check_mark: Branch if true (`brtrue`, `brtrue.s`)
-	  * :heavy_check_mark: Branch if false (`brfalse`, `brfalse.s`)
-	  * :heavy_check_mark: Unconditional branch (`br`, `br.s`)
+    * :heavy_check_mark: Branch if false (`brfalse`, `brfalse.s`)
+    * :heavy_check_mark: Unconditional branch (`br`, `br.s`)
     * :heavy_check_mark: Branch if less than (`blt`, `blt.s`)
   * :o: Comparison
     * :o: Equal (`ceq`) (8-bit only)
     * :x: Greater than (`cgt.un`)
   * :o: Load
     * :x: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
-	  * :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`) (up to 16-bit)
-	  * :x: Element
-	  * :heavy_check_mark: Field (static) (`ldsfld`)
-	    * :heavy_check_mark: Address (`ldsflda`)
-	  * :o: Field (instance) (`ldfld`) (8-bit only)
-	    * :o: Address (`ldflda`) (Zero-page pointers only)
+    * :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`) (up to 16-bit)
+    * :x: Element
+    * :heavy_check_mark: Field (static) (`ldsfld`)
+      * :heavy_check_mark: Address (`ldsflda`)
+    * :o: Field (instance) (`ldfld`) (8-bit only)
+      * :o: Address (`ldflda`) (Zero-page pointers only)
     * :o: Indirect (`ldind.u1`)
     * :o: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`) (Pending function rework)
       * :o: Address (`ldloca`) (Pending function rework)
   * :o: Store
     * :x: Argument (`starg`, `starg.s`)
-	  * :x: Element
-	  * :heavy_check_mark: Field (static) (`stsfld`)
-	  * :heavy_check_mark: Field (instance) (`stfld`)
-	  * :o: Indirect (`stind.u1`)
-	  * :o: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`) (Pending function rework)
+    * :x: Element
+    * :heavy_check_mark: Field (static) (`stsfld`)
+    * :heavy_check_mark: Field (instance) (`stfld`)
+    * :o: Indirect (`stind.u1`)
+    * :o: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`) (Pending function rework)
   * :o: Miscellaneous
     * :o: Call Method (`call`) (Various restrictions, pending function rework)
     * :o: Convert (`conv.i`, `conv.u`, `conv.u1`) (treated as NOPs, no extension to `int32`)
