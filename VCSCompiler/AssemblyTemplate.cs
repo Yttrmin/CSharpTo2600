@@ -132,6 +132,7 @@ namespace VCSCompiler
                     IFunctionCall fc => $"{fc.Name}({string.Join(", ", fc.Parameters.Select(e => GetStringFromEntry(e, method, annotations).Single()))})",
                     ILabel label => label switch
                     {
+                        ArgumentGlobalLabel a => $"ARG_{a.Method.DeclaringType.NamespaceAndName()}_{a.Method.Name}_{a.Index}",
                         BranchTargetLabel b => b.Name,
                         FunctionLabel m => $"FUNCTION_{m.Method.DeclaringType.NamespaceAndName()}_{m.Method.Name}",
                         GlobalFieldLabel g => $"GLOBAL_{g.Field.DeclaringType.NamespaceAndName()}_{g.Field.Field.Name}",
@@ -142,6 +143,7 @@ namespace VCSCompiler
                         PointerTypeLabel p => $"TYPE_{p.ReferentType.NamespaceAndName()}_PTR",
                         PredefinedGlobalLabel pg => pg.Name,
                         ReservedGlobalLabel rg => $"INTERNAL_RESERVED_{rg.Index}",
+                        ReturnValueGlobalLabel rv => $"RETVAL_{rv.Method.DeclaringType.NamespaceAndName()}_{rv.Method.Name}",
                         RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.Name}",
                         TypeLabel t => $"TYPE_{t.Type.NamespaceAndName()}",
                         TypeSizeLabel ts => $"SIZE_{ts.Type.NamespaceAndName()}",

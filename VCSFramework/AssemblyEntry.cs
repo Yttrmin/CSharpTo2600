@@ -54,6 +54,7 @@ namespace VCSFramework
     /// </summary>
     public interface IGlobalLabel : ILabel { }
     public interface IBranchTargetLabel : ILabel { }
+    public sealed record ArgumentGlobalLabel(MethodDef Method, int Index) : IGlobalLabel;
     public sealed record BranchTargetLabel(string Name) : IBranchTargetLabel;
     public sealed record FunctionLabel(MethodDef Method) : ILabel;
     public sealed record GlobalFieldLabel(FieldRef Field) : IGlobalLabel;
@@ -68,12 +69,14 @@ namespace VCSFramework
     /// Label to a local variable that exists at an indeterminate address on the stack.
     /// This can only be used in the context of a frame pointer or some other offsetable value.
     /// </summary>
+    [Obsolete]
     public sealed record LocalLabel(MethodDef Method, int Index) : ILabel;
     public sealed record PointerSizeLabel(bool ZeroPage) : ISizeLabel;
     public sealed record PointerTypeLabel(TypeRef ReferentType) : ITypeLabel;
     /// <summary>A global whose label is defined elsewhere (e.g. COLUBK in a header).</summary>
     public sealed record PredefinedGlobalLabel(string Name) : IGlobalLabel;
     public sealed record ReservedGlobalLabel(int Index) : IGlobalLabel;
+    public sealed record ReturnValueGlobalLabel(MethodDef Method) : IGlobalLabel;
     /// <summary>Label to a readonly global located in ROM. May be a single value or the first element of multiple values.</summary>
     public sealed record RomDataGlobalLabel(MethodDef GeneratorMethod) : IGlobalLabel;
     public sealed record TypeSizeLabel(TypeRef Type) : ISizeLabel;
@@ -109,8 +112,12 @@ namespace VCSFramework
     public sealed record LoadString(Instruction SourceInstruction) : IAssemblyEntry;
     public sealed record MultilineComment(ImmutableArray<string> Text) : IAssemblyEntry;
     public sealed record ProgramCounterAssign(int Address) : IAssemblyEntry;
+    [Obsolete]
+    public sealed record RomDataGetByByteOffsetCall(Instruction SourceInstruction) : IAssemblyEntry;
+    public sealed record RomDataGetPointerCall(Instruction SourceInstruction) : IAssemblyEntry;
     public sealed record RomDataGetterCall(Instruction SourceInstruction) : IAssemblyEntry;
     public sealed record RomDataLengthCall(Instruction SourceInstruction) : IAssemblyEntry;
+    public sealed record RomDataStrideCall(Instruction SourceInstruction) : IAssemblyEntry;
     // We split this out and not IMacroCall.Instructions, which is also optional, since Instructions will
     // always be set at instantiation. StackOperation is never set at instantiation, it'll only be set 
     // with a `with` operation long after the fact.
@@ -169,6 +176,12 @@ namespace VCSFramework
 
         public override int GetHashCode()
             => Method.FullName.GetHashCode();
+    }
+
+    public sealed record ParameterDef(ParameterDefinition Parameter)
+    {
+        public static implicit operator ParameterDef(ParameterDefinition p) => new(p);
+        public static implicit operator ParameterDefinition(ParameterDef p) => p.Parameter;
     }
 
     public sealed record FieldRef(FieldReference Field)

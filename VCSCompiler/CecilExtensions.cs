@@ -103,6 +103,26 @@ namespace VCSCompiler
 			}
 		}
 
+		/// <summary>Returns TRUE if <paramref name="this"/> calls <paramref name="target"/> through itself or any other callees.</summary>
+		public static bool Calls(this MethodDefinition @this, MethodDefinition target)
+        {
+			return CallsRecursive(@this, target);
+
+			static bool CallsRecursive(MethodDefinition source, MethodDefinition target)
+            {
+				foreach (var instruction in source.Body.Instructions.Where(i => i.OpCode == OpCodes.Call))
+                {
+					var calleeMethod = ((MethodReference)instruction.Operand).Resolve();
+					if (calleeMethod.FullName == target.FullName)
+						return true;
+
+					if (CallsRecursive(calleeMethod, target))
+						return true;
+                }
+				return false;
+			}
+        }
+
 		public static bool IsRecursive(this MethodDefinition @this)
         {
 			return IsRecursiveInternal(@this, @this);
@@ -145,13 +165,13 @@ namespace VCSCompiler
 		public static string NamespaceAndName(this TypeRef @this) => ((TypeReference)@this).NamespaceAndName();
 
 		// @TODO - Probably move to another file, or make this one more generic.
-		public static IEnumerable<Instruction> Concat(this Instruction @this, Instruction other)
-			=> Enumerable.Repeat(@this, 1).Concat(Enumerable.Repeat(other, 1));
+		public static IEnumerable<Instruction> Concat(this Instruction? @this, Instruction? other)
+			=> new[] { @this, other }.OfType<Instruction>();
 
-		public static IEnumerable<Instruction> Concat(this Instruction @this, IEnumerable<Instruction> other)
-			=> Enumerable.Repeat(@this, 1).Concat(other);
+		public static IEnumerable<Instruction> Concat(this Instruction? @this, IEnumerable<Instruction> other)
+			=> new[] { @this }.OfType<Instruction>().Concat(other);
 
-		public static IEnumerable<Instruction> Concat(this IEnumerable<Instruction> @this, Instruction other)
-			=> @this.Concat(Enumerable.Repeat(other, 1));
+		public static IEnumerable<Instruction> Concat(this IEnumerable<Instruction> @this, Instruction? other)
+			=> @this.Append(other).OfType<Instruction>();
 	}
 }

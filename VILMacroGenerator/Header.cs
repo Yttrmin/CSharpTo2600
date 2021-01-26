@@ -1,14 +1,15 @@
 ﻿#nullable enable
 using Microsoft.CodeAnalysis;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Text.RegularExpressions;
 
 namespace VILMacroGenerator
 {
     internal sealed class Header
     {
+        private readonly static Regex DoubleQuoteRegex = new Regex(@""".* """);
+
         private struct Function
         {
             public string Name { get; }
@@ -61,7 +62,8 @@ namespace VILMacroGenerator
         public PushParam? SizeParam { get; private set; }
         public int PopCount { get; set; }
         public int ReservedBytes { get; private set; }
-        public InstructionParamType InstructionParam { get; set; } = InstructionParamType.Single;
+        public InstructionParamType InstructionParam { get; private set; } = InstructionParamType.Single;
+        public string? DeprecatedString { get; private set; }
 
         public static Header? Parse(string generateLine, GeneratorExecutionContext context)
         {
@@ -121,6 +123,10 @@ namespace VILMacroGenerator
 
             var reserveString = parts.SingleOrDefault(p => p.StartsWith("@RESERVED=", StringComparison.CurrentCultureIgnoreCase));
             header.ReservedBytes = reserveString != null ? Convert.ToInt32(reserveString.Last().ToString()) : 0;
+
+            var deprecatedPart = parts.SingleOrDefault(p => p.StartsWith("@DEPRECATED", StringComparison.CurrentCultureIgnoreCase));
+            var deprecatedMatch = deprecatedPart != null ? DoubleQuoteRegex.Match(deprecatedPart) : null;
+            header.DeprecatedString = deprecatedMatch?.Success == true ? deprecatedMatch.Value : (deprecatedPart != null ? "" : null);
             return header;
 
             static bool TryGetBuiltInLabel(string value, bool isType, out string label)

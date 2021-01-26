@@ -36,7 +36,7 @@ storeTo
 copyTo
 */
 
-// @GENERATE @PUSH=type;size
+// @GENERATE @PUSH=type;size @OPTIONALINSTPARAM
 // Pushes {size} bytes starting at {address} onto the stack.
 // Effects: STACK+1, AccChange
 pushGlobal .macro global, type, size
@@ -110,15 +110,17 @@ pushAddressOfRomDataElementFromStack .macro romDataGlobal, referentType, referen
 
 // @GENERATE @RESERVED=2 @POP=1 @PUSH=type;size
 pushDereferenceFromStack .macro pointerStackSize, type, size
-	.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack"
 	.if \pointerStackSize == 1
 		PLA
 		TAX
-		LDA 0,X
-		PHA
+		.for i = 0, i < \size, i = i + 1
+			LDA i,X
+			PHA
+		.next
 	.endif
 	// @TODO @BUG - Again, elif doesn't work as expected.
 	.if \pointerStackSize == 2
+		.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack for long pointers"
 		PLA
 		STA INTERNAL_RESERVED_0
 		PLA
@@ -243,7 +245,7 @@ popToRegister .macro registerConstant, stackType
 	.endif
 .endmacro
 
-// @GENERATE @POP=1
+// @GENERATE @POP=1 @OPTIONALINSTPARAM
 // Pops {globalSize} bytes off the stack and stores them at {targetAddress}.
 // Effects: STACK-1, AccChange, MemChange
 popToGlobal .macro global, globalType, globalSize, stackType, stackSize
@@ -698,13 +700,13 @@ pushConstant .macro constant, type, size
 	.next
 .endmacro
 
-// @GENERATE @PUSH=type;size
+// @GENERATE @PUSH=type;size @DEPRECATED="Use pushGlobal"
 // Primitive
 pushLocal .macro local, type, size
 	.pushGlobal \local, \type, \size
 .endmacro
 
-// @GENERATE @POP=1
+// @GENERATE @POP=1 @DEPRECATED="Use popToGlobal"
 // Primitive
 popToLocal .macro local, localType, localSize, stackType, stackSize
 	.popToGlobal \local, \localType, \localSize, \stackType, \stackSize
@@ -735,6 +737,11 @@ duplicate .macro stackType, stackSize
 .endmacro
 
 // @GENERATE
+callMethod .macro method
+	JSR \method
+.endmacro
+
+// @GENERATE @DEPRECATED
 callVoid .macro method
 	JSR \method
 .endmacro
@@ -751,7 +758,7 @@ callVoid .macro method
 //	JSR \method
 //.endmacro
 
-// @GENERATE @PUSH=resultType;resultSize
+// @GENERATE @PUSH=resultType;resultSize @DEPRECATED
 callNonVoid .macro method, resultType, resultSize
 	// Allocate space for the return value.
 	.for i = 0, i < \resultSize, i = i + 1
@@ -761,11 +768,16 @@ callNonVoid .macro method, resultType, resultSize
 .endmacro
 
 // @GENERATE
+returnFromMethod .macro
+	RTS
+.endmacro
+
+// @GENERATE @DEPRECATED
 returnVoid .macro
 	RTS
 .endmacro
 
-// @GENERATE @POP=1
+// @GENERATE @POP=1 @DEPRECATED
 returnNonVoid .macro resultType, resultSize
 	// Return address is 16-bit.
 	.let returnValueStartOffset = 1 + \resultSize + 2

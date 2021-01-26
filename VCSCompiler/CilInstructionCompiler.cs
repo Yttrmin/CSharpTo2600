@@ -23,6 +23,7 @@ namespace VCSCompiler
 
 		private static readonly TypeLabel ByteType = new(BuiltInDefinitions.Byte);
 		private static readonly TypeSizeLabel ByteSize = new(BuiltInDefinitions.Byte);
+		private static readonly Instruction NopInst = Instruction.Create(OpCodes.Nop);
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
 		private readonly AssemblyPair UserPair;
@@ -92,6 +93,26 @@ namespace VCSCompiler
 			}
 			return dictionary.ToImmutableDictionary();
 		}
+
+		private IEnumerable<IAssemblyEntry> LoadArgument(Instruction instruction)
+        {
+			return instruction.OpCode.Code switch
+			{
+				Code.Ldarg_0 => LoadArgument(0),
+				Code.Ldarg_1 => LoadArgument(1),
+				Code.Ldarg_2 => LoadArgument(2),
+				Code.Ldarg_3 => LoadArgument(3),
+				Code.Ldarg_S => LoadArgument(((ParameterDefinition)instruction.Operand).Index),
+				Code.Ldarg => LoadArgument(((ParameterDefinition)instruction.Operand).Index),
+				_ => throw new InvalidOperationException()
+			};
+
+			IEnumerable<IAssemblyEntry> LoadArgument(int index)
+            {
+				var argument = MethodDefinition.Parameters[index];
+				yield return new PushGlobal(instruction, new ArgumentGlobalLabel(MethodDefinition, index), TypeLabel(argument.ParameterType), SizeLabel(argument.ParameterType));
+            }
+        }
 
 		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction)
 		{
@@ -235,7 +256,12 @@ namespace VCSCompiler
 			var arity = method.Parameters.Count;
 
 			var mustInline = CompilationOptions.InlineAllCalls || method.TryGetFrameworkAttribute<AlwaysInlineAttribute>(out var _);
-			if (method.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
+			var isRecursiveCall = MethodDefinition.FullName == method.FullName || method.Calls(MethodDefinition);
+			if (method.TryGetFrameworkAttribute<IgnoreCallAttribute>(out var _))
+            {
+				yield break;
+            }
+			else if (method.TryGetFrameworkAttribute<OverrideWithStoreToSymbolAttribute>(out var overrideStore))
             {
 				if (overrideStore.Strobe)
                 {
@@ -290,22 +316,31 @@ namespace VCSCompiler
             }
 			else
             {
-				if (arity != 0)
+				// Pop callee args into appropriate globals.
+				foreach (var parameter in method.Parameters.Reverse())
                 {
-					throw new InvalidOperationException($"Methods must have 0 arity for now");
+					yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(method, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType), new(0), new(0));
                 }
-				if (method.ReturnType.Name == typeof(void).Name)
+				if (isRecursiveCall)
                 {
-					yield return new CallVoid(instruction, new(method));
+					// Need to save our locals/args if we're going to be making a recursive call.
+					foreach (var parameter in MethodDefinition.Parameters)
+						yield return new PushGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType));
+					foreach (var local in MethodDefinition.Body.Variables)
+						yield return new PushGlobal(NopInst, new LiftedLocalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType));
                 }
-				else
-                {
-					// @TODO - Probably doesn't work for returning ptr/ref.
-					// @TODO - We could maybe do a special case if the return type is 1-byte in size. Enregister
-					// the value or something instead of having to jump over the return address.
-					yield return new CallNonVoid(instruction, new(method), TypeLabel(method.ReturnType), ReturnSize(method));
-                }
-            }
+				yield return new CallMethod(instruction, new(method));
+				if (isRecursiveCall)
+				{
+					// If we just returned from a recursive call, we need to restore the locals/args we saved.
+					foreach (var local in MethodDefinition.Body.Variables.Reverse())
+						yield return new PopToGlobal(NopInst, new LiftedLocalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType), new(0), new(0));
+					foreach (var parameter in MethodDefinition.Parameters.Reverse())
+						yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType), new(0), new(0));
+				}
+				if (method.ReturnType.Name != typeof(void).Name)
+					yield return new PushGlobal(NopInst, new ReturnValueGlobalLabel(method), TypeLabel(method.ReturnType), SizeLabel(method.ReturnType));
+			}
         }
 
 		private IEnumerable<IAssemblyEntry> Ceq(Instruction instruction)
@@ -342,6 +377,9 @@ namespace VCSCompiler
 			var type = (TypeReference)instruction.Operand;
 			yield return new InitializeObject(instruction, new TypeSizeLabel(type), new(0));
         }
+
+		private IEnumerable<IAssemblyEntry> Ldarg(Instruction instruction)
+			=> LoadArgument(instruction);
 
 		private IEnumerable<IAssemblyEntry> Ldc_I4(Instruction instruction)
 			=> LoadConstant(instruction);
@@ -382,6 +420,12 @@ namespace VCSCompiler
         }
 
 		private IEnumerable<IAssemblyEntry> Ldloca_S(Instruction instruction) => Ldloca(instruction);
+
+		private IEnumerable<IAssemblyEntry> Ldobj(Instruction instruction)
+        {
+			var type = (TypeDefinition)instruction.Operand;
+			yield return new PushDereferenceFromStack(instruction, new(0), TypeLabel(type), SizeLabel(type));
+        }
 
 		private IEnumerable<IAssemblyEntry> Ldsfld(Instruction instruction)
         {
@@ -425,17 +469,11 @@ namespace VCSCompiler
 
 		private IEnumerable<IAssemblyEntry> Ret(Instruction instruction)
         {
-			if (MethodDefinition.ReturnType.FullName == typeof(void).FullName)
+			if (MethodDefinition.ReturnType.FullName != typeof(void).FullName)
             {
-				yield return new ReturnVoid(instruction);
-			}
-			else
-            {
-				// @TODO - Probably doesn't work for returning ptr/ref.
-				var typeLabel = TypeLabel(MethodDefinition.ReturnType);
-				var sizeLabel = ReturnSize(MethodDefinition);
-				yield return new ReturnNonVoid(instruction, typeLabel, sizeLabel);
+				yield return new PopToGlobal(NopInst, new ReturnValueGlobalLabel(MethodDefinition), TypeLabel(MethodDefinition.ReturnType), SizeLabel(MethodDefinition.ReturnType), new(0), new(0));
             }
+			yield return new ReturnFromMethod(instruction);
         }
 
 		private IEnumerable<IAssemblyEntry> Stfld(Instruction instruction)

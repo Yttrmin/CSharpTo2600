@@ -101,14 +101,10 @@ namespace VCSFramework
 
     }
 
-    /// <summary>
-    /// Instructs compiler not to compile the CIL body of this method.
-    /// Generally used in combination with another attribute to provide an implementation.
-    /// </summary>
-    [Obsolete("Don't think this is needed now that we only compile on-demand.")]
+    /// <summary>Instructs the compiler to completely ignore calls to methods marked with this.</summary>
     [DoNotCompile]
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class IgnoreImplementationAttribute : Attribute
+    public sealed class IgnoreCallAttribute : Attribute
     {
 
     }

@@ -100,6 +100,12 @@ namespace VILMacroGenerator
 
         private string? GenerateFunction(string source, Header header, GeneratorExecutionContext context)
         {
+            var annotationsBuilder = new StringBuilder();
+            if (header.DeprecatedString == "")
+                annotationsBuilder.AppendLine("\t[Obsolete]");
+            else if (header.DeprecatedString != null)
+                annotationsBuilder.AppendLine($"\t[Obsolete({header.DeprecatedString})]");
+
             var parts = source.Replace(",", "").Split(' ');
             var functionName = parts.First();
             var csharpName = functionName.Capitalize();
@@ -117,12 +123,14 @@ namespace VILMacroGenerator
 $@"#nullable enable
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
 namespace VCSFramework
 {{
+{annotationsBuilder}
     public sealed partial record {csharpName}({constructorParamText}) : IFunctionCall
     {{
         string IFunctionCall.Name {{ get; }} = ""{functionName}"";
@@ -141,6 +149,10 @@ namespace VCSFramework
             annotationsBuilder.AppendLine($"\t[PushStack(Count = {(header.TypeParam != null ? 1 : 0)})]");
             annotationsBuilder.AppendLine($"\t[PopStack(Count = {header.PopCount})]");
             annotationsBuilder.AppendLine($"\t[ReservedBytes(Count = {header.ReservedBytes})]");
+            if (header.DeprecatedString == "")
+                annotationsBuilder.AppendLine("\t[Obsolete]");
+            else if (header.DeprecatedString != null)
+                annotationsBuilder.AppendLine($"\t[Obsolete({header.DeprecatedString})]");
 
             var parts = source.Replace(",", "").Split(' ');
             var macroName = parts.First();
@@ -173,6 +185,7 @@ namespace VCSFramework
 $@"#nullable enable
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
