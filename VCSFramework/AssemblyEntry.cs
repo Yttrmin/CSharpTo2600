@@ -59,18 +59,7 @@ namespace VCSFramework
     public sealed record FunctionLabel(MethodDef Method) : ILabel;
     public sealed record GlobalFieldLabel(FieldRef Field) : IGlobalLabel;
     public sealed record InstructionLabel(Inst Instruction) : IBranchTargetLabel;
-    /// <summary>
-    /// Label to a local variable that has been lifted to its own global address.
-    /// These are far faster and easier to work with, and should always be preferred,
-    /// but they are incompatible with any form of recursion.
-    /// </summary>
-    public sealed record LiftedLocalLabel(MethodDef Method, int Index) : IGlobalLabel;
-    /// <summary>
-    /// Label to a local variable that exists at an indeterminate address on the stack.
-    /// This can only be used in the context of a frame pointer or some other offsetable value.
-    /// </summary>
-    [Obsolete]
-    public sealed record LocalLabel(MethodDef Method, int Index) : ILabel;
+    public sealed record LocalGlobalLabel(MethodDef Method, int Index) : IGlobalLabel;
     public sealed record PointerSizeLabel(bool ZeroPage) : ISizeLabel;
     public sealed record PointerTypeLabel(TypeRef ReferentType) : ITypeLabel;
     /// <summary>A global whose label is defined elsewhere (e.g. COLUBK in a header).</summary>
@@ -79,6 +68,7 @@ namespace VCSFramework
     public sealed record ReturnValueGlobalLabel(MethodDef Method) : IGlobalLabel;
     /// <summary>Label to a readonly global located in ROM. May be a single value or the first element of multiple values.</summary>
     public sealed record RomDataGlobalLabel(MethodDef GeneratorMethod) : IGlobalLabel;
+    public sealed record ThisGlobalLabel(MethodDef Method) : IGlobalLabel;
     public sealed record TypeSizeLabel(TypeRef Type) : ISizeLabel;
     public sealed record TypeLabel(TypeRef Type) : ITypeLabel;
     #endregion
@@ -168,8 +158,10 @@ namespace VCSFramework
         public static implicit operator MethodDefinition(MethodDef m) => m.Method;
 
         public string Name => Method.Name.Replace(".", "_");
+        public string FullName => Method.FullName;
         public TypeDefinition DeclaringType => Method.DeclaringType;
         public MethodBody Body => Method.Body;
+        public bool IsStatic => Method.IsStatic;
 
         public bool Equals(MethodDef? other)
             => Method.FullName == other?.Method.FullName;

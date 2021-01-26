@@ -109,10 +109,29 @@ namespace VCSCompiler
 
 			IEnumerable<IAssemblyEntry> LoadArgument(int index)
             {
-				var argument = MethodDefinition.Parameters[index];
-				yield return new PushGlobal(instruction, new ArgumentGlobalLabel(MethodDefinition, index), TypeLabel(argument.ParameterType), SizeLabel(argument.ParameterType));
-            }
-        }
+				if (MethodDefinition.IsStatic)
+				{
+					yield return PushArgument(index);
+				}
+				// ldarg.0 refers to 'this', but it's not considered part of the parameter list.
+				else if (index == 0)
+                {
+					// Push 'this' pointer.
+					// @TODO - This won't support instance methods on those stored in ROM.
+					yield return new PushGlobal(instruction, new ThisGlobalLabel(MethodDefinition), new PointerTypeLabel(MethodDefinition.DeclaringType), new PointerSizeLabel(true));
+                }
+				else
+				{
+					yield return PushArgument(index - 1);
+				}
+
+				IAssemblyEntry PushArgument(int index)
+                {
+					var argument = MethodDefinition.Parameters[index];
+					return new PushGlobal(instruction, new ArgumentGlobalLabel(MethodDefinition, index), TypeLabel(argument.ParameterType), SizeLabel(argument.ParameterType));
+				}
+			}
+		}
 
 		private IEnumerable<IAssemblyEntry> LoadConstant(Instruction instruction)
 		{
@@ -302,18 +321,6 @@ namespace VCSCompiler
 				yield return (IAssemblyEntry)(Activator.CreateInstance(replaceWithMacro.Type, instruction) 
 					?? throw new InvalidOperationException($"Failed to replace call to [{nameof(ReplaceWithEntryAttribute)}]-attributed method '{method}' with {nameof(IMacroCall)} type {replaceWithMacro.Type}"));
             }
-			else if (mustInline)
-            {
-				if (arity != 0 || method.ReturnType.Name != typeof(void).Name)
-				{
-					throw new InvalidOperationException($"Inline methods must have 0 arity and void return type for now");
-				}
-				yield return new InlineFunction(instruction, method);
-				foreach (var entry in MethodCompiler.Compile(method, UserPair, true).Body)
-                {
-					yield return entry;
-                }
-            }
 			else
             {
 				// Pop callee args into appropriate globals.
@@ -321,20 +328,35 @@ namespace VCSCompiler
                 {
 					yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(method, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType), new(0), new(0));
                 }
+				if (!method.IsStatic)
+                {
+					yield return new PopToGlobal(NopInst, new ThisGlobalLabel(method), new PointerTypeLabel(method.DeclaringType), new PointerSizeLabel(true), new(0), new(0));
+                }
 				if (isRecursiveCall)
                 {
 					// Need to save our locals/args if we're going to be making a recursive call.
 					foreach (var parameter in MethodDefinition.Parameters)
 						yield return new PushGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType));
 					foreach (var local in MethodDefinition.Body.Variables)
-						yield return new PushGlobal(NopInst, new LiftedLocalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType));
+						yield return new PushGlobal(NopInst, new LocalGlobalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType));
                 }
-				yield return new CallMethod(instruction, new(method));
+				if (mustInline)
+                {
+					yield return new InlineFunction(instruction, method);
+					foreach (var entry in MethodCompiler.Compile(method, UserPair, true).Body)
+					{
+						yield return entry;
+					}
+				}
+				else
+                {
+					yield return new CallMethod(instruction, new(method));
+				}
 				if (isRecursiveCall)
 				{
 					// If we just returned from a recursive call, we need to restore the locals/args we saved.
 					foreach (var local in MethodDefinition.Body.Variables.Reverse())
-						yield return new PopToGlobal(NopInst, new LiftedLocalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType), new(0), new(0));
+						yield return new PopToGlobal(NopInst, new LocalGlobalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType), new(0), new(0));
 					foreach (var parameter in MethodDefinition.Parameters.Reverse())
 						yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType), new(0), new(0));
 				}
@@ -416,7 +438,7 @@ namespace VCSCompiler
 		private IEnumerable<IAssemblyEntry> Ldloca(Instruction instruction)
         {
 			var local = (VariableDefinition)instruction.Operand;
-			yield return new PushAddressOfLocal(instruction, new LiftedLocalLabel(MethodDefinition, local.Index), new PointerTypeLabel(local.VariableType), new PointerSizeLabel(true));
+			yield return new PushAddressOfLocal(instruction, new LocalGlobalLabel(MethodDefinition, local.Index), new PointerTypeLabel(local.VariableType), new PointerSizeLabel(true));
         }
 
 		private IEnumerable<IAssemblyEntry> Ldloca_S(Instruction instruction) => Ldloca(instruction);

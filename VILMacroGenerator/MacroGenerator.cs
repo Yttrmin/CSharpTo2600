@@ -232,7 +232,7 @@ namespace VCSFramework
             else if (variableName.EndsWith("Global", StringComparison.CurrentCultureIgnoreCase))
                 return "IGlobalLabel";
             else if (variableName.EndsWith("Local", StringComparison.CurrentCultureIgnoreCase))
-                return "LiftedLocalLabel";
+                return "LocalGlobalLabel";
             else if (variableName.EndsWith("Constant", StringComparison.CurrentCultureIgnoreCase))
                 return "Constant";
             else if (variableName.EndsWith("BranchTarget", StringComparison.CurrentCultureIgnoreCase))

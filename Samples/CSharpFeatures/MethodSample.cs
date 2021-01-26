@@ -1,37 +1,31 @@
-﻿using static VCSFramework.Registers;
+﻿using VCSFramework;
+using VCSFramework.Templates.Standard;
+using static VCSFramework.Registers;
 
 namespace Samples.CSharpFeatures
 {
+    [TemplatedProgram(typeof(StandardTemplate))]
     static class MethodSample
     {
         private static byte BackgroundColor;
         private static ReturnStruct StaticReturnStruct;
 
+        [VBlank]
         public static void Main()
         {
-            while (true)
+            ref readonly var refRet = ref ReturnRefStruct(new ReturnStruct
             {
-                var ret = ReturnRefStruct(new ReturnStruct
-                {
-                    ValueA = 0x88,
-                    ValueB = 0x0E,
-                    ValueC = 0x44,
-                    ValueD = 0
-                });
-                ColuBk = ret.ValueC;
-            }
+                ValueA = 0x88,
+                ValueB = 0x0E,
+                ValueC = 0x44,
+                ValueD = 0
+            });
+            var ret = ReturnValueStruct(in refRet);
+            ColuBk = ret.InstanceMethod(0x2E);
         }
 
-        private static void VoidReturnNoParam()
-        {
-            ColuBk = 0x0E;
-        }
-
-        private static byte ByteReturn(byte a)
-        {
-            byte returnValue = a;
-            return returnValue;
-        }
+        [Kernel(KernelType.EveryScanline)]
+        public static void NopKernel() { }
 
         private static ref byte RefByteReturn(byte a)
         {
@@ -45,7 +39,7 @@ namespace Samples.CSharpFeatures
             return ref StaticReturnStruct;
         }
 
-        private static ReturnStruct ReturnValueStruct(ReturnStruct a)
+        private static ReturnStruct ReturnValueStruct(in ReturnStruct a)
         {
             return a;
         }
@@ -66,6 +60,11 @@ namespace Samples.CSharpFeatures
             public byte ValueB;
             public byte ValueC;
             public byte ValueD;
+
+            public byte InstanceMethod(byte foo)
+            {
+                return (byte)(ValueB + foo);
+            }
         }
     }
 }

@@ -295,7 +295,29 @@ namespace VCSCompiler
                 .OfType<IGlobalLabel>()
                 .Where(l => l is not PredefinedGlobalLabel && l is not RomDataGlobalLabel)
                 .Distinct()
-                .Select(l => new LabelAssign(l, new Constant(new FormattedByte((byte)start++, ByteFormat.Hex))));
+                .Select(l =>
+                {
+                    // @TODO - Reuse memory addresses for variables that won't conflict with each other.
+                    var startAddress = Convert.ToByte(start);
+                    var label = new LabelAssign(l, new Constant(new FormattedByte(startAddress, ByteFormat.Hex)));
+                    start += TypeData.Of(l switch
+                    {
+                        // @TODO - Don't limit 'this' to 1 byte
+                        ArgumentGlobalLabel (var m, var i) => i == 0 && !m.IsStatic ? BuiltInDefinitions.Byte : m.Method.Parameters[i].ParameterType,
+                        GlobalFieldLabel g => g.Field.Field.FieldType,
+                        LocalGlobalLabel lg => lg.Method.Body.Variables[lg.Index].VariableType,
+                        ReturnValueGlobalLabel rv => rv.Method.Method.ReturnType,
+                        // @TODO - Don't limit 'this' to 1 byte
+                        ThisGlobalLabel t => BuiltInDefinitions.Byte,
+                        _ => throw new NotImplementedException()
+                    }, userPair.Definition).Size;
+                    return label;
+                });
+
+            // Sanity check
+            foreach (var thisPointer in functions.SelectMany(GetAllMacroParameters).OfType<ThisGlobalLabel>())
+                if (thisPointer.Method.IsStatic)
+                    throw new InvalidOperationException($"Created a 'this' pointer label for '{thisPointer.Method.FullName}', but it's static!");
             // @TODO - Check if we overflowed into stack.
 
             var typeId = 100;
