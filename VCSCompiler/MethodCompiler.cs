@@ -40,7 +40,7 @@ namespace VCSCompiler
                 var endLabel = new BranchTargetLabel("INLINE_RET_TARGET");
                 body = body.Prepend(new BeginBlock()).Append(endLabel).Append(new EndBlock()).Select(entry =>
                 {
-                    if (entry is ReturnVoid returnFromCall)
+                    if (entry is ReturnFromMethod returnFromCall)
                     {
                         // Probably will always have exactly 1 instruction, right?
                         return new Branch(returnFromCall.SourceInstruction, endLabel);
