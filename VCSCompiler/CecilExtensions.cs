@@ -106,17 +106,19 @@ namespace VCSCompiler
 		/// <summary>Returns TRUE if <paramref name="this"/> calls <paramref name="target"/> through itself or any other callees.</summary>
 		public static bool Calls(this MethodDefinition @this, MethodDefinition target)
         {
+			var explored = new HashSet<string>();
 			return CallsRecursive(@this, target);
 
-			static bool CallsRecursive(MethodDefinition source, MethodDefinition target)
+			bool CallsRecursive(MethodDefinition source, MethodDefinition target)
             {
+				explored.Add(source.FullName);
 				foreach (var instruction in source.Body.Instructions.Where(i => i.OpCode == OpCodes.Call))
                 {
 					var calleeMethod = ((MethodReference)instruction.Operand).Resolve();
 					if (calleeMethod.FullName == target.FullName)
 						return true;
 
-					if (CallsRecursive(calleeMethod, target))
+					if (!explored.Contains(calleeMethod.FullName) && CallsRecursive(calleeMethod, target))
 						return true;
                 }
 				return false;
@@ -125,21 +127,23 @@ namespace VCSCompiler
 
 		public static bool IsRecursive(this MethodDefinition @this)
         {
+			var explored = new HashSet<string>();
 			return IsRecursiveInternal(@this, @this);
 
-			static bool IsRecursiveInternal(MethodDefinition method, MethodDefinition sourceMethod)
+			bool IsRecursiveInternal(MethodDefinition method, MethodDefinition sourceMethod)
             {
+				explored.Add(method.FullName);
 				foreach (var instruction in method.Body.Instructions.Where(i => i.OpCode == OpCodes.Call))
                 {
 					// @TODO - Don't know if Resolve() is better versus looking it up ourselves.
 					var calleeMethod = ((MethodReference)instruction.Operand).Resolve();
 					if (calleeMethod.FullName == sourceMethod.FullName)
-						return false;
+						return true;
 
-					if (!IsRecursiveInternal(calleeMethod, sourceMethod))
-						return false;
+					if (!explored.Contains(calleeMethod.FullName) && IsRecursiveInternal(calleeMethod, sourceMethod))
+						return true;
                 }
-				return true;
+				return false;
             }
         }
 
@@ -155,6 +159,12 @@ namespace VCSCompiler
             }
 			return $"{formattedNamespace}_{formattedName}{formattedArgs}";
 		}
+
+		/// <summary>Replaces chars in a method name that the assembler doesn't like.</summary>
+		public static string SafeName(this MethodDef @this)
+			// Example: A nested function called "FibonacciInternal" inside a normal method called "Fibonacci": <Fibonacci>g__FibonacciInternal|7_0
+			// I'm just doing al=AngleLeft, ar=AngleRight, p=Pipe
+			=> @this.Name.Replace("<", "_al_").Replace(">", "_ar_").Replace("|", "_p_");
 
 		public static dynamic InvokeRomDataGenerator(this Assembly userAssembly, MethodDefinition generator)
 		{

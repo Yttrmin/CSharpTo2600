@@ -7,7 +7,6 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 using VCSFramework;
-using VCSFramework;
 using Instruction = Mono.Cecil.Cil.Instruction;
 
 namespace VCSCompiler
@@ -21,9 +20,9 @@ namespace VCSCompiler
 			public bool LiftLocals { get; init; }
         }
 
+		public static readonly Instruction NopInst = Instruction.Create(OpCodes.Ldstr, "NO INSTRUCTION");
 		private static readonly TypeLabel ByteType = new(BuiltInDefinitions.Byte);
 		private static readonly TypeSizeLabel ByteSize = new(BuiltInDefinitions.Byte);
-		private static readonly Instruction NopInst = Instruction.Create(OpCodes.Nop);
 		private readonly ImmutableDictionary<Code, Func<Instruction, IEnumerable<IAssemblyEntry>>> MethodMap;
 		private readonly MethodDefinition MethodDefinition;
 		private readonly AssemblyPair UserPair;

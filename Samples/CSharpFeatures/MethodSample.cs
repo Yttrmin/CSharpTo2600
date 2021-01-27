@@ -7,7 +7,7 @@ namespace Samples.CSharpFeatures
     [TemplatedProgram(typeof(StandardTemplate))]
     static class MethodSample
     {
-        private static byte BackgroundColor;
+        private static byte RefByte;
         private static ReturnStruct StaticReturnStruct;
 
         [VBlank]
@@ -21,7 +21,10 @@ namespace Samples.CSharpFeatures
                 ValueD = 0
             });
             var ret = ReturnValueStruct(in refRet);
-            ColuBk = ret.InstanceMethod(0x2E);
+            ref var fibonacciCount = ref RefByteReturn(8);
+            // Note Stella ignores the last bit assigned to COLUBK. So assigning 21 results in 20 getting assigned.
+            // (The VCS also ignores the last bit, just didn't expect Stella to drop it in its debugger output.)
+            ColuBk = ret.InstanceMethod(Fibonacci(fibonacciCount));
         }
 
         [Kernel(KernelType.EveryScanline)]
@@ -29,8 +32,8 @@ namespace Samples.CSharpFeatures
 
         private static ref byte RefByteReturn(byte a)
         {
-            BackgroundColor = a;
-            return ref BackgroundColor;
+            RefByte = a;
+            return ref RefByte;
         }
 
         private static ref ReturnStruct ReturnRefStruct(ReturnStruct a)
@@ -44,14 +47,17 @@ namespace Samples.CSharpFeatures
             return a;
         }
 
-        private static ReturnStruct GetColorContainingStruct()
+        private static byte Fibonacci(byte count)
         {
-            return new ReturnStruct
+            return FibonacciInternal(0, 1, count);
+
+            static byte FibonacciInternal(byte a, byte b, byte count)
             {
-                ValueA = default,
-                ValueB = BackgroundColor,
-                ValueC = 0x0E
-            };
+                if (count == 0)
+                    return a;
+                byte sum = (byte)(a + b);
+                return FibonacciInternal(b, sum, (byte)(count - 1));
+            }
         }
 
         private struct ReturnStruct

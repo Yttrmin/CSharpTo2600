@@ -132,19 +132,19 @@ namespace VCSCompiler
                     IFunctionCall fc => $"{fc.Name}({string.Join(", ", fc.Parameters.Select(e => GetStringFromEntry(e, method, annotations).Single()))})",
                     ILabel label => label switch
                     {
-                        ArgumentGlobalLabel a => $"ARG_{a.Method.DeclaringType.NamespaceAndName()}_{a.Method.Name}_{a.Index}",
+                        ArgumentGlobalLabel a => $"ARG_{a.Method.DeclaringType.NamespaceAndName()}_{a.Method.SafeName()}_{a.Index}",
                         BranchTargetLabel b => b.Name,
-                        FunctionLabel m => $"FUNCTION_{m.Method.DeclaringType.NamespaceAndName()}_{m.Method.Name}",
+                        FunctionLabel m => $"FUNCTION_{m.Method.DeclaringType.NamespaceAndName()}_{m.Method.SafeName()}",
                         GlobalFieldLabel g => $"GLOBAL_{g.Field.DeclaringType.NamespaceAndName()}_{g.Field.Field.Name}",
                         InstructionLabel i => $"IL_{i.Instruction.Instruction.Offset:X4}",
-                        LocalGlobalLabel l => $"LOCAL_{l.Method.DeclaringType.NamespaceAndName()}_{l.Method.Name}_{l.Index}",
+                        LocalGlobalLabel l => $"LOCAL_{l.Method.DeclaringType.NamespaceAndName()}_{l.Method.SafeName()}_{l.Index}",
                         PointerSizeLabel ps => ps.ZeroPage ? "SIZE_SHORT_POINTER" : "SIZE_LONG_POINTER",
                         PointerTypeLabel p => $"TYPE_{p.ReferentType.NamespaceAndName()}_PTR",
                         PredefinedGlobalLabel pg => pg.Name,
                         ReservedGlobalLabel rg => $"INTERNAL_RESERVED_{rg.Index}",
-                        ReturnValueGlobalLabel rv => $"RETVAL_{rv.Method.DeclaringType.NamespaceAndName()}_{rv.Method.Name}",
-                        RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.Name}",
-                        ThisGlobalLabel t => $"THIS_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.Name}",
+                        ReturnValueGlobalLabel rv => $"RETVAL_{rv.Method.DeclaringType.NamespaceAndName()}_{rv.Method.SafeName()}",
+                        RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.SafeName()}",
+                        ThisGlobalLabel t => $"THIS_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.SafeName()}",
                         TypeLabel t => $"TYPE_{t.Type.NamespaceAndName()}",
                         TypeSizeLabel ts => $"SIZE_{ts.Type.NamespaceAndName()}",
                         _ => throw new ArgumentException($"Label {label} does not map to a string.")
@@ -161,6 +161,8 @@ namespace VCSCompiler
                 throw new ArgumentException($"{nameof(method)} shouldn't be null when processing a macro call");
             foreach (Instruction instruction in macroCall.Instructions)
             {
+                if (instruction.OpCode == CilInstructionCompiler.NopInst.OpCode && instruction.Operand == CilInstructionCompiler.NopInst.Operand)
+                    continue;
                 if (annotations.HasFlag(SourceAnnotation.CSharp))
                 {
                     var point = method.DebugInformation.GetSequencePoint(instruction);
