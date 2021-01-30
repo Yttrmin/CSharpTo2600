@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using VCSFramework;
@@ -287,6 +288,23 @@ namespace VCSCompiler
 
         private static ImmutableArray<LabelAssign> CreateLabelAssignments(ImmutableArray<Function> functions, AssemblyPair userPair)
         {
+            // Determines size of 'this' pointers for methods. Calling an instance method on an object in RAM vs ROM requires different sizes.
+            var allRomData = functions.SelectMany(GetAllMacroParameters).OfType<RomDataGlobalLabel>().Distinct().ToImmutableArray();
+            var thisPointers = functions.SelectMany(GetAllMacroParameters).OfType<ThisPointerSizeLabel>()
+            .Select(l =>
+            {
+                var methodDef = l.Method.Method;
+                if ((!methodDef.CustomAttributes.Any(a => a.AttributeType.Name == nameof(IsReadOnlyAttribute))
+                    && !methodDef.DeclaringType.CustomAttributes.Any(a => a.AttributeType.Name == nameof(IsReadOnlyAttribute)))
+                    || methodDef.TryGetFrameworkAttribute<AlwaysUseShortThisPointerAttribute>(out var _))
+                    return new LabelAssign(l, new PointerSizeLabel(true));
+
+                if (allRomData.Any(romDataLabel
+                    => new TypeRef(((GenericInstanceType)romDataLabel.GeneratorMethod.Method.ReturnType).GenericArguments.Single()) == new TypeRef(methodDef.DeclaringType)))
+                    return new LabelAssign(l, new PointerSizeLabel(false));
+                return new LabelAssign(l, new PointerSizeLabel(true));
+            }).Distinct().ToImmutableArray();
+
             // @TODO - Aliases
             var start = 0x80;
             var reserved = Enumerable.Range(0, GetReservedBytes(functions))
@@ -300,22 +318,27 @@ namespace VCSCompiler
                     // @TODO - Reuse memory addresses for variables that won't conflict with each other.
                     var startAddress = Convert.ToByte(start);
                     var label = new LabelAssign(l, new Constant(new FormattedByte(startAddress, ByteFormat.Hex)));
-                    start += TypeData.Of(l switch
+                    start += l switch
                     {
-                        // @TODO - Don't limit 'this' to 1 byte
-                        ArgumentGlobalLabel (var m, var i) => i == 0 && !m.IsStatic ? BuiltInDefinitions.Byte : m.Method.Parameters[i].ParameterType,
-                        GlobalFieldLabel g => g.Field.Field.FieldType,
-                        LocalGlobalLabel lg => lg.Method.Body.Variables[lg.Index].VariableType,
-                        ReturnValueGlobalLabel rv => rv.Method.Method.ReturnType,
-                        // @TODO - Don't limit 'this' to 1 byte
-                        ThisGlobalLabel t => BuiltInDefinitions.Byte,
+                        ArgumentGlobalLabel (var m, var i) => i == 0 && !m.IsStatic ? GetThisPtrSize(m) : GetSize(m.Method.Parameters[i].ParameterType),
+                        GlobalFieldLabel g => GetSize(g.Field.Field.FieldType),
+                        LocalGlobalLabel lg => GetSize(lg.Method.Body.Variables[lg.Index].VariableType),
+                        ReturnValueGlobalLabel rv => GetSize(rv.Method.Method.ReturnType),
+                        ThisPointerGlobalLabel t => GetThisPtrSize(t.Method),
                         _ => throw new NotImplementedException()
-                    }, userPair.Definition).Size;
+                    };
                     return label;
+
+                    int GetSize(TypeReference type)
+                        => TypeData.Of(type, userPair.Definition).Size;
+
+                    int GetThisPtrSize(MethodDef method)
+                        => ((PointerSizeLabel)thisPointers.Single(l => ((ThisPointerSizeLabel)l.Label) == new ThisPointerSizeLabel(method)).Value) 
+                            == new PointerSizeLabel(true) ? 1 : 2;
                 });
 
             // Sanity check
-            foreach (var thisPointer in functions.SelectMany(GetAllMacroParameters).OfType<ThisGlobalLabel>())
+            foreach (var thisPointer in functions.SelectMany(GetAllMacroParameters).OfType<ThisPointerGlobalLabel>())
                 if (thisPointer.Method.IsStatic)
                     throw new InvalidOperationException($"Created a 'this' pointer label for '{thisPointer.Method.FullName}', but it's static!");
             // @TODO - Check if we overflowed into stack.
@@ -359,6 +382,7 @@ namespace VCSCompiler
             }
             allLabelAssignments.AddRange(allTypeSizes);
             allLabelAssignments.AddRange(new LabelAssign[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
+            allLabelAssignments.AddRange(thisPointers);
             return allLabelAssignments.ToImmutableArray();
         }
 

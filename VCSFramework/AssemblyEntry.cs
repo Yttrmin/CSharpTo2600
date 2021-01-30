@@ -68,7 +68,8 @@ namespace VCSFramework
     public sealed record ReturnValueGlobalLabel(MethodDef Method) : IGlobalLabel;
     /// <summary>Label to a readonly global located in ROM. May be a single value or the first element of multiple values.</summary>
     public sealed record RomDataGlobalLabel(MethodDef GeneratorMethod) : IGlobalLabel;
-    public sealed record ThisGlobalLabel(MethodDef Method) : IGlobalLabel;
+    public sealed record ThisPointerGlobalLabel(MethodDef Method) : IGlobalLabel;
+    public sealed record ThisPointerSizeLabel(MethodDef Method) : ISizeLabel;
     public sealed record TypeSizeLabel(TypeRef Type) : ISizeLabel;
     public sealed record TypeLabel(TypeRef Type) : ITypeLabel;
     #endregion

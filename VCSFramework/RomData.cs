@@ -23,7 +23,18 @@ namespace VCSFramework
             get => throw new NotImplementedException();
         }
 
-        public readonly ref T this[byte index]
+        private unsafe T* Pointer
+        {
+            [ReplaceWithEntry(typeof(RomDataGetPointerCall))]
+            get => throw new NotImplementedException();
+        }
+
+        private byte Stride
+        {
+            get => throw new NotImplementedException();
+        }
+
+        public ref readonly T this[byte index]
         {
             [ReplaceWithEntry(typeof(RomDataGetterCall))]
             get => throw new NotImplementedException();
@@ -37,7 +48,7 @@ namespace VCSFramework
     /// Generally <see cref="RomData{T}"/> should be used instead of this type when possible.
     /// </summary>
     /// <typeparam name="T">The type of the elements stored in ROM.</typeparam>
-    public unsafe ref struct RuntimeRomData<T> where T : unmanaged
+    internal unsafe ref struct RuntimeRomData<T> where T : unmanaged
     {
         internal T* Pointer { get; }
         public byte Length { get; }
@@ -48,7 +59,7 @@ namespace VCSFramework
             Length = length;
         }
 
-        public readonly ref T this[byte index]
+        public ref readonly T this[byte index]
         {
             get => ref Pointer[index];
         }

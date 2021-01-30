@@ -117,7 +117,7 @@ namespace VCSCompiler
                 {
 					// Push 'this' pointer.
 					// @TODO - This won't support instance methods on those stored in ROM.
-					yield return new PushGlobal(instruction, new ThisGlobalLabel(MethodDefinition), new PointerTypeLabel(MethodDefinition.DeclaringType), new PointerSizeLabel(true));
+					yield return new PushGlobal(instruction, new ThisPointerGlobalLabel(MethodDefinition), new PointerTypeLabel(MethodDefinition.DeclaringType), new ThisPointerSizeLabel(MethodDefinition));
                 }
 				else
 				{
@@ -329,7 +329,7 @@ namespace VCSCompiler
                 }
 				if (!method.IsStatic)
                 {
-					yield return new PopToGlobal(NopInst, new ThisGlobalLabel(method), new PointerTypeLabel(method.DeclaringType), new PointerSizeLabel(true), new(0), new(0));
+					yield return new PopToGlobal(NopInst, new ThisPointerGlobalLabel(method), new PointerTypeLabel(method.DeclaringType), new ThisPointerSizeLabel(method), new(0), new(0));
                 }
 				if (isRecursiveCall)
                 {

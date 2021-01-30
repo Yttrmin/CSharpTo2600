@@ -144,7 +144,8 @@ namespace VCSCompiler
                         ReservedGlobalLabel rg => $"INTERNAL_RESERVED_{rg.Index}",
                         ReturnValueGlobalLabel rv => $"RETVAL_{rv.Method.DeclaringType.NamespaceAndName()}_{rv.Method.SafeName()}",
                         RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.SafeName()}",
-                        ThisGlobalLabel t => $"THIS_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.SafeName()}",
+                        ThisPointerGlobalLabel t => $"THIS_PTR_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.SafeName()}",
+                        ThisPointerSizeLabel t => $"THIS_SIZE_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.SafeName()}",
                         TypeLabel t => $"TYPE_{t.Type.NamespaceAndName()}",
                         TypeSizeLabel ts => $"SIZE_{ts.Type.NamespaceAndName()}",
                         _ => throw new ArgumentException($"Label {label} does not map to a string.")

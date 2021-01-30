@@ -110,6 +110,19 @@ namespace VCSFramework
     }
 
     /// <summary>
+    /// Instructs the compiler to always use a short 'this' pointer for the marked 'readonly' method (or method of a 'readonly' type).
+    /// This must not be used if you make any calls to this method through a reference returned by <see cref="RomData{T}"/>.
+    /// There's no point using this on types that aren't used as a type argument for a <see cref="RomData{T}"/> field.
+    /// There's no point using this on non-'readonly' methods, because the compiler will make a defensive copy.
+    /// Use at your own risk.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class AlwaysUseShortThisPointerAttribute : Attribute
+    {
+
+    }
+
+    /// <summary>
     /// Instructs compiler to replace a non-void 0-parameter method invocation with an LDA instruction.
     /// </summary>
     [DoNotCompile]

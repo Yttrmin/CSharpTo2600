@@ -54,7 +54,7 @@ pushAddressOfGlobal .macro global, pointerType, pointerSize
 	PHA
 .endmacro
 
-// @GENERATE @PUSH=pointerType;pointerSize
+// @GENERATE @PUSH=pointerType;pointerSize @DEPRECATED
 pushAddressOfLocal .macro local, pointerType, pointerSize
 	.invoke assertIsPointer(\pointerType)
 	.errorif \pointerSize != 1, "Currently only zero-page pointers are supported for pushAddressOfLocal"
@@ -120,14 +120,16 @@ pushDereferenceFromStack .macro pointerStackSize, type, size
 	.endif
 	// @TODO @BUG - Again, elif doesn't work as expected.
 	.if \pointerStackSize == 2
-		.errorif \size != 1, "Currently, only 1-byte sizes are supported for pushDereferenceFromStack for long pointers"
 		PLA
 		STA INTERNAL_RESERVED_0
 		PLA
 		STA INTERNAL_RESERVED_1
 		LDY #0
-		LDA (INTERNAL_RESERVED_0),Y
-		PHA
+		.for i = 0, i < \size, i = i + 1
+			LDA (INTERNAL_RESERVED_0),Y
+			PHA
+			INY
+		.next
 	.endif
 .endmacro
 
@@ -252,11 +254,22 @@ popToGlobal .macro global, globalType, globalSize, stackType, stackSize
 	// CIL may do things like push a byte and pop to a bool. If we're storing
 	// to a built-in short int assume this is correct and just pop the
 	// last x bytes.
-	.errorif \globalSize != \stackSize, "Global/stack size mismatch for popToGlobal"
-	.for i = \global + \globalSize - 1, i >= \global, i = i - 1
+	.if isPointer(\globalType) && isPointer(\stackType) && (\globalSize != \stackSize)
+		// Instance methods could be called on both a RAM and ROM object. RAM would involve a short pointer, ROM a long pointer.
+		// We only have 1 address for both, so there will be situations we have to pop a short pointer into a long pointer-sized global.
+		.errorif \globalType < \stackType, "Attempted to pop a long pointer into a short pointer global."
+		// @TODO - Shouldn't this be stored little-endian instead? May have an endian problem in another macro that this is masking.
+		LDA #0
+		STA \global
 		PLA
-		STA i
-	.next
+		STA \global+1
+	.else
+		.errorif \globalSize != \stackSize, "Global/stack size mismatch for popToGlobal"
+		.for i = \global + \globalSize - 1, i >= \global, i = i - 1
+			PLA
+			STA i
+		.next
+	.endif
 .endmacro
 
 // @GENERATE @COMPOSITE
