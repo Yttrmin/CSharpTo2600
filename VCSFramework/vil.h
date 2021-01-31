@@ -40,7 +40,7 @@ copyTo
 // Pushes {size} bytes starting at {address} onto the stack.
 // Effects: STACK+1, AccChange
 pushGlobal .macro global, type, size
-	.for i = \global, i <= \global + (\size - 1), i = i + 1
+	.for i = \global + \size - 1, i >= \global, i = i - 1
 		LDA i
 		PHA
 	.next
@@ -113,7 +113,7 @@ pushDereferenceFromStack .macro pointerStackSize, type, size
 	.if \pointerStackSize == 1
 		PLA
 		TAX
-		.for i = 0, i < \size, i = i + 1
+		.for i = \size - 1, i >= 0, i = i - 1
 			LDA i,X
 			PHA
 		.next
@@ -124,11 +124,11 @@ pushDereferenceFromStack .macro pointerStackSize, type, size
 		STA INTERNAL_RESERVED_0
 		PLA
 		STA INTERNAL_RESERVED_1
-		LDY #0
-		.for i = 0, i < \size, i = i + 1
+		LDY #(\size-1)
+		.for i = \size, i > 0, i = i - 1
 			LDA (INTERNAL_RESERVED_0),Y
 			PHA
-			INY
+			DEY
 		.next
 	.endif
 .endmacro
@@ -258,14 +258,13 @@ popToGlobal .macro global, globalType, globalSize, stackType, stackSize
 		// Instance methods could be called on both a RAM and ROM object. RAM would involve a short pointer, ROM a long pointer.
 		// We only have 1 address for both, so there will be situations we have to pop a short pointer into a long pointer-sized global.
 		.errorif \globalType < \stackType, "Attempted to pop a long pointer into a short pointer global."
-		// @TODO - Shouldn't this be stored little-endian instead? May have an endian problem in another macro that this is masking.
-		LDA #0
-		STA \global
 		PLA
+		STA \global
+		LDA #0
 		STA \global+1
 	.else
 		.errorif \globalSize != \stackSize, "Global/stack size mismatch for popToGlobal"
-		.for i = \global + \globalSize - 1, i >= \global, i = i - 1
+		.for i = \global, i < \global + \globalSize, i = i + 1
 			PLA
 			STA i
 		.next

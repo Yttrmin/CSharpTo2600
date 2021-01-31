@@ -74,18 +74,18 @@ An incomplete list of supported features in no particular order. Instructions ma
     * :heavy_check_mark: Single-byte types
     * :o: Multi-byte types (Not supported by all instructions yet)
     * :heavy_check_mark: Composite types (struct-in-struct)
-    * :heavy_check_mark: Generic type
+    * :heavy_check_mark: Generic types
   * :o: Reference Types
     * :heavy_check_mark: Static types
     * :x: Instance types (Probably never)
-* :o: Static Members
-  * :heavy_check_mark: Fields
-  * :x: Properties
-  * :o: Methods (Pending function rework)
-    * :x: 0-parameter
-    * :x: >0-parameter
-    * :x: `void` return
-    * :x: Non-`void` return
+  * :o: Static Members
+    * :heavy_check_mark: Fields
+    * :x: Properties
+    * :heavy_check_mark: Methods
+  * :o: Instance Members
+    * :heavy_check_mark: Fields
+    * :x: Properties
+    * :heavy_check_mark: Methods
 * :o: Ease of Development
   * :o: Inline Assembly
     * :heavy_check_mark: Static field aliasing
@@ -122,7 +122,7 @@ An incomplete list of supported features in no particular order. Instructions ma
     * :o: Equal (`ceq`) (8-bit only)
     * :x: Greater than (`cgt.un`)
   * :o: Load
-    * :x: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
+    * :heavy_check_mark: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
     * :heavy_check_mark: Constant (`ldc.i4`, `ldc.i4.s`, `ldc.i4.0`, `ldc.i4.1`,`ldc.i4.2`,`ldc.i4.3`,`ldc.i4.4`,`ldc.i4.5`,`ldc.i4.6`,`ldc.i4.7`,`ldc.i4.8`) (up to 16-bit)
     * :x: Element
     * :heavy_check_mark: Field (static) (`ldsfld`)
@@ -130,24 +130,25 @@ An incomplete list of supported features in no particular order. Instructions ma
     * :o: Field (instance) (`ldfld`) (8-bit only)
       * :o: Address (`ldflda`) (Zero-page pointers only)
     * :o: Indirect (`ldind.u1`)
-    * :o: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`) (Pending function rework)
-      * :o: Address (`ldloca`) (Pending function rework)
+    * :heavy_check_mark: Local (`ldloc`, `ldloc.s`, `ldloc.0`, `ldloc.1`, `ldloc.2`, `ldloc.3`)
+      * :heavy_check_mark: Address (`ldloca`)
+    * :heavy_check_mark: Object (`ldobj`)
   * :o: Store
     * :x: Argument (`starg`, `starg.s`)
     * :x: Element
     * :heavy_check_mark: Field (static) (`stsfld`)
     * :heavy_check_mark: Field (instance) (`stfld`)
     * :o: Indirect (`stind.u1`)
-    * :o: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`) (Pending function rework)
+    * :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
   * :o: Miscellaneous
-    * :o: Call Method (`call`) (Various restrictions, pending function rework)
+    * :heavy_check_mark: Call Method (`call`)
     * :o: Convert (`conv.i`, `conv.u`, `conv.u1`) (treated as NOPs, no extension to `int32`)
     * :o: Duplicate (`dup`) (8-bit only)
     * :heavy_check_mark: Initialize value type (`initobj`)
     * :o: Load String (`ldstr`) (Only supported for very specific scenarios, not general usage)
     * :heavy_check_mark: NOP (`nop`) (Nothing emitted)
     * :heavy_check_mark: Pop Stack (`pop`)
-    * :o: Return (`ret`) (Pending function rework)
+    * :heavy_check_mark: Return (`ret`) (Pending function rework)
 
 ### Building
 Load the solution into [Visual Studio Community 2019](https://www.visualstudio.com/) and it should build and run fine.
