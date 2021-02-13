@@ -43,6 +43,8 @@ namespace VCSFramework
         string Name { get; }
         ImmutableArray<IExpression> Parameters { get; }
     }
+    /// <summary>An entry that only exists to be consumed by a mandatory optimization. It's an error for this to get past the optimization stage.</summary>
+    public interface IPreprocessedEntry : IAssemblyEntry { }
     #endregion
 
     #region Labels (are expressions)
@@ -85,6 +87,18 @@ namespace VCSFramework
     public sealed record WordOp(ILabel Label) : IPseudoOp;
     #endregion
 
+    #region Preprocessed Entries
+    /// <summary>Replaces a call to <see cref="VCSFramework.V2.AssemblyUtilities.InlineAssembly(string)"/>.</summary>
+    public sealed record InlineAssemblyCall(Instruction SourceInstruction) : IPreprocessedEntry;
+    public sealed record LoadString(Instruction SourceInstruction) : IPreprocessedEntry;
+    [Obsolete]
+    public sealed record RomDataGetByByteOffsetCall(Instruction SourceInstruction) : IPreprocessedEntry;
+    public sealed record RomDataGetPointerCall(Instruction SourceInstruction) : IPreprocessedEntry;
+    public sealed record RomDataGetterCall(Instruction SourceInstruction) : IPreprocessedEntry;
+    public sealed record RomDataLengthCall(Instruction SourceInstruction) : IPreprocessedEntry;
+    public sealed record RomDataStrideCall(Instruction SourceInstruction) : IPreprocessedEntry;
+    #endregion
+
     #region Miscellaneous Entries
     public record ArrayAccess(string VariableName, int Index) : IExpression;
     public sealed record Blank() : IAssemblyEntry;
@@ -93,22 +107,11 @@ namespace VCSFramework
     /// <summary>A marker that a function (inlined or otherwise) has ended.</summary>
     public sealed record EndFunction() : IAssemblyEntry;
     public sealed record InlineAssembly(ImmutableArray<string> Assembly) : IAssemblyEntry;
-    /// <summary>Replaces a call to <see cref="VCSFramework.V2.AssemblyUtilities.InlineAssembly(string)"/>.</summary>
-    public sealed record InlineAssemblyCall(Instruction SourceInstruction) : IAssemblyEntry;
     /// <summary>A marker that a method call was inlined here.</summary>
     public sealed record InlineFunction(Inst? SourceInstruction, MethodDef Definition) : IAssemblyEntry;
     public sealed record LabelAssign(ILabel Label, IExpression Value) : IAssemblyEntry;
-    // @TODO - Some indication that these shouldn't exist at assembly time? Did that before
-    // by making them macros, but that doesn't really make sense.
-    public sealed record LoadString(Instruction SourceInstruction) : IAssemblyEntry;
     public sealed record MultilineComment(ImmutableArray<string> Text) : IAssemblyEntry;
     public sealed record ProgramCounterAssign(int Address) : IAssemblyEntry;
-    [Obsolete]
-    public sealed record RomDataGetByByteOffsetCall(Instruction SourceInstruction) : IAssemblyEntry;
-    public sealed record RomDataGetPointerCall(Instruction SourceInstruction) : IAssemblyEntry;
-    public sealed record RomDataGetterCall(Instruction SourceInstruction) : IAssemblyEntry;
-    public sealed record RomDataLengthCall(Instruction SourceInstruction) : IAssemblyEntry;
-    public sealed record RomDataStrideCall(Instruction SourceInstruction) : IAssemblyEntry;
     // We split this out and not IMacroCall.Instructions, which is also optional, since Instructions will
     // always be set at instantiation. StackOperation is never set at instantiation, it'll only be set 
     // with a `with` operation long after the fact.

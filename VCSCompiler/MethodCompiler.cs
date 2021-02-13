@@ -91,7 +91,7 @@ namespace VCSCompiler
                 postOptimize = MandatoryOptimizations.Aggregate(postOptimize, (entries, optimizer) => Optimize(entries, UserPair, optimizer));
             } while (!preOptimize.SequenceEqual(postOptimize));
 
-            var invalidEntries = postOptimize.Where(e => e.GetType() == typeof(LoadString) || e.GetType() == typeof(InlineAssemblyCall)).ToImmutableArray();
+            var invalidEntries = postOptimize.Where(e => e is IPreprocessedEntry).ToImmutableArray();
             if (invalidEntries.Any())
             {
                 var messageBuilder = new StringBuilder();
@@ -132,7 +132,7 @@ namespace VCSCompiler
                     node.Next = optimizer(userPair, pendingNext);
                 }
 
-                return LinkedToEntries(firstNode).ToImmutableArray();
+                return LinkedToEntries(root.Next!).ToImmutableArray();
 
                 static IEnumerable<IAssemblyEntry> LinkedToEntries(LinkedEntry firstNode)
                 {

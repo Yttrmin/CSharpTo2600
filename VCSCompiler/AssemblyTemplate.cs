@@ -101,6 +101,7 @@ namespace VCSCompiler
             InlineFunction or EndFunction => Enumerable.Empty<string>(),
             // @TODO - Check if comments contain "/*" or "*/" already and fallback to "//" ?
             MultilineComment mc => mc.Text.Prepend("/*").Append("*/"),
+            IPreprocessedEntry => throw new InvalidOperationException($"An {nameof(IPreprocessedEntry)} made it to assembly emitting, this should've been caught during optimization."),
             _ => Enumerable.Repeat(entry switch
             {
                 ArrayLetOp a => $".let {a.VariableName} = [{string.Join(", ", a.Elements.Select(e => GetStringFromEntry(e, method, annotations).Single()))}]",
