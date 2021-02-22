@@ -25,6 +25,10 @@ namespace VCSFramework
             throw new NotImplementedException();
         }
 
+        // Does literally nothing but appease the compiler.
+        [IgnoreCall]
+        public static unsafe ref T PointerToRef<T>(T* pointer) where T : unmanaged => throw new NotImplementedException();
+
         /// <summary>
         /// Instructs the assembler to repeat the code between here and the corresponding <see cref="EndRepeat"/> call <paramref name="count"/> times.
         /// </summary>

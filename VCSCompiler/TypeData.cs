@@ -33,6 +33,12 @@ namespace VCSCompiler
 
         public static TypeData Of(TypeReference type, AssemblyDefinition userAssembly)
         {
+            // Something like a 'ref readonly byte' will come back as a RequiredModifierType that looks
+            // like 'System.Byte& modreq(InAttribute)'. TypeReference::IsByRef returns false, you have to
+            // dig down into ElementType to get the actual TypeReference for Byte&.
+            if (type is RequiredModifierType rmt)
+                return Of(rmt.ElementType, userAssembly);
+
             if (type.IsPointer || type.IsPinned || type.IsByReference)
             {
                 // IsPinned catches e.g. System.Byte&

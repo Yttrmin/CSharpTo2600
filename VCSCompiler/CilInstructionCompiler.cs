@@ -116,8 +116,8 @@ namespace VCSCompiler
 				else if (index == 0)
                 {
 					// Push 'this' pointer.
-					// @TODO - This won't support instance methods on those stored in ROM.
-					yield return new PushGlobal(instruction, new ThisPointerGlobalLabel(MethodDefinition), new PointerTypeLabel(MethodDefinition.DeclaringType), new ThisPointerSizeLabel(MethodDefinition));
+					var thisGlobal = new ThisPointerGlobalLabel(MethodDefinition);
+					yield return new PushGlobal(instruction, thisGlobal, new PointerTypeLabel(MethodDefinition.DeclaringType), new PointerGlobalSizeLabel(thisGlobal));
                 }
 				else
 				{
@@ -127,7 +127,7 @@ namespace VCSCompiler
 				IAssemblyEntry PushArgument(int index)
                 {
 					var argument = MethodDefinition.Parameters[index];
-					return new PushGlobal(instruction, new ArgumentGlobalLabel(MethodDefinition, index), TypeLabel(argument.ParameterType), SizeLabel(argument.ParameterType));
+					return new PushGlobal(instruction, new ArgumentGlobalLabel(MethodDefinition, index), TypeLabel(argument.ParameterType), SizeLabel(argument));
 				}
 			}
 		}
@@ -325,17 +325,18 @@ namespace VCSCompiler
 				// Pop callee args into appropriate globals.
 				foreach (var parameter in method.Parameters.Reverse())
                 {
-					yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(method, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType), new(0), new(0));
+					yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(method, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter), new(0), new(0));
                 }
 				if (!method.IsStatic)
                 {
-					yield return new PopToGlobal(NopInst, new ThisPointerGlobalLabel(method), new PointerTypeLabel(method.DeclaringType), new ThisPointerSizeLabel(method), new(0), new(0));
+					var thisGlobal = new ThisPointerGlobalLabel(method);
+					yield return new PopToGlobal(NopInst, thisGlobal, new PointerTypeLabel(method.DeclaringType), new PointerGlobalSizeLabel(thisGlobal), new(0), new(0));
                 }
 				if (isRecursiveCall)
                 {
 					// Need to save our locals/args if we're going to be making a recursive call.
 					foreach (var parameter in MethodDefinition.Parameters)
-						yield return new PushGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType));
+						yield return new PushGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter));
 					foreach (var local in MethodDefinition.Body.Variables)
 						yield return new PushGlobal(NopInst, new LocalGlobalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType));
                 }
@@ -357,16 +358,21 @@ namespace VCSCompiler
 					foreach (var local in MethodDefinition.Body.Variables.Reverse())
 						yield return new PopToGlobal(NopInst, new LocalGlobalLabel(MethodDefinition, local.Index), TypeLabel(local.VariableType), SizeLabel(local.VariableType), new(0), new(0));
 					foreach (var parameter in MethodDefinition.Parameters.Reverse())
-						yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter.ParameterType), new(0), new(0));
+						yield return new PopToGlobal(NopInst, new ArgumentGlobalLabel(MethodDefinition, parameter.Index), TypeLabel(parameter.ParameterType), SizeLabel(parameter), new(0), new(0));
 				}
 				if (method.ReturnType.Name != typeof(void).Name)
-					yield return new PushGlobal(NopInst, new ReturnValueGlobalLabel(method), TypeLabel(method.ReturnType), SizeLabel(method.ReturnType));
+					yield return new PushGlobal(NopInst, new ReturnValueGlobalLabel(method), TypeLabel(method.ReturnType), SizeLabel(method.MethodReturnType));
 			}
         }
 
 		private IEnumerable<IAssemblyEntry> Ceq(Instruction instruction)
         {
 			yield return new CompareEqualToFromStack(instruction, new(1), new(1), new(0), new(0));
+        }
+
+		private IEnumerable<IAssemblyEntry> Clt(Instruction instruction)
+        {
+			yield return new CompareLessThanFromStack(instruction, new(0), new(0), new(1), new(1));
         }
 
 		private IEnumerable<IAssemblyEntry> Conv_I(Instruction instruction)
@@ -492,7 +498,7 @@ namespace VCSCompiler
         {
 			if (MethodDefinition.ReturnType.FullName != typeof(void).FullName)
             {
-				yield return new PopToGlobal(NopInst, new ReturnValueGlobalLabel(MethodDefinition), TypeLabel(MethodDefinition.ReturnType), SizeLabel(MethodDefinition.ReturnType), new(0), new(0));
+				yield return new PopToGlobal(NopInst, new ReturnValueGlobalLabel(MethodDefinition), TypeLabel(MethodDefinition.ReturnType), SizeLabel(MethodDefinition.MethodReturnType), new(0), new(0));
             }
 			yield return new ReturnFromMethod(instruction);
         }
@@ -551,7 +557,31 @@ namespace VCSCompiler
         {
 			if (type.IsPointer || type.IsPinned || type.IsByReference)
 				return new PointerTypeLabel(type.Resolve());
+			else if (type is RequiredModifierType rmt)
+				return TypeLabel(rmt.ElementType);
 			return new TypeLabel(type);
+		}
+
+		private static ISizeLabel SizeLabel(ParameterDefinition parameter)
+		{
+			// @TODO - Check if actually pointer.
+			if (parameter.TryGetFrameworkAttribute<LongPointerAttribute>(out var _))
+				return new PointerSizeLabel(false);
+			else if (parameter.TryGetFrameworkAttribute<ShortPointerAttribute>(out var _))
+				return new PointerSizeLabel(true);
+			else
+				return SizeLabel(parameter.ParameterType);
+		}
+
+		private static ISizeLabel SizeLabel(MethodReturnType returnType)
+		{
+			// @TODO - Check if actually pointer.
+			if (returnType.TryGetFrameworkAttribute<LongPointerAttribute>(out var _))
+				return new PointerSizeLabel(false);
+			else if (returnType.TryGetFrameworkAttribute<ShortPointerAttribute>(out var _))
+				return new PointerSizeLabel(true);
+			else
+				return SizeLabel(returnType.ReturnType);
 		}
 
 		private static ISizeLabel SizeLabel(TypeReference type)
@@ -563,6 +593,8 @@ namespace VCSCompiler
 				// to ROM or expanded RAM (for other cartridges).
 				return new PointerSizeLabel(true);
 			}
+			else if (type is RequiredModifierType rmt)
+				return SizeLabel(rmt.ElementType);
 			return new TypeSizeLabel(type);
 		}
 
@@ -573,7 +605,12 @@ namespace VCSCompiler
 			=> TypeLabel(GetFieldData(field).FieldType);
 
 		private ISizeLabel FieldSize(FieldReference field)
-			=> SizeLabel(GetFieldData(field).FieldType);
+        {
+			var type = field.FieldType;
+			if (type.IsPointer || type.IsPinned || type.IsByReference)
+				return new PointerGlobalSizeLabel(new GlobalFieldLabel(field));
+			return SizeLabel(GetFieldData(field).FieldType);
+        }
 
 		private Constant FieldOffset(FieldReference field)
 			=> new Constant(GetFieldData(field).Offset);

@@ -62,6 +62,8 @@ namespace VCSFramework
     public sealed record GlobalFieldLabel(FieldRef Field) : IGlobalLabel;
     public sealed record InstructionLabel(Inst Instruction) : IBranchTargetLabel;
     public sealed record LocalGlobalLabel(MethodDef Method, int Index) : IGlobalLabel;
+    /// <summary>Label for the size of a specific pointer global.</summary>
+    public sealed record PointerGlobalSizeLabel(IGlobalLabel Global) : ISizeLabel;
     public sealed record PointerSizeLabel(bool ZeroPage) : ISizeLabel;
     public sealed record PointerTypeLabel(TypeRef ReferentType) : ITypeLabel;
     /// <summary>A global whose label is defined elsewhere (e.g. COLUBK in a header).</summary>
@@ -71,7 +73,6 @@ namespace VCSFramework
     /// <summary>Label to a readonly global located in ROM. May be a single value or the first element of multiple values.</summary>
     public sealed record RomDataGlobalLabel(MethodDef GeneratorMethod) : IGlobalLabel;
     public sealed record ThisPointerGlobalLabel(MethodDef Method) : IGlobalLabel;
-    public sealed record ThisPointerSizeLabel(MethodDef Method) : ISizeLabel;
     public sealed record TypeSizeLabel(TypeRef Type) : ISizeLabel;
     public sealed record TypeLabel(TypeRef Type) : ITypeLabel;
     #endregion

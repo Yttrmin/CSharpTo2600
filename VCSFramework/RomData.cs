@@ -23,14 +23,15 @@ namespace VCSFramework
             get => throw new NotImplementedException();
         }
 
-        private unsafe T* Pointer
+        public unsafe T* Pointer
         {
             [ReplaceWithEntry(typeof(RomDataGetPointerCall))]
             get => throw new NotImplementedException();
         }
 
-        private byte Stride
+        public byte Stride
         {
+            [ReplaceWithEntry(typeof(RomDataStrideCall))]
             get => throw new NotImplementedException();
         }
 

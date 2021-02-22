@@ -139,6 +139,7 @@ namespace VCSCompiler
                         GlobalFieldLabel g => $"GLOBAL_{g.Field.DeclaringType.NamespaceAndName()}_{g.Field.Field.Name}",
                         InstructionLabel i => $"IL_{i.Instruction.Instruction.Offset:X4}",
                         LocalGlobalLabel l => $"LOCAL_{l.Method.DeclaringType.NamespaceAndName()}_{l.Method.SafeName()}_{l.Index}",
+                        PointerGlobalSizeLabel pg => $"PTR_GLOBAL_SIZE_{GetStringFromEntry(pg.Global, method, annotations).Single()}",
                         PointerSizeLabel ps => ps.ZeroPage ? "SIZE_SHORT_POINTER" : "SIZE_LONG_POINTER",
                         PointerTypeLabel p => $"TYPE_{p.ReferentType.NamespaceAndName()}_PTR",
                         PredefinedGlobalLabel pg => pg.Name,
@@ -146,7 +147,6 @@ namespace VCSCompiler
                         ReturnValueGlobalLabel rv => $"RETVAL_{rv.Method.DeclaringType.NamespaceAndName()}_{rv.Method.SafeName()}",
                         RomDataGlobalLabel rdgl => $"ROMDATA_{rdgl.GeneratorMethod.DeclaringType.NamespaceAndName()}_{rdgl.GeneratorMethod.SafeName()}",
                         ThisPointerGlobalLabel t => $"THIS_PTR_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.SafeName()}",
-                        ThisPointerSizeLabel t => $"THIS_SIZE_{t.Method.DeclaringType.NamespaceAndName()}_{t.Method.SafeName()}",
                         TypeLabel t => $"TYPE_{t.Type.NamespaceAndName()}",
                         TypeSizeLabel ts => $"SIZE_{ts.Type.NamespaceAndName()}",
                         _ => throw new ArgumentException($"Label {label} does not map to a string.")
@@ -187,10 +187,12 @@ namespace VCSCompiler
             yield return $".{macroCall.Name} {string.Join(", ", macroCall.Parameters.Select(e => GetStringFromEntry(e, method, annotations).Single()))}";
             if (macroCall is StackMutatingMacroCall stackMutatingMacroCall)
             {
-                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.TypeOp, method, annotations))
-                    yield return str;
-                foreach (var str in GetStringFromEntry(stackMutatingMacroCall.StackOperation.SizeOp, method, annotations))
-                    yield return str;
+                var typeFirst = !stackMutatingMacroCall.MacroCall.GetType().GetCustomAttributes(false).Any(a => a.GetType().FullName == typeof(SizeFirstAttribute).FullName);
+                var typeAssignment = GetStringFromEntry(stackMutatingMacroCall.StackOperation.TypeOp, method, annotations);
+                var sizeAssignment = GetStringFromEntry(stackMutatingMacroCall.StackOperation.SizeOp, method, annotations);
+                var assignments = typeFirst ? typeAssignment.Concat(sizeAssignment) : sizeAssignment.Concat(typeAssignment);
+                foreach (var assignment in assignments)
+                    yield return assignment;
             }
 
             static ImmutableArray<string> ReadSource(

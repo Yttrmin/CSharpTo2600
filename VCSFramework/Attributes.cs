@@ -3,24 +3,6 @@ using System;
 
 namespace VCSFramework
 {
-    public enum PointerLength
-    {
-        Invalid,
-        Short,
-        Long
-    }
-
-    [AttributeUsage(AttributeTargets.ReturnValue, AllowMultiple = false)]
-    public sealed class PointerLengthAttribute : Attribute
-    {
-        public PointerLength Length { get; }
-
-        public PointerLengthAttribute(PointerLength length)
-        {
-            Length = length;
-        }
-    }
-
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class TemplatedProgramAttribute : Attribute
     {
@@ -118,6 +100,26 @@ namespace VCSFramework
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class AlwaysUseShortThisPointerAttribute : Attribute
+    {
+
+    }
+
+    /// <summary>
+    /// For variables: Tells the compiler this variable will only ever hold short pointers.
+    /// For return values: Tells the compiler that the pointer returned will always be short.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.ReturnValue, AllowMultiple = false)]
+    public sealed class ShortPointerAttribute : Attribute
+    {
+
+    }
+
+    /// <summary>
+    /// For variables: Tells the compiler this variable may hold short or long pointers.
+    /// For return values: Tells the compiler that the pointer returned will always be long.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.ReturnValue | AttributeTargets.Property, AllowMultiple = false)]
+    public sealed class LongPointerAttribute : Attribute
     {
 
     }

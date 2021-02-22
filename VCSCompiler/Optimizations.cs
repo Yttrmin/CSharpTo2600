@@ -4,6 +4,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using VCSFramework;
+using static VCSCompiler.RomDataUtilities;
 
 namespace VCSCompiler
 {
@@ -46,9 +47,39 @@ namespace VCSCompiler
                 (PushAddressOfGlobal(_, GlobalFieldLabel global, _ ,_),
                 (RomDataLengthCall(var romDataInstruction), var trueNext)) =>
                     new(new PushConstant(romDataInstruction, 
-                        new Constant(Convert.ToByte(Enumerable.Count(userPair.Assembly.InvokeRomDataGenerator(GetGeneratorMethod((FieldDefinition)global.Field))))), new TypeLabel(BuiltInDefinitions.Byte), new TypeSizeLabel(BuiltInDefinitions.Byte)), trueNext),
+                        new Constant(LengthOf(userPair.Assembly, (FieldDefinition)global.Field)), new TypeLabel(BuiltInDefinitions.Byte), new TypeSizeLabel(BuiltInDefinitions.Byte)), trueNext),
                 _ => next
             },
+            (userPair, next) => next switch
+            {
+                (PushAddressOfGlobal(_, GlobalFieldLabel global, _ ,_),
+                (RomDataStrideCall(var romDataInstruction), var trueNext)) =>
+                    new(new PushConstant(romDataInstruction,
+                        new Constant(StrideOf(userPair.Definition, (FieldDefinition)global.Field)), new TypeLabel(BuiltInDefinitions.Byte), new TypeSizeLabel(BuiltInDefinitions.Byte)), trueNext),
+                _ => next
+            },
+            (userPair, next) => next switch
+            {
+                (PushAddressOfGlobal(var pushInst, GlobalFieldLabel global, var pointerType,_),
+                (RomDataGetPointerCall(var romDataInst), var trueNext)) =>
+                    new(new PushAddressOfRomDataElementFromConstant(
+                        ArrayOf(pushInst, romDataInst),
+                        new RomDataGlobalLabel(GetGeneratorMethod((FieldDefinition)global.Field)),
+                        GetRomDataArgType(global.Field),
+                        GetRomDataArgSize(global.Field),
+                        new Constant(0)), trueNext),
+                _ => next
+            },
+            /*(userPair, next) => next switch
+            {
+                (PushAddressOfGlobal(_, GlobalFieldLabel global, _, _), 
+                (_, 
+                (PushFi, 
+                (RomDataGetByByteOffsetCall(var inst), var trueNext)))) =>
+                    new(
+                        new PushAddressOfRomDataElementFromStack(ArrayOf(inst), LabelOf((FieldDefinition)global.Field), GetRomDataArgType(global.Field), GetRomDataArgSize(global.Field)), trueNext),
+                _ => next
+            },*/
 #region RomData<T>_getItem optimizations
             (_, next) => next switch
             {
@@ -162,7 +193,7 @@ namespace VCSCompiler
             {
                 var methodName = attribute.MethodName;
                 var expectedArg = ((GenericInstanceType)field.FieldType).GenericArguments.Single();
-                var matchingMethods = field.DeclaringType.Methods
+                var matchingMethods = field.DeclaringType.Methods.Concat(field.DeclaringType.DeclaringType?.Methods ?? Enumerable.Empty<MethodDefinition>())
                     .Where(m => m.IsStatic)
                     .Where(m => m.Name == methodName)
                     .Where(m => !m.Parameters.Any())

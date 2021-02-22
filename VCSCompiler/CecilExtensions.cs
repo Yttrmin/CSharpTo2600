@@ -59,6 +59,16 @@ namespace VCSCompiler
 			=> @this.Fields.Where(field => field.IsStatic);
 
 		public static bool TryGetFrameworkAttribute<T>(
+			this ParameterDefinition @this,
+			[NotNullWhen(true)] out T? result) where T : Attribute
+		=> TryGetFrameworkAttribute(@this.CustomAttributes, out result);
+
+		public static bool TryGetFrameworkAttribute<T>(
+			this MethodReturnType @this,
+			[NotNullWhen(true)] out T? result) where T : Attribute
+		=> TryGetFrameworkAttribute(@this.CustomAttributes, out result);
+
+		public static bool TryGetFrameworkAttribute<T>(
 			this MethodDefinition @this,
 			[NotNullWhen(true)] out T? result) where T : Attribute
 		=> TryGetFrameworkAttribute(@this.CustomAttributes, out result);

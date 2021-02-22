@@ -173,6 +173,7 @@ namespace VCSCompiler
                 Console.SetOut(writer);
                 Console.SetError(writer);
 
+                // @TODO - Sometimes the assembler can get into an infinite error loop and never return. We should have a timeout.
                 Core6502DotNet.Core6502DotNet.Main(assemblerArgs);
 
                 Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
@@ -290,19 +291,40 @@ namespace VCSCompiler
         {
             // Determines size of 'this' pointers for methods. Calling an instance method on an object in RAM vs ROM requires different sizes.
             var allRomData = functions.SelectMany(GetAllMacroParameters).OfType<RomDataGlobalLabel>().Distinct().ToImmutableArray();
-            var thisPointers = functions.SelectMany(GetAllMacroParameters).OfType<ThisPointerSizeLabel>()
+            var pointerGlobalSizes = functions.SelectMany(GetAllMacroParameters).OfType<PointerGlobalSizeLabel>()
             .Select(l =>
             {
-                var methodDef = l.Method.Method;
-                if ((!methodDef.CustomAttributes.Any(a => a.AttributeType.Name == nameof(IsReadOnlyAttribute))
-                    && !methodDef.DeclaringType.CustomAttributes.Any(a => a.AttributeType.Name == nameof(IsReadOnlyAttribute)))
-                    || methodDef.TryGetFrameworkAttribute<AlwaysUseShortThisPointerAttribute>(out var _))
-                    return new LabelAssign(l, new PointerSizeLabel(true));
+                switch (l.Global)
+                {
+                    case ThisPointerGlobalLabel thisPtrLabel:
+                        // 'this' pointer size is short, unless the type is used in a RomData<> and an instance method on a ROM instance is invoked.
+                        // 1. Non-`readonly` methods are ALWAYS short pointers. RomData<> returns a ref readonly, so the compiler makes defensive copies for such calls.
+                        // Note however that methods of `readonly` types are NOT explicitly `readonly` (even if they implicitly are). So we can't just check the method and nothing else.
+                        // 2. If the method is attributed with `AlwaysUseShortThisPointerAttribute`, it uses a short pointer.
+                        // 3. Else if the type is used in a RomData<>, use a long pointer just to be safe.
+                        // 4. Else use a short pointer.
+                        var methodDef = thisPtrLabel.Method.Method;
+                        // @TODO - Probably need to recursively travel up hierarchy?
+                        if ((!methodDef.CustomAttributes.Any(a => a.AttributeType.Name == nameof(IsReadOnlyAttribute))
+                            && !methodDef.DeclaringType.CustomAttributes.Any(a => a.AttributeType.Name == nameof(IsReadOnlyAttribute)))
+                            || methodDef.TryGetFrameworkAttribute<AlwaysUseShortThisPointerAttribute>(out var _))
+                            return new LabelAssign(l, new PointerSizeLabel(true));
 
-                if (allRomData.Any(romDataLabel
-                    => new TypeRef(((GenericInstanceType)romDataLabel.GeneratorMethod.Method.ReturnType).GenericArguments.Single()) == new TypeRef(methodDef.DeclaringType)))
-                    return new LabelAssign(l, new PointerSizeLabel(false));
-                return new LabelAssign(l, new PointerSizeLabel(true));
+                        if (allRomData.Any(romDataLabel
+                            => new TypeRef(((GenericInstanceType)romDataLabel.GeneratorMethod.Method.ReturnType).GenericArguments.Single()) == new TypeRef(methodDef.DeclaringType)))
+                            return new LabelAssign(l, new PointerSizeLabel(false));
+                        return new LabelAssign(l, new PointerSizeLabel(true));
+                    case GlobalFieldLabel:
+                        // Check attribute
+                    case LocalGlobalLabel:
+                        // A lot trickier because locals can't have attributes.
+                    case ArgumentGlobalLabel:
+                        // Check attribute
+                    case ReturnValueGlobalLabel:
+                        // Check attribute
+                    default:
+                        throw new NotImplementedException();
+                }
             }).Distinct().ToImmutableArray();
 
             // @TODO - Aliases
@@ -320,20 +342,27 @@ namespace VCSCompiler
                     var label = new LabelAssign(l, new Constant(new FormattedByte(startAddress, ByteFormat.Hex)));
                     start += l switch
                     {
-                        ArgumentGlobalLabel (var m, var i) => i == 0 && !m.IsStatic ? GetThisPtrSize(m) : GetSize(m.Method.Parameters[i].ParameterType),
+                        ArgumentGlobalLabel (var m, var i) => i == 0 && !m.IsStatic ? GetThisPtrSize(m) : GetArgSize(m.Method.Parameters[i]),
                         GlobalFieldLabel g => GetSize(g.Field.Field.FieldType),
                         LocalGlobalLabel lg => GetSize(lg.Method.Body.Variables[lg.Index].VariableType),
-                        ReturnValueGlobalLabel rv => GetSize(rv.Method.Method.ReturnType),
+                        ReturnValueGlobalLabel rv => GetReturnSize(rv.Method),
                         ThisPointerGlobalLabel t => GetThisPtrSize(t.Method),
                         _ => throw new NotImplementedException()
                     };
                     return label;
 
+                    // @TODO - Dom't use attributes if type isn't actually a pointer.
+                    int GetArgSize(ParameterDefinition parameter) => parameter.TryGetFrameworkAttribute<LongPointerAttribute>(out var _) ? 2
+                        : parameter.TryGetFrameworkAttribute<ShortPointerAttribute>(out var _) ? 1 : GetSize(parameter.ParameterType);
+
+                    int GetReturnSize(MethodDefinition method) => method.MethodReturnType.TryGetFrameworkAttribute<LongPointerAttribute>(out var _) ? 2
+                        : method.MethodReturnType.TryGetFrameworkAttribute<ShortPointerAttribute>(out var _) ? 1 : GetSize(method.ReturnType);
+
                     int GetSize(TypeReference type)
                         => TypeData.Of(type, userPair.Definition).Size;
 
                     int GetThisPtrSize(MethodDef method)
-                        => ((PointerSizeLabel)thisPointers.Single(l => ((ThisPointerSizeLabel)l.Label) == new ThisPointerSizeLabel(method)).Value) 
+                        => ((PointerSizeLabel)pointerGlobalSizes.Single(l => ((PointerGlobalSizeLabel)l.Label).Global as ThisPointerGlobalLabel == new ThisPointerGlobalLabel(method)).Value) 
                             == new PointerSizeLabel(true) ? 1 : 2;
                 });
 
@@ -344,14 +373,21 @@ namespace VCSCompiler
             // @TODO - Check if we overflowed into stack.
 
             var typeId = 100;
-            var allReferencedTypes = functions.SelectMany(GetAllMacroParameters).OfType<TypeLabel>().Select(l => l.Type)
-                .Concat(functions.SelectMany(GetAllMacroParameters).OfType<PointerTypeLabel>().Select(l => l.ReferentType))
+            var allReferencedTypes = functions.SelectMany(GetAllMacroParameters).OfType<ITypeLabel>()
+                .Select(l => l switch
+                {
+                    TypeLabel tl => tl.Type,
+                    PointerTypeLabel ptl => ptl.ReferentType,
+                    _ => throw new NotImplementedException($"Don't know how to get {nameof(TypeRef)} from {l.GetType().Name}")
+                })
                 .Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte)
                 .Distinct()
                 .ToImmutableArray();
             var allPairedTypes = allReferencedTypes.Select(t => (new LabelAssign(new TypeLabel(t), new Constant((byte)typeId++)), new LabelAssign(new PointerTypeLabel(t), new Constant((byte)typeId++))));
 
-            var allTypeSizes = allReferencedTypes.Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userPair.Definition).Size)));
+            var allTypeSizes = functions.SelectMany(GetAllMacroParameters).OfType<TypeSizeLabel>()
+                .Select(l => l.Type).Prepend(BuiltInDefinitions.Nothing).Prepend(BuiltInDefinitions.Bool).Prepend(BuiltInDefinitions.Byte).Distinct()
+                .Select(t => new LabelAssign(new TypeSizeLabel(t), new Constant((byte)TypeData.Of(t, userPair.Definition).Size)));
 
             var allLabelAssignments = new List<LabelAssign>();
 
@@ -382,7 +418,7 @@ namespace VCSCompiler
             }
             allLabelAssignments.AddRange(allTypeSizes);
             allLabelAssignments.AddRange(new LabelAssign[] { new(new PointerSizeLabel(true), new Constant(1)), new(new PointerSizeLabel(false), new Constant(2)) });
-            allLabelAssignments.AddRange(thisPointers);
+            allLabelAssignments.AddRange(pointerGlobalSizes);
             return allLabelAssignments.ToImmutableArray();
         }
 

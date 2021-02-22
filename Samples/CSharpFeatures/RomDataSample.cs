@@ -15,16 +15,20 @@ namespace Samples.CSharpFeatures
 
         private static byte ByteDataIndex = 0;
 
-        public static void Main()
+        public unsafe static void Main()
         {
             while (true)
             {
-                while (ByteDataIndex < UserByteRomData.Length)
+                foreach (var q in ByteRomData)
+                {
+                    ColuBk = 0x0E;
+                }
+                /*while (ByteDataIndex < UserByteRomData.Length)
                 {
                     ColuBk = UserByteRomData[ByteDataIndex].Value;
                     ByteDataIndex++;
                 }
-                ByteDataIndex = 0;
+                ByteDataIndex = 0;*/
             }
         }
 
@@ -67,6 +71,48 @@ namespace Samples.CSharpFeatures
                     B = (byte)i
                 };
             }
+        }
+
+        public static RomData_GenerateByteData_Small_Iterator GetEnumerator(this RomData<byte> @this) => new RomData_GenerateByteData_Small_Iterator();
+
+        // If we're iterating over a chunk of ROM data <= 256 bytes in size, we can simply store the byte offset from the base of the data.
+        // This would use Absolute,X addressing, which incurs a 1 cycle penalty when crossing a page boundary. If ROM space is available, it would
+        // be best to make sure the data is all in the same page.
+        public struct RomData_GenerateByteData_Small_Iterator
+        {
+            [RomDataGenerator(nameof(GenerateByteData))]
+            private static RomData<byte> Data;
+            private byte ByteIndex;
+
+            public bool MoveNext()
+            {
+                ByteIndex += Data.Stride;
+                return ByteIndex < Data.Length;
+            }
+
+            public unsafe ref readonly byte Current
+            {
+                [return: LongPointer]
+                get => ref AssemblyUtilities.PointerToRef<byte>((byte*)Data.Pointer + ByteIndex);
+            }
+        }
+
+        // If we're iterating over a chunk of ROM data >256 bytes in size, we need to store the full pointer.
+        // This would use Indirect,Y addressing (always with a 0 offset), with incurs a 1 cycle penalty when crossing a page boundary.
+        // If ROM space is available, it would be best to make sure the data is aligned to the start of a page.
+        public unsafe struct RomData_GenerateByteData_Large_Iterator
+        {
+            [RomDataGenerator(nameof(GenerateByteData))]
+            private RomData<byte> Data;
+            private byte* DataPtr;
+
+            public bool MoveNext()
+            {
+                DataPtr++;
+                return DataPtr < ((byte*)Data.Pointer + (Data.Stride * Data.Length));
+            }
+
+            public ref byte Current => ref *DataPtr;
         }
     }
 }

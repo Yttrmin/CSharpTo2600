@@ -20,4 +20,9 @@ namespace VCSFramework
     {
         public int Count { get; init; }
     }
+
+    public sealed class SizeFirstAttribute : MacroEffectAttribute
+    {
+
+    }
 }
