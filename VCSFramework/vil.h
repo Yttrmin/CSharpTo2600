@@ -531,6 +531,19 @@ convertToByte .macro
 	// @TODO
 .endmacro
 
+// @GENERATE @RESERVED=1 @POP=1 @PUSH=stackType;stackSize
+negateFromStack .macro stackType, stackSize
+	.errorIf \stackSize != 1, "Currently operand must be 1 byte in size for negateFromStack"
+	PLA
+	STA INTERNAL_RESERVED_0
+	LDA #$FF
+	SEC
+	SBC INTERNAL_RESERVED_0
+	CLC
+	ADC #1
+	PHA
+.endmacro
+
 // @GENERATE @RESERVED=1 @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0],size[0])
 orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for orFromStack"

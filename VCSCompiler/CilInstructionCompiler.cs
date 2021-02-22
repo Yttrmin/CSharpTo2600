@@ -479,6 +479,11 @@ namespace VCSCompiler
 			yield return new LoadString(instruction);
         }
 
+		private IEnumerable<IAssemblyEntry> Neg(Instruction instruction)
+        {
+			yield return new NegateFromStack(instruction, new StackTypeArrayAccess(0), new StackSizeArrayAccess(0));
+        }
+
 		private IEnumerable<IAssemblyEntry> Nop(Instruction instruction)
         {
 			yield break;

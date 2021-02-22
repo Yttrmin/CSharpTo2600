@@ -19,16 +19,10 @@ namespace Samples.CSharpFeatures
         {
             while (true)
             {
-                foreach (var q in ByteRomData)
+                foreach (var value in ByteRomData)
                 {
-                    ColuBk = 0x0E;
+                    ColuBk = value;
                 }
-                /*while (ByteDataIndex < UserByteRomData.Length)
-                {
-                    ColuBk = UserByteRomData[ByteDataIndex].Value;
-                    ByteDataIndex++;
-                }
-                ByteDataIndex = 0;*/
             }
         }
 
@@ -48,7 +42,7 @@ namespace Samples.CSharpFeatures
 
         private static IEnumerable<byte> GenerateByteData()
         {
-            for (var i = 0; i <= byte.MaxValue; i += 2)
+            for (var i = 0; i <= 4; i += 2)
             {
                 yield return (byte)i;
             }
@@ -73,7 +67,7 @@ namespace Samples.CSharpFeatures
             }
         }
 
-        public static RomData_GenerateByteData_Small_Iterator GetEnumerator(this RomData<byte> @this) => new RomData_GenerateByteData_Small_Iterator();
+        public static RomData_GenerateByteData_Small_Iterator GetEnumerator(this RomData<byte> @this) => RomData_GenerateByteData_Small_Iterator.New();
 
         // If we're iterating over a chunk of ROM data <= 256 bytes in size, we can simply store the byte offset from the base of the data.
         // This would use Absolute,X addressing, which incurs a 1 cycle penalty when crossing a page boundary. If ROM space is available, it would
@@ -94,6 +88,14 @@ namespace Samples.CSharpFeatures
             {
                 [return: LongPointer]
                 get => ref AssemblyUtilities.PointerToRef<byte>((byte*)Data.Pointer + ByteIndex);
+            }
+
+            public static RomData_GenerateByteData_Small_Iterator New()
+            {
+                return new RomData_GenerateByteData_Small_Iterator
+                {
+                    ByteIndex = (byte)-Data.Stride
+                };
             }
         }
 
