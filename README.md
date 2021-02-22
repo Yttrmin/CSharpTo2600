@@ -113,13 +113,15 @@ An incomplete list of supported features in no particular order. Instructions ma
     * :x: Multiplication
   * :o: Bitwise
     * :o: Or (`or`) (Operands must be same type and 8-bit)
+    * :o: Negate (`neg`) (Operand must be 8-bit)
   * :o: Branching
     * :heavy_check_mark: Branch if true (`brtrue`, `brtrue.s`)
     * :heavy_check_mark: Branch if false (`brfalse`, `brfalse.s`)
     * :heavy_check_mark: Unconditional branch (`br`, `br.s`)
     * :heavy_check_mark: Branch if less than (`blt`, `blt.s`)
   * :o: Comparison
-    * :o: Equal (`ceq`) (8-bit only)
+    * :o: Equal (`ceq`) (Operands must be same type and 8-bit)
+    * :o: Less than (`clt`) (Operands must be same type and 8-bit)
     * :x: Greater than (`cgt.un`)
   * :o: Load
     * :heavy_check_mark: Argument (`ldarg`, `ldarg.s`, `ldarg.0`, `ldarg.1`, `ldarg.2`, `ldarg.3`)
@@ -140,6 +142,7 @@ An incomplete list of supported features in no particular order. Instructions ma
     * :heavy_check_mark: Field (instance) (`stfld`)
     * :o: Indirect (`stind.u1`)
     * :heavy_check_mark: Local (`stloc`, `stloc.s`, `stloc.0`, `stloc.1`, `stloc.2`, `stloc.3`)
+    * :x: Object (`stobj`)
   * :o: Miscellaneous
     * :heavy_check_mark: Call Method (`call`)
     * :o: Convert (`conv.i`, `conv.u`, `conv.u1`) (treated as NOPs, no extension to `int32`)
