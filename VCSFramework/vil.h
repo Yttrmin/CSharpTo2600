@@ -72,7 +72,7 @@ pushAddressOfField .macro offsetConstant, pointerType, pointerStackSize
 	PHA
 .endmacro
 
-// @GENERATE @COMPOSITE @PUSH=getPointerFromType(referentType);longPtr
+// @GENERATE @COMPOSITE @PUSH=getPointerFromType(referentType);size[longPtr]
 pushAddressOfRomDataElementFromConstant .macro romDataGlobal, referentType, referentTypeSize, indexConstant
 	.let address = \romDataGlobal + (\referentTypeSize * \indexConstant)
 	.let lsb = address & $FF
@@ -83,7 +83,7 @@ pushAddressOfRomDataElementFromConstant .macro romDataGlobal, referentType, refe
 	PHA
 .endmacro
 
-// @GENERATE @COMPOSITE @POP=1 @PUSH=getPointerFromType(referentType);longPtr
+// @GENERATE @COMPOSITE @POP=1 @PUSH=getPointerFromType(referentType);size[longPtr]
 pushAddressOfRomDataElementFromStack .macro romDataGlobal, referentType, referentTypeSize
 	.if \referentTypeSize == 1
 		.let address = \romDataGlobal
@@ -288,6 +288,8 @@ copyGlobalToGlobal .macro fromGlobal, fromSize, toGlobal, toSize
 getAddResultType .function firstOperandTypeExpression, secondOperandTypeExpression
 	.if firstOperandTypeExpression == TYPE_System_Byte && secondOperandTypeExpression == TYPE_System_Byte
 		.return TYPE_System_Byte
+	.elseif isPointer(firstOperandTypeExpression) == true && secondOperandTypeExpression == TYPE_System_Byte
+		.return firstOperandTypeExpression
 	.else
 		.error "Unsupported add types"
 	.endif
@@ -337,18 +339,28 @@ isShortInteger .function type
 
 // @GENERATE
 // Could be either a label or a stack type array access. No discriminated unions, so just drop it to IExpression.
-getSizeFromBuiltInType .function typeExpression
+getSizeFromBuiltInType .function typeExpression, sizeExpression
 	// @TODO - When we accidentally fed a SIZE_foo value of size 1 here, the result was a bool for some reason. Some sort of assembler issue.
 	.if typeExpression == TYPE_System_Byte
 		.return SIZE_System_Byte
 	.elseif typeExpression == TYPE_System_Boolean
 		.return SIZE_System_Boolean
+	.elseif isPointer(typeExpression) == true
+		.return sizeExpression
 	.else
 		.error "Unknown builtin type"
 	.endif 
 .endfunction
 
-// @GENERATE @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0]) @POP=2
+// @GENERATE
+max .function aExpression, bExpression
+	.if aExpression > bExpression
+		.return aExpression
+	.else
+		.return bExpression
+.endfunction
+
+// @GENERATE @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(getAddResultType(firstOperandStackType,secondOperandStackType),max(size[0],size[1])) @POP=2
 // Primitive
 addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
@@ -363,12 +375,28 @@ addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandS
 		CLC
 		ADC INTERNAL_RESERVED_0
 		PHA
+	.elseif \firstOperandStackSize == 2 && \secondOperandStackSize == 1
+		// Pop 1-byte 2nd operand.
+		PLA
+		STA INTERNAL_RESERVED_0
+		// Pop lsb of 2-byte 1st operand and add 2nd operand, store result.
+		PLA
+		CLC
+		ADC INTERNAL_RESERVED_0
+		STA INTERNAL_RESERVED_0
+		// Pop msb of 2-byte 1st operand and add with carry, push result
+		PLA
+		ADC #0
+		PHA
+		// Push lsb of result (little endian).
+		LDA INTERNAL_RESERVED_0
+		PHA
 	.else
 		.error "Invalid addFromStack param sizes"
 	.endif
 .endmacro
 
-// @GENERATE @COMPOSITE @PUSH=getAddResultType(globalType,constantType);getSizeFromBuiltInType(type[0])
+// @GENERATE @COMPOSITE @PUSH=getAddResultType(globalType,constantType);getSizeFromBuiltInType(type[0],size[0])
 // .pushGlobal + .pushConstant + .addFromStack
 // OR
 // .pushConstant + .pushGlobal + .addFromStack
@@ -430,7 +458,7 @@ addFromAddressesToAddress .macro addressA, sizeA, addressB, sizeB, targetAddress
 	.endif
 .endmacro
 
-// @GENERATE @RESERVED=1 @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0])
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0],size[0])
 // Primitive
 subFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.invoke getAddResultType(\firstOperandStackType, \secondOperandStackType) // @TODO - Does this apply to add+sub?
@@ -502,7 +530,7 @@ convertToByte .macro
 	// @TODO
 .endmacro
 
-// @GENERATE @RESERVED=1 @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0])
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=getBitOpResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(type[0],size[0])
 orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for orFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for orFromStack"
@@ -513,7 +541,7 @@ orFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandSt
 	PHA
 .endmacro
 
-// @GENERATE @RESERVED=1 @POP=2 @PUSH=bool;bool
+// @GENERATE @RESERVED=1 @POP=2 @PUSH=type[bool];size[bool]
 compareEqualToFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for compareEqualToFromStack"
 	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for compareEqualToFromStack"
@@ -550,6 +578,24 @@ _false
 _true
 	LDA #1
 
+_end
+	PHA
+.endmacro
+
+// @GENERATE @RESERVED=1
+compareLessThanFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
+	.errorIf \firstOperandStackType != \secondOperandStackType, "Currently types must be the same for compareLessThanFromStack"
+	.errorIf \firstOperandStackSize != 1, "Currently operands must be 1 byte in size for compareLessThanFromStack"
+	PLA
+	STA INTERNAL_RESERVED_0
+	PLA
+	CMP INTERNAL_RESERVED_0
+
+	BCC _true
+	LDA #0
+	BEQ _end
+_true
+	LDA #1
 _end
 	PHA
 .endmacro

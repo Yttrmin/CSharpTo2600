@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using Microsoft.CodeAnalysis;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -36,7 +37,7 @@ namespace VILMacroGenerator
 
         public class PushParam
         {
-            private readonly object Value;
+            public readonly object Value;
             public string CSharpCode => Value switch
             {
                 Function function => $"new {function.Name.Capitalize()}({string.Join(", ", function.Parameters.Select(p => p.CSharpCode))})",
@@ -80,32 +81,59 @@ namespace VILMacroGenerator
             if (pushStr != null)
             {
                 var values = pushStr.Substring(6).Split(';');
-                header.TypeParam = ParseParam(values[0], true);
-                header.SizeParam = ParseParam(values[1], false);
+                header.TypeParam = ParseParam(values[0]);
+                header.SizeParam = ParseParam(values[1]);
 
-                static PushParam ParseParam(string text, bool? isType)
+                static PushParam ParseParam(string text)
                 {
-                    if (text.EndsWith(")"))
+                    if (text.Contains('(') && text.Contains(')'))
                     {
                         // @PUSH=someTypeFunc();someSizeFunc(foo)
-                        // This probably doesn't support nested calls.
-                        var funcName = text.Substring(0, text.IndexOf("("));
-                        var paramsString = text.Substring(text.IndexOf("(") + 1);
-                        paramsString = paramsString.Substring(0, paramsString.Length - 1);
-                        var funcParams = paramsString.Split(',').Select(s => ParseParam(s, null)).ToArray();
+                        var funcName = text.Slice(-1, text.IndexOf('('));
+                        var paramsString = text.Slice(text.IndexOf('('), text.LastIndexOf(')'));
+                        
+                        // Pair up parentheses, in order to deal with nested function calls.
+                        var openingParenthesesStack = new Stack<int>();
+                        var parenthesesPairs = new List<(int Open, int Close)>();
+                        for (var i = 0; i < paramsString.Length; i++)
+                        {
+                            if (paramsString[i] == '(')
+                                openingParenthesesStack.Push(i);
+                            else if (paramsString[i] == ')')
+                                parenthesesPairs.Add((openingParenthesesStack.Pop(), i));
+                        }
+                        if (openingParenthesesStack.Count != 0)
+                            throw new InvalidOperationException($"Parentheses mismatch in parameter string: {paramsString}");
+
+                        // Find all split points: commas that don't belong to nested functions, and first/last chars of the whole string.
+                        var commaSeparators = paramsString.Select((c, i) => (c, i))
+                            .Where(t => t.c == ',' && !parenthesesPairs.Any(p => p.Open < t.i && t.i < p.Close))
+                            .Select(t => t.i)
+                            .Prepend(-1).Append(paramsString.Length);
+
+                        // Parse each param.
+                        var funcParams = commaSeparators.Zip(commaSeparators.Skip(1), (a, b) => (a, b))
+                            .Select(t => paramsString.Slice(t.a, t.b))
+                            .Select(ParseParam).ToArray();
                         return new PushParam(new Function(funcName, funcParams));
                     }
                     else if (text.StartsWith("type["))
-                        return new PushParam(new StackAccess(true, Convert.ToInt32(text[text.Length - 2].ToString())));
+                        return TypeSizeLabelLookup(true, text.Slice(text.IndexOf('['), text.IndexOf(']')));
                     else if (text.StartsWith("size["))
-                        return new PushParam(new StackAccess(false, Convert.ToInt32(text[text.Length - 2].ToString())));
-                    else if (text.EndsWith("]"))
-                        throw new InvalidOperationException($"Failed to parse param '{text}'. Stack array access must be in the form of 'type[n]' or 'size[n]'.");
-                    else if (isType != null && TryGetBuiltInLabel(text, (bool)isType, out var typeLabel))
-                        return new PushParam(typeLabel);
+                        return TypeSizeLabelLookup(false, text.Slice(text.IndexOf('['), text.IndexOf(']')));
                     else
                         // @PUSH=type;size
                         return new PushParam(text.Capitalize());
+
+                    static PushParam TypeSizeLabelLookup(bool isType, string contents)
+                    {
+                        if (int.TryParse(contents, out var index))
+                            return new PushParam(new StackAccess(isType, index));
+                        else if (TryGetBuiltInLabel(contents, isType, out var label))
+                            return new PushParam(label);
+                        else
+                            throw new ArgumentException($"Type/Size lookup should be a stack index or built-in type, instead got: {contents}");
+                    }
                 }
             }
 

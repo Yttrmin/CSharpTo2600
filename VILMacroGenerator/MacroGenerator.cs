@@ -287,13 +287,4 @@ namespace HelloWorldGenerated
             context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("TT0000", "AAA", "BBB", "TEST", DiagnosticSeverity.Warning, true), null));
         }
     }
-
-    static class Extensions
-    {
-        public static string Capitalize(this string @this)
-            => $"{@this.First().ToString().ToUpper()}{@this.Substring(1)}";
-
-        public static string DelimitIfAny(this string @this, string delimiter = ", ")
-            => @this.Any() ? delimiter : string.Empty;
-    }
 }
