@@ -149,6 +149,8 @@ namespace VCSFramework
             annotationsBuilder.AppendLine($"\t[PushStack(Count = {(header.TypeParam != null ? 1 : 0)})]");
             annotationsBuilder.AppendLine($"\t[PopStack(Count = {header.PopCount})]");
             annotationsBuilder.AppendLine($"\t[ReservedBytes(Count = {header.ReservedBytes})]");
+            if (!header.TypeFirst)
+                annotationsBuilder.AppendLine($"\t[SizeFirst]");
             if (header.DeprecatedString == "")
                 annotationsBuilder.AppendLine("\t[Obsolete]");
             else if (header.DeprecatedString != null)

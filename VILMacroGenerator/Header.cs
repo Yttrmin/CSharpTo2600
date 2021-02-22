@@ -65,6 +65,7 @@ namespace VILMacroGenerator
         public int ReservedBytes { get; private set; }
         public InstructionParamType InstructionParam { get; private set; } = InstructionParamType.Single;
         public string? DeprecatedString { get; private set; }
+        public bool TypeFirst { get; private set; } = true;
 
         public static Header? Parse(string generateLine, GeneratorExecutionContext context)
         {
@@ -148,6 +149,8 @@ namespace VILMacroGenerator
             else if (parts.Any(p => p.Equals("@MULTIINSTPARAM", StringComparison.CurrentCultureIgnoreCase))
                 || parts.Any(p => p.Equals("@COMPOSITE", StringComparison.CurrentCultureIgnoreCase)))
                 header.InstructionParam = InstructionParamType.Multiple;
+            else if (parts.Any(p => p.Equals("@SIZEFIRST")))
+                header.TypeFirst = false;
 
             var reserveString = parts.SingleOrDefault(p => p.StartsWith("@RESERVED=", StringComparison.CurrentCultureIgnoreCase));
             header.ReservedBytes = reserveString != null ? Convert.ToInt32(reserveString.Last().ToString()) : 0;

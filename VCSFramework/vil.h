@@ -358,9 +358,10 @@ max .function aExpression, bExpression
 		.return aExpression
 	.else
 		.return bExpression
+	.endif
 .endfunction
 
-// @GENERATE @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(getAddResultType(firstOperandStackType,secondOperandStackType),max(size[0],size[1])) @POP=2
+// @GENERATE @SIZEFIRST @RESERVED=1 @PUSH=getAddResultType(firstOperandStackType,secondOperandStackType);getSizeFromBuiltInType(getAddResultType(firstOperandStackType,secondOperandStackType),max(size[0],size[1])) @POP=2
 // Primitive
 addFromStack .macro firstOperandStackType, firstOperandStackSize, secondOperandStackType, secondOperandStackSize
 	// @TODO Need to know if this is signed/unsigned addition (pass in arrays?)
